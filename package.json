@@ -1,0 +1,21 @@
+{
+  "name": "threejstur",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@dimforge/rapier3d-compat": "^0.14.0",
+    "vite": "^5.4.0"
+  },
+  "dependencies": {
+    "three": "^0.167.1"
+  }
+}
