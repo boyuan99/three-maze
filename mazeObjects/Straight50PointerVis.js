@@ -60,11 +60,15 @@ async function init() {
     const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
     const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
     const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-    sphere.position.set(0, 5, 0); // Position it higher to observe falling
+    sphere.position.set(0, 1, 0); // Position it higher to observe falling
     scene.add(sphere);
 
     // Physics for the sphere
-    const sphereBody = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(0, 5, 0));
+    const sphereBodyDesc = RAPIER.RigidBodyDesc.dynamic()
+        .setTranslation(0, 1, 0)
+        .setLinearDamping(0.9)  // Higher value for quicker reduction of linear velocity
+        .setAngularDamping(0.9); // Higher value to reduce rotation/inertia
+    const sphereBody = world.createRigidBody(sphereBodyDesc);
     const sphereCollider = world.createCollider(RAPIER.ColliderDesc.ball(1).setRestitution(0).setFriction(1), sphereBody);
 
     // Animation loop
@@ -74,7 +78,7 @@ async function init() {
         rapierDebugRenderer.update();
 
         const moveForce = new THREE.Vector3(0, 0, 0);
-        const speed = 0.5;
+        const speed = 50;
         const isMoving = keyboard.keyMap['KeyW'] || keyboard.keyMap['KeyA'] || keyboard.keyMap['KeyS'] || keyboard.keyMap['KeyD'];
 
         if (isMoving) {
@@ -96,6 +100,11 @@ async function init() {
             moveForce.applyEuler(euler);
         }
 
+        // Set linear velocity to zero (stops movement)
+        sphereBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
+
+        // Set angular velocity to zero (stops spinning)
+        sphereBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
         sphereBody.applyImpulse(moveForce, true);
 
         // Update physics world
