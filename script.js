@@ -1,10 +1,10 @@
 import './style.css';
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
-import { UI } from './ui';
-import { FollowCam } from './followCam';
-import { KeyboardController } from './keyboardController';
-import { RapierDebugRenderer } from "./RapierDebugRenderer";
+import { UI } from './utils/UI';
+import { FollowCam } from './utils/FollowCam';
+import { KeyboardController } from './utils/KeyboardController';
+import { RapierDebugRenderer } from "./utils/RapierDebugRenderer";
 
 async function init() {
     const scene = new THREE.Scene();

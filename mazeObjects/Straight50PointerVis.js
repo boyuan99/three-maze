@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import '../style.css';
 import { createTexturedHallway } from './HallwayModule.js';
-import { UI } from '../ui';
-import { FollowCam } from '../followCam';
-import { KeyboardController } from '../keyboardController';
-import { RapierDebugRenderer } from "../RapierDebugRenderer";
+import { UI } from '../utils/UI';
+import { FollowCam } from '../utils/FollowCam';
+import { KeyboardController } from '../utils/KeyboardController';
+import { RapierDebugRenderer } from "../utils/RapierDebugRenderer";
 import RAPIER from '@dimforge/rapier3d-compat';
 
 async function init() {
@@ -86,14 +86,6 @@ async function init() {
             if (keyboard.keyMap['KeyS']) moveForce.z += speed;
             if (keyboard.keyMap['KeyA']) moveForce.x -= speed;
             if (keyboard.keyMap['KeyD']) moveForce.x += speed;
-
-            if (!keyboard.isJumping && keyboard.keyMap['Space']) {
-                keyboard.isJumping = true;
-                moveForce.y += 10;
-                setTimeout(() => {
-                    keyboard.isJumping = false;
-                }, 500); // Prevents multiple jumps
-            }
 
             // Apply camera's yaw rotation to the moveForce
             const euler = new THREE.Euler(0, followCam.yaw.rotation.y, 0);
