@@ -55,7 +55,9 @@ async function init() {
     const ballBodyDesc = RAPIER.RigidBodyDesc.dynamic()
         .setTranslation(0, 1, 0)
         .setLinearDamping(0.9)
-        .setAngularDamping(0.9);
+        .setAngularDamping(0.9)
+        .setAdditionalMass(0.0001);
+
     const ballBody = world.createRigidBody(ballBodyDesc);
     const ballCollider = world.createCollider(RAPIER.ColliderDesc.ball(ballRadius).setRestitution(0).setFriction(1), ballBody);
 
@@ -66,20 +68,29 @@ async function init() {
         rapierDebugRenderer.update();
 
         const moveForce = new THREE.Vector3(0, 0, 0);
-        const speed = 10;
+        const maxSpeed = 50;
+        const rawSpeed = 20;
         const isMoving = keyboard.keyMap['KeyW'] || keyboard.keyMap['KeyA'] || keyboard.keyMap['KeyS'] || keyboard.keyMap['KeyD'];
 
         if (isMoving) {
-            if (keyboard.keyMap['KeyW']) moveForce.z -= speed;
-            if (keyboard.keyMap['KeyS']) moveForce.z += speed;
-            if (keyboard.keyMap['KeyA']) moveForce.x -= speed;
-            if (keyboard.keyMap['KeyD']) moveForce.x += speed;
+            if (keyboard.keyMap['KeyW']) moveForce.z -= rawSpeed;
+            if (keyboard.keyMap['KeyS']) moveForce.z += rawSpeed;
+            if (keyboard.keyMap['KeyA']) moveForce.x -= rawSpeed;
+            if (keyboard.keyMap['KeyD']) moveForce.x += rawSpeed;
 
             // Apply camera's yaw rotation to the moveForce
             moveForce.applyEuler(new THREE.Euler(0, fixedCam.yaw.rotation.y, 0));
 
             // Apply force to the ball
             ballBody.applyImpulse(moveForce, true);
+        }
+
+        // Limit the ball's velocity
+        const velocity = ballBody.linvel();
+        const speed = Math.sqrt(velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2);
+        if (speed > maxSpeed) {
+            const scaleFactor = maxSpeed / speed;
+            ballBody.setLinvel({ x: velocity.x * scaleFactor, y: velocity.y * scaleFactor, z: velocity.z * scaleFactor });
         }
 
         // Update physics world
