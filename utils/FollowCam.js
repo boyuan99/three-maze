@@ -32,7 +32,6 @@ export class FollowCam {
     }
 
     onDocumentMouseMove = (event) => {
-        console.log("Mouse move event triggered");
         this.yaw.rotation.y -= event.movementX * 0.002;
         const v = this.pitch.rotation.x - event.movementY * 0.002;
         if (v > -Math.PI / 2 && v < Math.PI / 2) {
@@ -41,7 +40,6 @@ export class FollowCam {
     };
 
     onDocumentMouseWheel = (e) => {
-        console.log("Mouse wheel moved");
         e.preventDefault();
         const v = this.camera.position.z + e.deltaY * 0.005;
 

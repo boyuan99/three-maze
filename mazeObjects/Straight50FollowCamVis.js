@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import '../style.css';
 import { createTexturedHallway } from './HallwayModule.js';
 import { UI } from '../utils/UI';
-import { FixedCam } from '../utils/FixedCam';
+import { FollowCam } from '../utils/FollowCam';
 import { KeyboardController } from '../utils/KeyboardController';
 import { RapierDebugRenderer } from "../utils/RapierDebugRenderer";
 import RAPIER from '@dimforge/rapier3d-compat';
@@ -10,7 +10,8 @@ import RAPIER from '@dimforge/rapier3d-compat';
 async function init() {
     // Scene setup
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 0.01, 1000);
+    camera.position.set(0, 5, 10);
     const renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
@@ -24,7 +25,7 @@ async function init() {
 
     // Initialize UI and controllers
     const ui = new UI(renderer);
-    const fixedCam = new FixedCam(scene, camera, renderer);
+    const followCam = new FollowCam(scene, camera, renderer);
     const keyboard = new KeyboardController(renderer);
 
     // Initialize Rapier Physics World
@@ -40,24 +41,35 @@ async function init() {
 
     // Adding physics to the hallway
     hallway.children.forEach(child => {
+        // Ensure the geometry's bounding box is computed
         child.geometry.computeBoundingBox();
+
         const bbox = child.geometry.boundingBox;
         const width = bbox.max.x - bbox.min.x;
         const height = bbox.max.y - bbox.min.y;
         const depth = bbox.max.z - bbox.min.z;
+
         const { x: px, y: py, z: pz } = child.position;
+
+        // Create rigid bodies for each segment of the hallway
         const body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(px, py, pz));
         const collider = world.createCollider(RAPIER.ColliderDesc.cuboid(width / 2, height / 2, depth / 2).setRestitution(0).setFriction(1), body);
     });
 
-    // Physics for the ball (player)
-    const ballRadius = 1;
-    const ballBodyDesc = RAPIER.RigidBodyDesc.dynamic()
+    // Sphere setup (as before)
+    const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
+    const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    sphere.position.set(0, 1, 0); // Position it higher to observe falling
+    scene.add(sphere);
+
+    // Physics for the sphere
+    const sphereBodyDesc = RAPIER.RigidBodyDesc.dynamic()
         .setTranslation(0, 1, 0)
-        .setLinearDamping(0.9)
-        .setAngularDamping(0.9);
-    const ballBody = world.createRigidBody(ballBodyDesc);
-    const ballCollider = world.createCollider(RAPIER.ColliderDesc.ball(ballRadius).setRestitution(0).setFriction(1), ballBody);
+        .setLinearDamping(0.9)  // Higher value for quicker reduction of linear velocity
+        .setAngularDamping(0.9); // Higher value to reduce rotation/inertia
+    const sphereBody = world.createRigidBody(sphereBodyDesc);
+    const sphereCollider = world.createCollider(RAPIER.ColliderDesc.ball(1).setRestitution(0).setFriction(1), sphereBody);
 
     // Animation loop
     function animate() {
@@ -66,7 +78,7 @@ async function init() {
         rapierDebugRenderer.update();
 
         const moveForce = new THREE.Vector3(0, 0, 0);
-        const speed = 10;
+        const speed = 50;
         const isMoving = keyboard.keyMap['KeyW'] || keyboard.keyMap['KeyA'] || keyboard.keyMap['KeyS'] || keyboard.keyMap['KeyD'];
 
         if (isMoving) {
@@ -76,20 +88,25 @@ async function init() {
             if (keyboard.keyMap['KeyD']) moveForce.x += speed;
 
             // Apply camera's yaw rotation to the moveForce
-            moveForce.applyEuler(new THREE.Euler(0, fixedCam.yaw.rotation.y, 0));
-
-            // Apply force to the ball
-            ballBody.applyImpulse(moveForce, true);
+            const euler = new THREE.Euler(0, followCam.yaw.rotation.y, 0);
+            moveForce.applyEuler(euler);
         }
+
+        // Set linear velocity to zero (stops movement)
+        sphereBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
+
+        // Set angular velocity to zero (stops spinning)
+        sphereBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
+        sphereBody.applyImpulse(moveForce, true);
 
         // Update physics world
         world.step();
 
-        // Get ball position
-        const ballPosition = ballBody.translation();
+        // Sync Three.js object positions with Rapier physics bodies
+        const spherePosition = sphereBody.translation();
+        sphere.position.set(spherePosition.x, spherePosition.y, spherePosition.z);
 
-        // Update camera position to follow the ball
-        fixedCam.update({ position: new THREE.Vector3(ballPosition.x, ballPosition.y + ballRadius, ballPosition.z) });
+        followCam.update(sphere);
 
         renderer.render(scene, camera);
     }
@@ -99,6 +116,7 @@ async function init() {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.render(scene, camera);
     }
 
     animate();
