@@ -1,6 +1,7 @@
 export class UI {
     constructor(renderer) {
         this.renderer = renderer;
+        this.blocker = document.getElementById('blocker');
         this.instructions = document.getElementById('instructions');
         const startButton = document.getElementById('startButton');
 
@@ -10,9 +11,9 @@ export class UI {
 
         document.addEventListener('pointerlockchange', () => {
             if (document.pointerLockElement === this.renderer.domElement) {
-                this.instructions.style.display = 'none';
+                this.blocker.style.display = 'none';
             } else {
-                this.instructions.style.display = 'block';
+                this.blocker.style.display = 'block';
             }
         });
     }
