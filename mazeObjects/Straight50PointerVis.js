@@ -7,7 +7,7 @@ import { KeyboardController } from '../utils/KeyboardController';
 import { RapierDebugRenderer } from "../utils/RapierDebugRenderer";
 import RAPIER from '@dimforge/rapier3d-compat';
 
-async function init() {
+async function init(vel, wakeUp) {
     // Scene setup
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -62,7 +62,7 @@ async function init() {
     const ballCollider = world.createCollider(RAPIER.ColliderDesc.ball(ballRadius).setRestitution(0).setFriction(1), ballBody);
 
     // Animation loop
-    function animate() {
+    function animate(vel, wakeUp) {
         requestAnimationFrame(animate);
 
         rapierDebugRenderer.update();
@@ -83,6 +83,10 @@ async function init() {
 
             // Apply force to the ball
             ballBody.applyImpulse(moveForce, true);
+        } else {
+            // If no keys are pressed, immediately stop the ball
+            ballBody.setLinvel({x: 0, y: 0, z: 0}, wakeUp);
+            ballBody.setAngvel({x: 0, y: 0, z: 0}, wakeUp);
         }
 
         // Limit the ball's velocity
@@ -90,7 +94,11 @@ async function init() {
         const speed = Math.sqrt(velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2);
         if (speed > maxSpeed) {
             const scaleFactor = maxSpeed / speed;
-            ballBody.setLinvel({ x: velocity.x * scaleFactor, y: velocity.y * scaleFactor, z: velocity.z * scaleFactor });
+            ballBody.setLinvel({
+                x: velocity.x * scaleFactor,
+                y: velocity.y * scaleFactor,
+                z: velocity.z * scaleFactor
+            }, wakeUp);
         }
 
         // Update physics world
@@ -115,4 +123,6 @@ async function init() {
     animate();
 }
 
-init();
+init().then(() => {
+    console.log('Initialization complete');
+});
