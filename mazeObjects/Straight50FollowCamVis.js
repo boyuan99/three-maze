@@ -7,8 +7,7 @@ import { KeyboardController } from '../utils/KeyboardController';
 import { RapierDebugRenderer } from "../utils/RapierDebugRenderer";
 import RAPIER from '@dimforge/rapier3d-compat';
 
-async function init() {
-    // Scene setup
+async function init(vel, wakeUp){    // Scene setup
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 0.01, 1000);
     camera.position.set(0, 5, 10);
@@ -57,56 +56,68 @@ async function init() {
     });
 
     // Sphere setup (as before)
-    const sphereGeometry = new THREE.SphereGeometry(1, 32, 32);
-    const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-    sphere.position.set(0, 1, 0); // Position it higher to observe falling
-    scene.add(sphere);
+    const ballGeometry = new THREE.SphereGeometry(1, 32, 32);
+    const ballMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const ball = new THREE.Mesh(ballGeometry, ballMaterial);
+    ball.position.set(0, 1, 0); // Position it higher to observe falling
+    scene.add(ball);
 
-    // Physics for the sphere
-    const sphereBodyDesc = RAPIER.RigidBodyDesc.dynamic()
+    // Physics for the ball
+    const ballBodyDesc = RAPIER.RigidBodyDesc.dynamic()
         .setTranslation(0, 1, 0)
         .setLinearDamping(0.9)  // Higher value for quicker reduction of linear velocity
         .setAngularDamping(0.9); // Higher value to reduce rotation/inertia
-    const sphereBody = world.createRigidBody(sphereBodyDesc);
-    const sphereCollider = world.createCollider(RAPIER.ColliderDesc.ball(1).setRestitution(0).setFriction(1), sphereBody);
+    const ballBody = world.createRigidBody(ballBodyDesc);
+    const ballCollider = world.createCollider(RAPIER.ColliderDesc.ball(1).setRestitution(0).setFriction(1), ballBody);
 
     // Animation loop
-    function animate() {
+    function animate(vel, wakeUp) {
         requestAnimationFrame(animate);
 
         rapierDebugRenderer.update();
 
         const moveForce = new THREE.Vector3(0, 0, 0);
-        const speed = 50;
+        const maxSpeed = 50;
+        const rawSpeed = 20;
         const isMoving = keyboard.keyMap['KeyW'] || keyboard.keyMap['KeyA'] || keyboard.keyMap['KeyS'] || keyboard.keyMap['KeyD'];
 
         if (isMoving) {
-            if (keyboard.keyMap['KeyW']) moveForce.z -= speed;
-            if (keyboard.keyMap['KeyS']) moveForce.z += speed;
-            if (keyboard.keyMap['KeyA']) moveForce.x -= speed;
-            if (keyboard.keyMap['KeyD']) moveForce.x += speed;
+            if (keyboard.keyMap['KeyW']) moveForce.z -= rawSpeed;
+            if (keyboard.keyMap['KeyS']) moveForce.z += rawSpeed;
+            if (keyboard.keyMap['KeyA']) moveForce.x -= rawSpeed;
+            if (keyboard.keyMap['KeyD']) moveForce.x += rawSpeed;
 
             // Apply camera's yaw rotation to the moveForce
-            const euler = new THREE.Euler(0, followCam.yaw.rotation.y, 0);
-            moveForce.applyEuler(euler);
+            moveForce.applyEuler(new THREE.Euler(0, followCam.yaw.rotation.y, 0));
+
+            // Apply force to the ball
+            ballBody.applyImpulse(moveForce, true);
+        } else {
+            // If no keys are pressed, immediately stop the ball
+            ballBody.setLinvel({x: 0, y: 0, z: 0}, wakeUp);
+            ballBody.setAngvel({x: 0, y: 0, z: 0}, wakeUp);
         }
 
-        // Set linear velocity to zero (stops movement)
-        sphereBody.setLinvel({ x: 0, y: 0, z: 0 }, true);
-
-        // Set angular velocity to zero (stops spinning)
-        sphereBody.setAngvel({ x: 0, y: 0, z: 0 }, true);
-        sphereBody.applyImpulse(moveForce, true);
+        // Limit the ball's velocity
+        const velocity = ballBody.linvel();
+        const speed = Math.sqrt(velocity.x ** 2 + velocity.y ** 2 + velocity.z ** 2);
+        if (speed > maxSpeed) {
+            const scaleFactor = maxSpeed / speed;
+            ballBody.setLinvel({
+                x: velocity.x * scaleFactor,
+                y: velocity.y * scaleFactor,
+                z: velocity.z * scaleFactor
+            }, wakeUp);
+        }
 
         // Update physics world
         world.step();
 
         // Sync Three.js object positions with Rapier physics bodies
-        const spherePosition = sphereBody.translation();
-        sphere.position.set(spherePosition.x, spherePosition.y, spherePosition.z);
+        const ballPosition = ballBody.translation();
+        ball.position.set(ballPosition.x, ballPosition.y, ballPosition.z);
 
-        followCam.update(sphere);
+        followCam.update(ball);
 
         renderer.render(scene, camera);
     }
@@ -122,4 +133,6 @@ async function init() {
     animate();
 }
 
-init();
+init().then(() => {
+    console.log('Initialization complete');
+});
