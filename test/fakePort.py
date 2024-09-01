@@ -3,8 +3,14 @@ from flask_socketio import SocketIO
 import random
 import time
 import threading
+import os
 
-app = Flask(__name__)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+
+app = Flask(__name__,
+            static_folder=current_dir,  # Serve static files from the current directory
+            static_url_path='')
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app)
 
@@ -25,6 +31,10 @@ def generate_sensor_data():
 @app.route('/')
 def index():
     return render_template('test_pyport.html')
+
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
 
 @app.route('/data')
 def get_data():
