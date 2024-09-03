@@ -4,6 +4,7 @@ import random
 import time
 import threading
 import os
+import math
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -15,18 +16,53 @@ app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app)
 
 # Global variables
-latest_data = {"x": 0, "z": 0}
+latest_data = {
+    "x": 0,
+    "y": 0,
+    "vx": 0,
+    "vy": 0,
+    "angle": 0,
+    "angular_velocity": 0
+}
 is_generating = False
 generation_thread = None
 
 def generate_sensor_data():
     global latest_data, is_generating
+
+    # Constants for data generation
+    max_acceleration = 2.0  # m/s^2
+    max_angular_acceleration = 1.0  # rad/s^2
+    dt = 0.05  # 20 times per second
+
     while is_generating:
-        x = random.uniform(-1, 1)
-        z = random.uniform(-1, 1)
-        latest_data = {"x": x, "z": z}
+        # Update velocities
+        ax = random.uniform(-max_acceleration, max_acceleration)
+        ay = random.uniform(-max_acceleration, max_acceleration)
+        latest_data["vx"] += ax * dt
+        latest_data["vy"] += ay * dt
+
+        # Update position
+        latest_data["x"] += latest_data["vx"] * dt
+        latest_data["y"] += latest_data["vy"] * dt
+
+        # Update angular velocity
+        angular_acceleration = random.uniform(-max_angular_acceleration, max_angular_acceleration)
+        latest_data["angular_velocity"] += angular_acceleration * dt
+
+        # Update angle
+        latest_data["angle"] += latest_data["angular_velocity"] * dt
+        latest_data["angle"] %= (2 * math.pi)  # Keep angle between 0 and 2π
+
+        # Limit values to reasonable ranges
+        latest_data["vx"] = max(min(latest_data["vx"], 10), -10)
+        latest_data["vy"] = max(min(latest_data["vy"], 10), -10)
+        latest_data["x"] = max(min(latest_data["x"], 100), -100)
+        latest_data["y"] = max(min(latest_data["y"], 100), -100)
+        latest_data["angular_velocity"] = max(min(latest_data["angular_velocity"], 2*math.pi), -2*math.pi)
+
         socketio.emit('sensor_data', latest_data)
-        time.sleep(0.05)  # 20 times per second
+        time.sleep(dt)
 
 @app.route('/')
 def index():
@@ -61,4 +97,6 @@ def test_disconnect():
     print('Client disconnected')
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, port=8765)
+    port = 8765
+    print(f"Running on \033[94mhttp://127.0.0.1:{port}\033[0m")
+    socketio.run(app, debug=True, port=port)
