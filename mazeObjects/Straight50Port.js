@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import '../style.css';
 import { createTexturedHallway } from './HallwayModule.js';
 import { RapierDebugRenderer } from "../utils/RapierDebugRenderer";
 import RAPIER from '@dimforge/rapier3d-compat';
+import { io } from 'socket.io-client';
 
 async function init() {
     // Scene setup
@@ -53,21 +53,36 @@ async function init() {
     const playerBody = world.createRigidBody(playerBodyDesc);
     const playerCollider = world.createCollider(RAPIER.ColliderDesc.ball(playerRadius).setRestitution(0).setFriction(1), playerBody);
 
-    // Socket.IO connection
+    // Socket.IO setup
     const socket = io('http://localhost:8765');
-
     let latestSensorData = null;
 
-    socket.on('sensor_data', function(data) {
+    socket.on('connect', () => {
+        console.log('Connected to SocketIO server');
+    });
+
+    socket.on('sensor_data', (data) => {
         latestSensorData = data;
     });
+
+    // Helper to show player's facing direction
+    const directionHelper = new THREE.Object3D();
+    const arrowHelper = new THREE.ArrowHelper(
+        new THREE.Vector3(0, 0, -1),
+        new THREE.Vector3(0, 0, 0),
+        2,
+        0x00ff00
+    );
+    directionHelper.add(arrowHelper);
+    scene.add(directionHelper);
 
     function updatePlayerMovement() {
         if (latestSensorData) {
             const { x, y, vx, vy, angle, angular_velocity } = latestSensorData;
 
-            const moveForce = new THREE.Vector3(vx, 0, vy);
-            moveForce.multiplyScalar(1000); // Increased force magnitude
+            // Convert the 2D motion to 3D
+            const moveForce = new THREE.Vector3(vx, 0, -vy); // Note: we use -vy for z-axis
+            moveForce.multiplyScalar(20); // Scale the force
 
             playerBody.applyImpulse(moveForce, true);
             playerBody.setAngvel({ x: 0, y: angular_velocity, z: 0 }, true);
@@ -78,7 +93,10 @@ async function init() {
 
     function updateCameraPositionAndOrientation(angle) {
         const playerPosition = playerBody.translation();
-        camera.position.set(playerPosition.x, playerPosition.y, playerPosition.z);
+        // Position the camera at the player's position, slightly raised
+        camera.position.set(playerPosition.x, playerPosition.y + playerRadius * 0.8, playerPosition.z);
+
+        // Set the camera's rotation based on the player's angle
         camera.rotation.y = -angle;
     }
 
@@ -91,11 +109,15 @@ async function init() {
         world.step();
 
         const playerPosition = playerBody.translation();
-        console.log('Player position:', playerPosition);
+
+        // Update direction helper
+        directionHelper.position.copy(camera.position);
+        directionHelper.rotation.y = camera.rotation.y;
 
         renderer.render(scene, camera);
     }
 
+    // Window resize handler
     window.addEventListener("resize", onWindowResize, false);
     function onWindowResize() {
         camera.aspect = window.innerWidth / window.innerHeight;

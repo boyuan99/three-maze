@@ -1,5 +1,6 @@
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO
+from flask_cors import CORS
 import random
 import time
 import threading
@@ -13,7 +14,12 @@ app = Flask(__name__,
             static_folder=current_dir,  # Serve static files from the current directory
             static_url_path='')
 app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app)
+
+# Enable CORS for all routes
+CORS(app)
+
+# Initialize SocketIO with CORS allowed
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Global variables
 latest_data = {
@@ -99,4 +105,4 @@ def test_disconnect():
 if __name__ == '__main__':
     port = 8765
     print(f"Running on \033[94mhttp://127.0.0.1:{port}\033[0m")
-    socketio.run(app, debug=True, port=port)
+    socketio.run(app, debug=True, port=port, allow_unsafe_werkzeug=True)
