@@ -6,11 +6,12 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 main: resolve(__dirname, 'index.html'),
-                development: resolve(__dirname, 'development.html')
+                port: resolve(__dirname, 'port.html'),
+                orbit: resolve(__dirname, 'orbit.html')
             }
         }
     },
     server: {
-        open: '/index.html'
+        open: false
     }
 })
