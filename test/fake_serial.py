@@ -1,12 +1,7 @@
-import os
-import pty
 import json
 import random
 import time
 import math
-import threading
-import fcntl
-import termios
 
 def generate_sensor_data():
     data = {
@@ -51,42 +46,16 @@ def generate_sensor_data():
 
         yield data
 
-def writer(master):
-    for sensor_data in generate_sensor_data():
-        json_data = json.dumps(sensor_data).encode('utf-8') + b'\n'
-        os.write(master, json_data)
-        print(f"Wrote data: {json_data.decode().strip()}")
-        time.sleep(0.05)
-
-def reader(slave):
-    while True:
-        data = os.read(slave, 1024).decode('utf-8')
-        if data:
-            print(f"Received: {data.strip()}")
+def writer():
+    with open('sensor_data.json', 'w') as f:
+        for sensor_data in generate_sensor_data():
+            json_data = json.dumps(sensor_data)
+            f.seek(0)
+            f.write(json_data)
+            f.truncate()
+            print(f"Wrote data: {json_data}")
+            time.sleep(0.05)
 
 if __name__ == "__main__":
-    master, slave = pty.openpty()
-    print(f"Virtual serial port created.")
-
-    # Get the device names without using os.ttyname
-    for fd in range(255):
-        try:
-            if os.isatty(fd):
-                attr = termios.tcgetattr(fd)
-                if fd == master:
-                    print(f"Master FD: {fd}")
-                elif fd == slave:
-                    print(f"Slave FD: {fd}")
-        except:
-            pass
-
-    print("To use this virtual port in another script, use the Slave FD number.")
-    print("For example, if Slave FD is 5, you would open '/dev/ttys005' in your other script.")
-
-    # Start the writer in a separate thread
-    writer_thread = threading.Thread(target=writer, args=(master,))
-    writer_thread.daemon = True
-    writer_thread.start()
-
-    # Use the reader in the main thread
-    reader(slave)
+    print("Starting to write sensor data to sensor_data.json")
+    writer()
