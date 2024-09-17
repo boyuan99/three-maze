@@ -3,3 +3,5 @@ Flask-SocketIO==5.3.6
 Flask-Cors==5.0.0
 gevent-websocket==0.10.1
 websockets==11.0.3
+numpy==2.1.1
+pyserial==3.5
