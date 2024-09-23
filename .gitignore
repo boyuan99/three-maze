@@ -2,3 +2,4 @@
 /.idea/
 .DS_Store
 test/sensor_data.json
+/dist/
