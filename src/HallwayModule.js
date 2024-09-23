@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import wallTextureUrl from './assets/Chess_Pattern.jpg';
 
 export function createTexturedHallway() {
     const group = new THREE.Group();
@@ -12,13 +13,13 @@ export function createTexturedHallway() {
 
     // Load the picture texture for the floor and walls
     const textureLoader = new THREE.TextureLoader();
-    const pictureTexture = textureLoader.load('patterns/Chess_Pattern.jpg');
+    const pictureTexture = textureLoader.load(wallTextureUrl);
     pictureTexture.wrapS = THREE.RepeatWrapping;
     pictureTexture.wrapT = THREE.RepeatWrapping;
     pictureTexture.repeat.set(hallwayWidth / 100, hallwayLength / 100);
 
     // Clone the texture for side walls and adjust its repeat property
-    const wallTexture = textureLoader.load('patterns/Chess_Pattern.jpg');
+    const wallTexture = textureLoader.load(wallTextureUrl);
     wallTexture.wrapS = THREE.RepeatWrapping;
     wallTexture.wrapT = THREE.RepeatWrapping;
     wallTexture.repeat.set(hallwayLength / 100, hallwayWidth / 100); // Adjusted for side walls' aspect ratio
