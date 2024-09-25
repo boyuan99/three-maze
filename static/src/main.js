@@ -36,7 +36,6 @@ function animate() {
         });
 
     renderer.render(scene, camera);
-    controls.update();
 }
 
 window.addEventListener("resize", onWindowResize, false);
