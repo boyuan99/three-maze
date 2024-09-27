@@ -10,7 +10,7 @@ export default defineConfig(({ command }) => {
       outDir: path.resolve(__dirname, 'dist'),
       emptyOutDir: true,
       rollupOptions: {
-        input: path.resolve(__dirname, 'src', 'main.js'),
+        input: path.resolve(__dirname, 'src', 'scenes/Straight50PointerVis.js'),
         output: {
           entryFileNames: 'js/[name].js',
           chunkFileNames: 'js/[name].js',
