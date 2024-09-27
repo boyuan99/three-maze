@@ -1,0 +1,20 @@
+# environment.yaml
+
+#Three-Maze Toolbox
+#
+# install: conda env create -f environment.yaml
+# update:  conda env update -f environment.yaml
+
+name: thmaz
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pip:
+    - Flask==3.0.3
+    - Flask-SocketIO==5.3.7
+    - Flask-Cors==5.0.0
+    - numpy==2.1.1
+    - pyserial==3.5
