@@ -1,6 +1,3 @@
-/static/node_modules/
 /.idea/
 .DS_Store
-test/sensor_data.json
-/static/dist/
 __pycache__/
