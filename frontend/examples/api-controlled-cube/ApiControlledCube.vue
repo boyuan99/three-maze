@@ -32,12 +32,14 @@ export default {
 
     this.animate()
     this.fetchRotation()
+    window.addEventListener("resize", this.onWindowResize, false);
   },
   methods: {
     animate() {
       requestAnimationFrame(this.animate)
       this.renderer.render(this.scene, this.camera)
     },
+
     fetchRotation() {
       axios
         .get('/api/rotation')
@@ -52,6 +54,12 @@ export default {
         .catch((error) => {
           console.error(error)
         })
+    },
+
+    onWindowResize() {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
     },
   },
 }
