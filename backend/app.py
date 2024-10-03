@@ -1,10 +1,14 @@
 from flask import Flask, jsonify
+from flask import render_template
 from flask_cors import CORS
 import random
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})  # 允许所有来源访问 /api/* 路径
+CORS(app, resources={r"/api/*": {"origins": "*"}})  # Allow all origins to access /api/* paths
 
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 @app.route('/api/rotation')
 def get_rotation():
