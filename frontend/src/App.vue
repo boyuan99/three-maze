@@ -5,6 +5,7 @@
     <ul>
       <li><a href="/examples/simple-cube/index.html"> Simple Cube Control </a></li>
       <li><a href="/examples/api-controlled-cube/index.html"> API Cube Control </a></li>
+      <li><a href="/mazes/straight-mazes/index.html"> Pointer Lock Straight Maze </a></li>
     </ul>
   </div>
 </template>
