@@ -1,4 +1,4 @@
 import { createApp } from 'vue'
-import Straight50PointerVis from './Straight50PointerVis.vue'
+import Straight50Port from './Straight50Port.vue'
 
-createApp(Straight50PointerVis).mount('#app')
+createApp(Straight50Port).mount('#app')
