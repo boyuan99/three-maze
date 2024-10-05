@@ -107,10 +107,9 @@ function updateCameraPositionAndOrientation(angle) {
 }
 
 function onWindowResize() {
-  const canvas = canvasRef.value;
-  camera.aspect = canvas.clientWidth / canvas.clientHeight;
+  camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+  renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
 </script>
