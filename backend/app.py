@@ -19,7 +19,7 @@ def get_rotation():
     }
     return jsonify(rotation)
 
-@app.route('/api/sensor_data')
+@app.route('/api/generate_sensor_data')
 def get_sensor_data():
     data = {
         'x': random.uniform(-1, 1),                   # Position x

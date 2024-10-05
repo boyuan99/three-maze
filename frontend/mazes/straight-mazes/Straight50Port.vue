@@ -58,12 +58,15 @@ function animate() {
   rapierDebugRenderer.update();
   world.step();
 
+  // Send position data after updating player movement
+  sendPositionData();
+
   renderer.render(scene, camera);
 }
 
 function fetchSensorData() {
   axios
-      .get('/api/sensor_data')
+      .get('/api/generate_sensor_data')
       .then((response) => {
         latestSensorData = response.data;
         // Fetch new data at regular intervals
@@ -110,6 +113,28 @@ function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// New function to send position data
+function sendPositionData() {
+  const position = playerBody.translation();
+  const rotation = playerBody.rotation();
+
+  axios.post('/api/player_position', {
+    position: {
+      x: position.x,
+      y: position.y,
+      z: position.z
+    },
+    rotation: {
+      x: rotation.x,
+      y: rotation.y,
+      z: rotation.z,
+      w: rotation.w
+    }
+  }).catch(error => {
+    console.error('Error sending position data:', error);
+  });
 }
 
 </script>
