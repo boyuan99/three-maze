@@ -9,12 +9,13 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@utils': path.resolve(__dirname, './src/utils'),
+      '@tmroot': path.resolve(__dirname, '../'),
     }
   },
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:5050', // Flask backend
+        target: 'http://localhost:5050/', // Flask backend
         changeOrigin: true,
         secure: false,
       },

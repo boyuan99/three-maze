@@ -1,23 +1,20 @@
-from flask import Flask, jsonify
-from flask import render_template
+from flask import Flask, jsonify, request
 from flask_cors import CORS
+import json
 import random
+from datetime import datetime, timedelta
+
+# Load shared configuration
+with open('../config.json') as config_file:
+    config = json.load(config_file)
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})  # Allow all origins to access /api/* paths
+CORS(app)
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+# Global variables to track timing
+start_time = None
+data_points_count = 0
 
-@app.route('/api/rotation')
-def get_rotation():
-    rotation = {
-        'x': random.uniform(0, 2 * 3.1415926),
-        'y': random.uniform(0, 2 * 3.1415926),
-        'z': random.uniform(0, 2 * 3.1415926),
-    }
-    return jsonify(rotation)
 
 @app.route('/api/generate_sensor_data')
 def get_sensor_data():
@@ -32,5 +29,29 @@ def get_sensor_data():
     return jsonify(data)
 
 
+@app.route('/api/player_position', methods=['POST'])
+def receive_player_position():
+    global start_time, data_points_count
+
+    data = request.json
+    current_time = datetime.now()
+
+    if start_time is None:
+        start_time = current_time
+
+    elapsed_time = (current_time - start_time).total_seconds()
+    data['server_timestamp'] = round(elapsed_time, 6)
+
+    data_points_count += 1
+    data['data_point_index'] = data_points_count
+
+    # Save to file
+    with open('player_positions.json', 'a') as f:
+        json.dump(data, f)
+        f.write('\n')
+
+    return jsonify({"status": "success", "message": "Position data saved"}), 200
+
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5050)
+    app.run(debug=True)
