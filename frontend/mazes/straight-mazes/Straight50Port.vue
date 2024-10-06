@@ -24,8 +24,9 @@ const SCENE_FRAME_INTERVAL = 1000 / SCENE_FRAME_RATE;
 const DATA_SAMPLE_RATE = config.data.sampleRate;
 const DATA_SAMPLE_INTERVAL = 1000 / DATA_SAMPLE_RATE;
 
-let lastFrameTime = 0;
-let lastDataSampleTime = 0;
+let dataSampleIntervalId;
+let sensorDataFetchIntervalId;
+
 
 // API URL uses the proxy set up in vite.config.js
 const API_URL = '/api';
@@ -33,6 +34,10 @@ const API_URL = '/api';
 onMounted(async () => {
   await init();
   animate();
+
+  // Set up intervals for data sampling and sending
+  dataSampleIntervalId = setInterval(sendPositionData, DATA_SAMPLE_INTERVAL);
+  sensorDataFetchIntervalId = setInterval(fetchSensorData, DATA_SAMPLE_INTERVAL);
 });
 
 onUnmounted(() => {
@@ -40,6 +45,9 @@ onUnmounted(() => {
   if (renderer) {
     renderer.dispose();
   }
+  // Clear intervals when component is unmounted
+  clearInterval(dataSampleIntervalId);
+  clearInterval(sensorDataFetchIntervalId);
 });
 
 async function init() {
@@ -60,34 +68,24 @@ async function init() {
   window.addEventListener("resize", onWindowResize, false);
 }
 
-function animate(currentTime) {
+function animate() {
   requestAnimationFrame(animate);
-
-  if (currentTime - lastFrameTime >= SCENE_FRAME_INTERVAL) {
-    updatePlayerMovement();
-    rapierDebugRenderer.update();
-    world.step();
-    renderer.render(scene, camera);
-    lastFrameTime = currentTime;
-  }
-
-  if (currentTime - lastDataSampleTime >= DATA_SAMPLE_INTERVAL) {
-    sendPositionData();
-    lastDataSampleTime = currentTime;
-  }
+  updatePlayerMovement();
+  rapierDebugRenderer.update();
+  world.step();
+  renderer.render(scene, camera);
 }
+
 
 function fetchSensorData() {
   axios
-      .get(`${API_URL}/generate_sensor_data`)
-      .then((response) => {
-        latestSensorData = response.data;
-        setTimeout(fetchSensorData, DATA_SAMPLE_INTERVAL);
-      })
-      .catch((error) => {
-        console.error('Error fetching sensor data:', error);
-        setTimeout(fetchSensorData, 1000);
-      });
+    .get(`${API_URL}/generate_sensor_data`)
+    .then((response) => {
+      latestSensorData = response.data;
+    })
+    .catch((error) => {
+      console.error('Error fetching sensor data:', error);
+    });
 }
 
 function updatePlayerMovement() {
