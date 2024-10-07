@@ -3,15 +3,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import {ref, onMounted, onUnmounted} from 'vue';
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
-import { createTexturedHallway } from './HallwayModule.js';
-import { RapierDebugRenderer } from '@/utils/RapierDebugRenderer.js';
-import { initScene } from '@/utils/initScene.js';
-import { initPhysics, createPlayer, addPhysicsToHallway } from '@/utils/initPhysics.js';
-import axios from 'axios';
+import {createTexturedHallway} from './HallwayModule.js';
+import {RapierDebugRenderer} from '@/utils/RapierDebugRenderer.js';
+import {initScene} from '@/utils/initScene.js';
+import {initPhysics, createPlayer, addPhysicsToHallway} from '@/utils/initPhysics.js';
 import config from '@tmroot/config.json';
+import {io} from 'socket.io-client';
 
 const canvasRef = ref(null);
 
@@ -24,30 +24,62 @@ const SCENE_FRAME_INTERVAL = 1000 / SCENE_FRAME_RATE;
 const DATA_SAMPLE_RATE = config.data.sampleRate;
 const DATA_SAMPLE_INTERVAL = 1000 / DATA_SAMPLE_RATE;
 
-let dataSampleIntervalId;
-let sensorDataFetchIntervalId;
+// High-resolution timing variables
+let expectedDataTime;
 
-
-// API URL uses the proxy set up in vite.config.js
+// Use the proxied URL for WebSocket connection
 const API_URL = '/api';
+
+// Initialize WebSocket connection without hardcoding the port
+const socket = io('/', {
+  path: '/socket.io',
+});
+
+// Event names with '/api/' prefix
+const GENERATE_SENSOR_DATA_EVENT = `${API_URL}/generate_sensor_data`;
+const SENSOR_DATA_EVENT = `${API_URL}/sensor_data`;
+const PLAYER_POSITION_EVENT = `${API_URL}/player_position`;
 
 onMounted(async () => {
   await init();
   animate();
 
-  // Set up intervals for data sampling and sending
-  dataSampleIntervalId = setInterval(sendPositionData, DATA_SAMPLE_INTERVAL);
-  sensorDataFetchIntervalId = setInterval(fetchSensorData, DATA_SAMPLE_INTERVAL);
+  // Start data transmission loop after socket connection is established
+  socket.on('connect', () => {
+    console.log('Connected to WebSocket server');
+    expectedDataTime = performance.now() + DATA_SAMPLE_INTERVAL;
+    sendPositionData();
+    // Request initial sensor data
+    socket.emit(GENERATE_SENSOR_DATA_EVENT);
+  });
+
+  // Listen for sensor data from server
+  socket.on(SENSOR_DATA_EVENT, (data) => {
+    latestSensorData = data;
+  });
+
+  // Handle disconnection
+  socket.on('disconnect', () => {
+    console.warn('Disconnected from WebSocket server');
+  });
+
+  //Handle errors
+  socket.on('connect_error', (error) => {
+    console.error('Socket.IO connection error:', error);
+  });
+
+  socket.on('error', (error) => {
+    console.error('Socket.IO error:', error);
+  });
+
 });
 
 onUnmounted(() => {
-  window.removeEventListener("resize", onWindowResize);
+  window.removeEventListener('resize', onWindowResize);
   if (renderer) {
     renderer.dispose();
   }
-  // Clear intervals when component is unmounted
-  clearInterval(dataSampleIntervalId);
-  clearInterval(sensorDataFetchIntervalId);
+  socket.disconnect();
 });
 
 async function init() {
@@ -63,9 +95,7 @@ async function init() {
 
   playerBody = createPlayer(world);
 
-  fetchSensorData();
-
-  window.addEventListener("resize", onWindowResize, false);
+  window.addEventListener('resize', onWindowResize, false);
 }
 
 function animate() {
@@ -74,18 +104,6 @@ function animate() {
   rapierDebugRenderer.update();
   world.step();
   renderer.render(scene, camera);
-}
-
-
-function fetchSensorData() {
-  axios
-    .get(`${API_URL}/generate_sensor_data`)
-    .then((response) => {
-      latestSensorData = response.data;
-    })
-    .catch((error) => {
-      console.error('Error fetching sensor data:', error);
-    });
 }
 
 function updatePlayerMovement() {
@@ -115,25 +133,34 @@ function onWindowResize() {
 }
 
 function sendPositionData() {
+  // Collect data
   const position = playerBody.translation();
   const rotation = playerBody.rotation();
 
-  axios.post(`${API_URL}/player_position`, {
+  // Send data via WebSocket
+  socket.emit(PLAYER_POSITION_EVENT, {
     position: {
       x: position.x,
       y: position.y,
-      z: position.z
+      z: position.z,
     },
     rotation: {
       x: rotation.x,
       y: rotation.y,
       z: rotation.z,
-      w: rotation.w
+      w: rotation.w,
     },
-  }).catch(error => {
-    console.error('Error sending position data:', error);
   });
+
+  // Adjust for drift
+  expectedDataTime += DATA_SAMPLE_INTERVAL;
+  const drift = performance.now() - expectedDataTime;
+  const nextInterval = DATA_SAMPLE_INTERVAL - drift;
+
+  // Ensure the next interval is not negative
+  setTimeout(sendPositionData, Math.max(0, nextInterval));
 }
+
 </script>
 
 <style scoped>

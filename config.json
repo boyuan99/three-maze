@@ -1,4 +1,9 @@
 {
+  "flask": {
+    "FLASK_ENV": "development",
+    "FLASK_RUN_PORT": 5050,
+    "FLASK_DEBUG": 1
+  },
   "scene": {
     "frameRate": 60
   },
