@@ -16,5 +16,5 @@ dependencies:
     - Flask==3.0.3
     - Flask-SocketIO==5.3.7
     - Flask-Cors==5.0.0
-    - numpy==2.1.1
+    - numpy==2.0.0
     - pyserial==3.5
