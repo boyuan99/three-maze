@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "electron:dev": "cross-env NODE_ENV=development concurrently \"npm run dev\" \"electron .\"",
+    "electron:dev": "cross-env NODE_ENV=development concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
     "electron:build": "electron-builder"
   },
   "dependencies": {

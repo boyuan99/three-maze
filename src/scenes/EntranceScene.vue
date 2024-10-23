@@ -1,6 +1,8 @@
 <script setup>
 import { ref } from 'vue'
-import {createRouter as router} from "vue-router";
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const scenes = ref([
   {
