@@ -1,27 +1,33 @@
 import * as THREE from 'three'
 import RAPIER from '@dimforge/rapier3d-compat'
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js'
 
 export class BaseWorld {
   constructor(canvas, options = {}) {
-    // Default configurations
-    this.options = {
+    // First create default configurations
+    const defaultOptions = {
       // Renderer settings
-      alpha: false,
-      antialias: true,
-      shadows: false,
-      physicallyCorrectLights: false,
+      rendererConfig: {
+        alpha: false,
+        antialias: true,
+        shadows: false,
+        physicallyCorrectLights: false,
+      },
 
       // Camera settings
-      fov: 75,
-      near: 0.1,
-      far: 1000,
-      position: new THREE.Vector3(5, 5, 5),
-      target: new THREE.Vector3(0, 0, 0),
+      cameraConfig: {
+        fov: 75,
+        near: 0.1,
+        far: 1000,
+        position: new THREE.Vector3(5, 5, 5),
+        target: new THREE.Vector3(0, 0, 0),
+      },
 
       // Physics settings
       usePhysics: true,
-      gravity: { x: 0, y: -9.81, z: 0 },
+      physicsConfig: {
+        gravity: {x: 0, y: -9.81, z: 0},
+      },
 
       // Controls settings
       useOrbitControls: false,
@@ -48,9 +54,9 @@ export class BaseWorld {
           castShadow: true
         }
       ],
-      ...options
     }
 
+    this.options = this.deepMerge(defaultOptions, options)
     this.canvas = canvas
     this.scene = new THREE.Scene()
     this.objects = new Map()
@@ -63,19 +69,43 @@ export class BaseWorld {
     this.initCamera()
   }
 
+  deepMerge(target, source) {
+    const output = {...target}
+
+    if (isObject(target) && isObject(source)) {
+      Object.keys(source).forEach(key => {
+        if (isObject(source[key])) {
+          if (!(key in target)) {
+            Object.assign(output, {[key]: source[key]})
+          } else {
+            output[key] = this.deepMerge(target[key], source[key])
+          }
+        } else {
+          Object.assign(output, {[key]: source[key]})
+        }
+      })
+    }
+    return output
+  }
+
+
   // Initialize THREE.js renderer
   initRenderer() {
     if (!this.canvas) return
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
-      antialias: this.options.antialias,
-      alpha: this.options.alpha
+      antialias: this.options.rendererConfig.antialias,
+      alpha: this.options.rendererConfig.alpha
     })
 
-    if (this.options.shadows) {
+    if (this.options.rendererConfig.shadows) {
       this.renderer.shadowMap.enabled = true
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    }
+
+    if (this.options.rendererConfig.physicallyCorrectLights) {
+      this.renderer.physicallyCorrectLights = true
     }
 
     this.renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight)
@@ -89,14 +119,14 @@ export class BaseWorld {
       window.innerWidth / window.innerHeight
 
     this.camera = new THREE.PerspectiveCamera(
-      this.options.fov,
+      this.options.cameraConfig.fov,
       aspect,
-      this.options.near,
-      this.options.far
+      this.options.cameraConfig.near,
+      this.options.cameraConfig.far
     )
 
-    this.camera.position.copy(this.options.position)
-    this.camera.lookAt(this.options.target)
+    this.camera.position.copy(this.options.cameraConfig.position)
+    this.camera.lookAt(this.options.cameraConfig.target)
   }
 
   // Main initialization
@@ -124,7 +154,7 @@ export class BaseWorld {
   // Initialize physics engine
   async initPhysics() {
     await RAPIER.init()
-    this.physics = new RAPIER.World(this.options.gravity)
+    this.physics = new RAPIER.World(this.options.physicsConfig.gravity)
   }
 
   // Initialize orbit controls
@@ -182,17 +212,17 @@ export class BaseWorld {
 
   // Create object with optional physics
   createObject({
-    geometry,
-    material,
-    position = new THREE.Vector3(0, 0, 0),
-    rotation = new THREE.Euler(0, 0, 0),
-    scale = new THREE.Vector3(1, 1, 1),
-    physics = false,
-    physicsOptions = {},
-    castShadow = false,
-    receiveShadow = false,
-    name = `object_${this.objects.size}`
-  }) {
+                 geometry,
+                 material,
+                 position = new THREE.Vector3(0, 0, 0),
+                 rotation = new THREE.Euler(0, 0, 0),
+                 scale = new THREE.Vector3(1, 1, 1),
+                 physics = false,
+                 physicsOptions = {},
+                 castShadow = false,
+                 receiveShadow = false,
+                 name = `object_${this.objects.size}`
+               }) {
     const mesh = new THREE.Mesh(geometry, material)
     mesh.position.copy(position)
     mesh.rotation.copy(rotation)
@@ -201,7 +231,7 @@ export class BaseWorld {
     mesh.receiveShadow = receiveShadow
 
     this.scene.add(mesh)
-    const objectData = { mesh }
+    const objectData = {mesh}
 
     if (physics && this.physics) {
       const {
@@ -369,7 +399,8 @@ export class BaseWorld {
   }
 
   // Abstract method for custom updates
-  update() {}
+  update() {
+  }
 
   // Window resize handler
   onWindowResize() {
@@ -402,4 +433,8 @@ export class BaseWorld {
       this.objects.delete(name)
     }
   }
+}
+
+function isObject(item) {
+  return (item && typeof item === 'object' && !Array.isArray(item))
 }

@@ -2,13 +2,15 @@ import { BaseWorld } from './BaseWorld'
 import * as THREE from 'three'
 
 export class DemoWorld01 extends BaseWorld {
-  constructor(canvas) {
+    constructor(canvas) {
     super(canvas, {
       cameraConfig: {
-          position: new THREE.Vector3(5, 5, 5),
+        position: new THREE.Vector3(5, 5, 5)
+      },
+      rendererConfig: {
+        shadows: true
       },
       useOrbitControls: true,
-      shadows: true,
       lights: [
         {
           type: 'ambient',
@@ -26,7 +28,7 @@ export class DemoWorld01 extends BaseWorld {
     })
   }
 
-  setupScene() {
+  async setupScene() {
     // Create ground
     this.createObject({
       geometry: new THREE.PlaneGeometry(10, 10),

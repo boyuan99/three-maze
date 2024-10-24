@@ -4,9 +4,17 @@ import * as THREE from 'three'
 export class DemoWorld02 extends BaseWorld {
   constructor(canvas) {
     super(canvas, {
-      position: new THREE.Vector3(8, 8, 8),
+      cameraConfig: {
+        position: new THREE.Vector3(8, 8, 8)
+      },
+      rendererConfig: {
+        shadows: true
+      },
       useOrbitControls: true,
-      shadows: true,
+      controlsConfig: {
+        autoRotate: true,
+        autoRotateSpeed: 1.0
+      },
       lights: [
         {
           type: 'ambient',
@@ -28,20 +36,16 @@ export class DemoWorld02 extends BaseWorld {
           intensity: 0.5,
           position: new THREE.Vector3(-5, 3, -5)
         }
-      ],
-      controlsConfig: {
-        autoRotate: true,
-        autoRotateSpeed: 1.0
-      }
+      ]
     })
   }
 
-  setupScene() {
+  async setupScene() {
     // Create ground
     this.createObject({
-      geometry: new THREE.PlaneGeometry(15, 15),
+      geometry: new THREE.PlaneGeometry(20, 20),
       material: new THREE.MeshStandardMaterial({
-        color: 0x808080,
+        color: 0x404040,
         roughness: 0.7,
         metalness: 0.1
       }),
@@ -57,56 +61,83 @@ export class DemoWorld02 extends BaseWorld {
       name: 'ground'
     })
 
-    // Create multiple physics objects
+    // Create a ramp
+    this.createObject({
+      geometry: new THREE.BoxGeometry(8, 0.5, 4),
+      material: new THREE.MeshStandardMaterial({
+        color: 0x808080,
+        roughness: 0.5,
+        metalness: 0.2
+      }),
+      position: new THREE.Vector3(0, 2, -5),
+      rotation: new THREE.Euler(-Math.PI / 6, 0, 0),
+      physics: true,
+      physicsOptions: {
+        type: 'static',
+        shape: 'cuboid',
+        friction: 0.1
+      },
+      castShadow: true,
+      receiveShadow: true,
+      name: 'ramp'
+    })
+
+    // Create various physics objects to roll down the ramp
     const physicsObjects = [
+      // Sphere
       {
-        geometry: new THREE.BoxGeometry(0.8, 0.8, 0.8),
+        geometry: new THREE.SphereGeometry(0.5),
         material: new THREE.MeshStandardMaterial({
           color: 0xff0000,
-          metalness: 0.3,
-          roughness: 0.4
+          metalness: 0.7,
+          roughness: 0.3
         }),
-        position: new THREE.Vector3(-1, 4, -1),
-        physics: true,
-        physicsOptions: {
-          type: 'dynamic',
-          shape: 'cuboid',
-          restitution: 0.7
-        }
-      },
-      {
-        geometry: new THREE.SphereGeometry(0.4),
-        material: new THREE.MeshStandardMaterial({
-          color: 0x00ff00,
-          metalness: 0.5,
-          roughness: 0.2
-        }),
-        position: new THREE.Vector3(0, 6, 0),
+        position: new THREE.Vector3(0, 5, -3),
         physics: true,
         physicsOptions: {
           type: 'dynamic',
           shape: 'sphere',
-          restitution: 0.9
+          restitution: 0.8,
+          friction: 0.1
         }
       },
+      // Large cube
       {
-        geometry: new THREE.TetrahedronGeometry(0.5),
+        geometry: new THREE.BoxGeometry(1, 1, 1),
         material: new THREE.MeshStandardMaterial({
-          color: 0x0000ff,
-          metalness: 0.2,
+          color: 0x00ff00,
+          metalness: 0.4,
           roughness: 0.6
         }),
-        position: new THREE.Vector3(1, 5, 1),
+        position: new THREE.Vector3(-2, 6, -3),
         physics: true,
         physicsOptions: {
           type: 'dynamic',
           shape: 'cuboid',
-          restitution: 0.5
+          restitution: 0.5,
+          friction: 0.3
+        }
+      },
+      // Cylinder
+      {
+        geometry: new THREE.CylinderGeometry(0.3, 0.3, 1.2, 16),
+        material: new THREE.MeshStandardMaterial({
+          color: 0x0000ff,
+          metalness: 0.5,
+          roughness: 0.5
+        }),
+        position: new THREE.Vector3(2, 7, -3),
+        physics: true,
+        physicsOptions: {
+          type: 'dynamic',
+          shape: 'cylinder',
+          restitution: 0.6,
+          friction: 0.2
         }
       }
     ]
 
-    // Add all physics objects to the scene
+    // Add all physics objects
     physicsObjects.forEach((obj, index) => {
       this.createObject({
         ...obj,
@@ -115,69 +146,117 @@ export class DemoWorld02 extends BaseWorld {
       })
     })
 
-    // Add decorative objects (no physics)
-    const decorations = [
-      {
-        geometry: new THREE.TorusGeometry(0.5, 0.1, 16, 32),
+    // Add decorative pillars around the scene
+    const pillarPositions = [
+      [-6, 0, -6],
+      [6, 0, -6],
+      [-6, 0, 6],
+      [6, 0, 6]
+    ]
+
+    pillarPositions.forEach((pos, index) => {
+      // Create base
+      this.createObject({
+        geometry: new THREE.CylinderGeometry(0.8, 1, 0.5, 8),
         material: new THREE.MeshStandardMaterial({
-          color: 0xffff00,
-          metalness: 0.8,
-          roughness: 0.2
-        }),
-        position: new THREE.Vector3(-3, 0.5, -3),
-        rotation: new THREE.Euler(Math.PI / 4, 0, 0)
-      },
-      {
-        geometry: new THREE.CylinderGeometry(0.1, 0.1, 2),
-        material: new THREE.MeshStandardMaterial({
-          color: 0xff00ff,
+          color: 0xdddddd,
           metalness: 0.3,
           roughness: 0.7
         }),
-        position: new THREE.Vector3(3, 1, 3),
-        rotation: new THREE.Euler(0, 0, Math.PI / 6)
-      }
-    ]
-
-    // Add decorative elements
-    decorations.forEach((dec, index) => {
-      this.createObject({
-        ...dec,
+        position: new THREE.Vector3(pos[0], pos[1] + 0.25, pos[2]),
         physics: false,
         castShadow: true,
-        name: `decoration_${index}`
+        receiveShadow: true,
+        name: `pillar_base_${index}`
+      })
+
+      // Create pillar
+      this.createObject({
+        geometry: new THREE.CylinderGeometry(0.5, 0.5, 4, 8),
+        material: new THREE.MeshStandardMaterial({
+          color: 0xcccccc,
+          metalness: 0.3,
+          roughness: 0.7
+        }),
+        position: new THREE.Vector3(pos[0], pos[1] + 2.5, pos[2]),
+        physics: false,
+        castShadow: true,
+        receiveShadow: true,
+        name: `pillar_${index}`
+      })
+
+      // Create top
+      this.createObject({
+        geometry: new THREE.CylinderGeometry(0.7, 0.5, 0.5, 8),
+        material: new THREE.MeshStandardMaterial({
+          color: 0xdddddd,
+          metalness: 0.3,
+          roughness: 0.7
+        }),
+        position: new THREE.Vector3(pos[0], pos[1] + 4.75, pos[2]),
+        physics: false,
+        castShadow: true,
+        receiveShadow: true,
+        name: `pillar_top_${index}`
+      })
+    })
+
+    // Add floating rotating rings
+    const ringColors = [0xffff00, 0xff00ff, 0x00ffff]
+    ringColors.forEach((color, index) => {
+      this.createObject({
+        geometry: new THREE.TorusGeometry(1, 0.1, 16, 32),
+        material: new THREE.MeshStandardMaterial({
+          color: color,
+          metalness: 0.8,
+          roughness: 0.2,
+          emissive: color,
+          emissiveIntensity: 0.2
+        }),
+        position: new THREE.Vector3(
+          Math.cos(index * (Math.PI * 2 / 3)) * 4,
+          2,
+          Math.sin(index * (Math.PI * 2 / 3)) * 4
+        ),
+        physics: false,
+        castShadow: true,
+        name: `ring_${index}`
       })
     })
   }
 
   update() {
-    // Rotate decorative elements
+    // Update rotating rings
+    const time = Date.now() * 0.001
     this.objects.forEach((obj, name) => {
-      if (name.startsWith('decoration_') && obj.mesh) {
-        obj.mesh.rotation.y += 0.01
+      if (name.startsWith('ring_') && obj.mesh) {
+        const index = parseInt(name.split('_')[1])
+        obj.mesh.rotation.x = Math.sin(time + index) * 0.5
+        obj.mesh.rotation.y += 0.02
+        obj.mesh.rotation.z = Math.cos(time + index) * 0.5
+        obj.mesh.position.y = 2 + Math.sin(time * 2 + index) * 0.5
       }
     })
   }
 
   setupPreviewState() {
     super.setupPreviewState()
-
     this._previewPositions = new Map()
 
-    // Arrange physics objects in a nice pattern for preview
     this.objects.forEach((obj, name) => {
       if (name.startsWith('physics_object_') && obj.mesh) {
-        // Store original position
-        this._previewPositions.set(name, obj.mesh.position.clone())
+        this._previewPositions.set(name, {
+          position: obj.mesh.position.clone(),
+          rotation: obj.mesh.rotation.clone()
+        })
 
-        // Set preview position
         const index = parseInt(name.split('_')[2])
         const angle = (index / 3) * Math.PI * 2
-        const radius = 1.5
+        const radius = 3
 
         obj.mesh.position.set(
           Math.cos(angle) * radius,
-          1 + index * 0.5,
+          3,
           Math.sin(angle) * radius
         )
       }
@@ -188,9 +267,10 @@ export class DemoWorld02 extends BaseWorld {
     super.restoreMainState()
     if (this._previewPositions) {
       this.objects.forEach((obj, name) => {
-        const originalPosition = this._previewPositions.get(name)
-        if (originalPosition && obj.mesh) {
-          obj.mesh.position.copy(originalPosition)
+        const originalState = this._previewPositions.get(name)
+        if (originalState && obj.mesh) {
+          obj.mesh.position.copy(originalState.position)
+          obj.mesh.rotation.copy(originalState.rotation)
         }
       })
       this._previewPositions = null
