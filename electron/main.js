@@ -15,7 +15,7 @@ async function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1024,
     height: 768,
-    frame: false,
+    titleBarStyle: 'hiddenInset',
     show: false,
     webPreferences: {
       nodeIntegration: false,
@@ -79,7 +79,8 @@ async function createSceneWindow(sceneName) {
       contextIsolation: true,
       preload: join(__dirname, 'preload.cjs')
     },
-    backgroundColor: '#1a1a1a'
+    backgroundColor: '#1a1a1a',
+    titleBarStyle: 'hiddenInset'  // Use hiddenInset instead of hidden to avoid texture warning
   })
 
   sceneWindow.setMenuBarVisibility(false)
