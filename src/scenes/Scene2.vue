@@ -6,7 +6,7 @@
 
 <script>
 import { onMounted, onUnmounted, ref } from 'vue'
-import { AdvancedWorld } from '../worlds/AdvancedWorld'
+import { DemoWorld02 } from '../worlds/DemoWorld02.js'
 
 export default {
   name: 'Scene2',
@@ -15,7 +15,7 @@ export default {
     let world = null
 
     onMounted(() => {
-      world = new AdvancedWorld(canvas.value)
+      world = new DemoWorld02(canvas.value)
       world.init()
     })
 

@@ -1,8 +1,37 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { DemoWorld01 } from '../worlds/DemoWorld01.js'
+import { DemoWorld02 } from '../worlds/DemoWorld02.js'
 
 const router = useRouter()
+
+// Create temporary worlds for preview images
+const getScenePreviews = async () => {
+  const basicWorld = new DemoWorld01(null)
+  await basicWorld.init()
+  const basicPreview = basicWorld.getPreviewRender()
+  basicWorld.dispose()
+
+  const advancedWorld = new DemoWorld02(null)
+  await advancedWorld.init()
+  const advancedPreview = advancedWorld.getPreviewRender()
+  advancedWorld.dispose()
+
+  return {
+    scene1: basicPreview,
+    scene2: advancedPreview
+  }
+}
+
+const previews = ref({})
+const previewsLoaded = ref(false)
+
+// Load previews when component mounts
+getScenePreviews().then(result => {
+  previews.value = result
+  previewsLoaded.value = true
+})
 
 const scenes = ref([
   {
@@ -32,15 +61,21 @@ const handleSceneSelect = (sceneId) => {
       <h1 class="title">Select a Scene</h1>
       <div class="scene-grid">
         <div
-          v-for="scene in scenes"
-          :key="scene.id"
-          class="scene-card"
-          @click="handleSceneSelect(scene.id)"
+            v-for="scene in scenes"
+            :key="scene.id"
+            class="scene-card"
+            @click="handleSceneSelect(scene.id)"
         >
           <div class="scene-preview">
-            <div class="preview-placeholder">
-              {{ scene.name }}
+            <div v-if="!previewsLoaded" class="preview-loading">
+              Loading preview...
             </div>
+            <img
+                v-else
+                :src="previews[scene.id]"
+                :alt="scene.name"
+                class="preview-image"
+            >
           </div>
           <div class="scene-info">
             <h2 class="scene-title">{{ scene.name }}</h2>
@@ -99,18 +134,24 @@ const handleSceneSelect = (sceneId) => {
 .scene-preview {
   width: 100%;
   height: 200px;
-  background-color: #333;
+  background-color: #232323;
+  position: relative;
 }
 
-.preview-placeholder {
+.preview-loading {
   width: 100%;
   height: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 1.5rem;
   color: #666;
-  background-color: #232323;
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .scene-info {
