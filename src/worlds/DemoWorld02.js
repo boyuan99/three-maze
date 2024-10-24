@@ -18,8 +18,8 @@ export class DemoWorld02 extends BaseWorld {
       lights: [
         {
           type: 'ambient',
-          color: 0x404040,
-          intensity: 0.5
+          color: 0xffffff,
+          intensity: 1
         },
         {
           type: 'spot',
@@ -28,12 +28,12 @@ export class DemoWorld02 extends BaseWorld {
           position: new THREE.Vector3(10, 10, 5),
           castShadow: true,
           angle: Math.PI / 4,
-          penumbra: 0.1
+          penumbra: 1
         },
         {
           type: 'point',
           color: 0xff4444,
-          intensity: 0.5,
+          intensity: 3,
           position: new THREE.Vector3(-5, 3, -5)
         }
       ]
@@ -43,14 +43,14 @@ export class DemoWorld02 extends BaseWorld {
   async setupScene() {
     // Create ground
     this.createObject({
-      geometry: new THREE.PlaneGeometry(20, 20),
+      geometry: new THREE.BoxGeometry(20, 0.1, 20),
       material: new THREE.MeshStandardMaterial({
         color: 0x404040,
         roughness: 0.7,
         metalness: 0.1
       }),
       position: new THREE.Vector3(0, 0, 0),
-      rotation: new THREE.Euler(-Math.PI / 2, 0, 0),
+      rotation: new THREE.Euler(0, 0, 0),
       physics: true,
       physicsOptions: {
         type: 'static',
@@ -63,14 +63,14 @@ export class DemoWorld02 extends BaseWorld {
 
     // Create a ramp
     this.createObject({
-      geometry: new THREE.BoxGeometry(8, 0.5, 4),
+      geometry: new THREE.BoxGeometry(8, 0.2, 4),
       material: new THREE.MeshStandardMaterial({
         color: 0x808080,
         roughness: 0.5,
         metalness: 0.2
       }),
       position: new THREE.Vector3(0, 2, -5),
-      rotation: new THREE.Euler(-Math.PI / 6, 0, 0),
+      rotation: new THREE.Euler(Math.PI / 6, 0, 0),
       physics: true,
       physicsOptions: {
         type: 'static',
@@ -214,7 +214,7 @@ export class DemoWorld02 extends BaseWorld {
           emissiveIntensity: 0.2
         }),
         position: new THREE.Vector3(
-          Math.cos(index * (Math.PI * 2 / 3)) * 4,
+          Math.cos(index * (Math.PI * 2 / 3)) * 4-3,
           2,
           Math.sin(index * (Math.PI * 2 / 3)) * 4
         ),
@@ -247,18 +247,29 @@ export class DemoWorld02 extends BaseWorld {
       if (name.startsWith('physics_object_') && obj.mesh) {
         this._previewPositions.set(name, {
           position: obj.mesh.position.clone(),
-          rotation: obj.mesh.rotation.clone()
+          rotation: obj.mesh.rotation.clone(),
+          bodyPosition: obj.body ? obj.body.translation() : null,
+          bodyRotation: obj.body ? obj.body.rotation() : null
         })
 
         const index = parseInt(name.split('_')[2])
         const angle = (index / 3) * Math.PI * 2
         const radius = 3
 
+        // Update both mesh and physics body
         obj.mesh.position.set(
           Math.cos(angle) * radius,
           3,
           Math.sin(angle) * radius
         )
+
+        if (obj.body) {
+          obj.body.setTranslation({
+            x: Math.cos(angle) * radius,
+            y: 3,
+            z: Math.sin(angle) * radius
+          })
+        }
       }
     })
   }
@@ -271,6 +282,12 @@ export class DemoWorld02 extends BaseWorld {
         if (originalState && obj.mesh) {
           obj.mesh.position.copy(originalState.position)
           obj.mesh.rotation.copy(originalState.rotation)
+
+          // Restore physics body state
+          if (obj.body && originalState.bodyPosition && originalState.bodyRotation) {
+            obj.body.setTranslation(originalState.bodyPosition)
+            obj.body.setRotation(originalState.bodyRotation)
+          }
         }
       })
       this._previewPositions = null

@@ -163,7 +163,6 @@ export class BaseWorld {
     Object.assign(this.controls, this.options.controlsConfig)
   }
 
-  // Setup lighting
   setupLights() {
     this.options.lights.forEach((light, index) => {
       let lightObject
@@ -200,6 +199,11 @@ export class BaseWorld {
             light.decay
           )
           if (light.position) lightObject.position.copy(light.position)
+          if (light.castShadow) {
+            lightObject.castShadow = true
+            lightObject.shadow.mapSize.width = 2048
+            lightObject.shadow.mapSize.height = 2048
+          }
           break
       }
 
@@ -210,7 +214,6 @@ export class BaseWorld {
     })
   }
 
-  // Create object with optional physics
   createObject({
                  geometry,
                  material,
@@ -224,9 +227,16 @@ export class BaseWorld {
                  name = `object_${this.objects.size}`
                }) {
     const mesh = new THREE.Mesh(geometry, material)
+
     mesh.position.copy(position)
-    mesh.rotation.copy(rotation)
     mesh.scale.copy(scale)
+
+    if (rotation instanceof THREE.Euler) {
+      mesh.rotation.set(rotation.x, rotation.y, rotation.z, rotation.order)
+    } else {
+      mesh.rotation.set(rotation.x, rotation.y, rotation.z)
+    }
+
     mesh.castShadow = castShadow
     mesh.receiveShadow = receiveShadow
 
@@ -259,6 +269,9 @@ export class BaseWorld {
         rigidBodyDesc.setTranslation(position.x, position.y, position.z)
       )
 
+      const quaternion = new THREE.Quaternion().setFromEuler(mesh.rotation)
+      body.setRotation({x: quaternion.x, y: quaternion.y, z: quaternion.z, w: quaternion.w})
+
       let colliderDesc
       const size = new THREE.Vector3()
       geometry.computeBoundingBox()
@@ -271,6 +284,9 @@ export class BaseWorld {
           break
         case 'capsule':
           colliderDesc = RAPIER.ColliderDesc.capsule(size.y, size.x)
+          break
+        case 'cylinder':
+          colliderDesc = RAPIER.ColliderDesc.cylinder(size.y, size.x)
           break
         case 'cuboid':
         default:
@@ -289,7 +305,6 @@ export class BaseWorld {
     return objectData
   }
 
-  // Animation loop
   animate() {
     if (!this.isActive || !this.renderer) return
 
@@ -298,7 +313,6 @@ export class BaseWorld {
     if (this.physics) {
       this.physics.step()
 
-      // Update physics objects
       this.objects.forEach(object => {
         if (object.body) {
           const position = object.body.translation()
@@ -318,7 +332,6 @@ export class BaseWorld {
     this.renderer.render(this.scene, this.camera)
   }
 
-  // Preview generation
   getPreviewRender(width = 300, height = 200) {
     const canvas = document.createElement('canvas')
     canvas.width = width
@@ -345,10 +358,10 @@ export class BaseWorld {
   }
 
   setupPreviewState() {
-    this._originalPositions = new Map()
+    this._originalStates = new Map()
     this.objects.forEach((obj, name) => {
       if (obj.mesh) {
-        this._originalPositions.set(name, {
+        this._originalStates.set(name, {
           position: obj.mesh.position.clone(),
           rotation: obj.mesh.rotation.clone()
         })
@@ -357,19 +370,18 @@ export class BaseWorld {
   }
 
   restoreMainState() {
-    if (this._originalPositions) {
+    if (this._originalStates) {
       this.objects.forEach((obj, name) => {
-        const originalState = this._originalPositions.get(name)
+        const originalState = this._originalStates.get(name)
         if (originalState && obj.mesh) {
           obj.mesh.position.copy(originalState.position)
           obj.mesh.rotation.copy(originalState.rotation)
         }
       })
-      this._originalPositions = null
+      this._originalStates = null
     }
   }
 
-  // Cleanup
   dispose() {
     this.isActive = false
     if (this.physics) this.physics.free()
@@ -393,16 +405,13 @@ export class BaseWorld {
     }
   }
 
-  // Abstract method for scene setup
   setupScene() {
     console.warn('setupScene() not implemented')
   }
 
-  // Abstract method for custom updates
   update() {
   }
 
-  // Window resize handler
   onWindowResize() {
     if (!this.renderer || !this.canvas) return
 
@@ -414,7 +423,6 @@ export class BaseWorld {
     this.renderer.setSize(width, height)
   }
 
-  // Get object by name
   getObject(name) {
     return this.objects.get(name)
   }

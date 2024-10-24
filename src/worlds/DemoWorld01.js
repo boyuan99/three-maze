@@ -31,10 +31,10 @@ export class DemoWorld01 extends BaseWorld {
   async setupScene() {
     // Create ground
     this.createObject({
-      geometry: new THREE.PlaneGeometry(10, 10),
+      geometry: new THREE.BoxGeometry(10, 0.1, 10),
       material: new THREE.MeshStandardMaterial({ color: 0x808080 }),
-      position: new THREE.Vector3(0, 0, 0),
-      rotation: new THREE.Euler(-Math.PI / 2, 0, 0),
+      position: new THREE.Vector3(0, -0.05, 0),
+      rotation: new THREE.Euler(0, 0, 0),
       physics: true,
       physicsOptions: {
         type: 'static',
@@ -48,7 +48,7 @@ export class DemoWorld01 extends BaseWorld {
     // Create bouncing cube
     this.createObject({
       geometry: new THREE.BoxGeometry(),
-      material: new THREE.MeshStandardMaterial({ color: 0x00ff00 }),
+      material: new THREE.MeshNormalMaterial(),
       position: new THREE.Vector3(0, 3, 0),
       physics: true,
       physicsOptions: {
