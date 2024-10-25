@@ -1,6 +1,7 @@
 import EntranceScene from './scenes/EntranceScene.vue'
-import Scene1 from './scenes/Scene1.vue'
-import Scene2 from './scenes/Scene2.vue'
+import Scene1 from './scenes/DemoScene1.vue'
+import Scene2 from './scenes/DemoScene2.vue'
+import MazeScene from "@/scenes/MazeScene.vue";
 
 export default [
   {
@@ -17,5 +18,10 @@ export default [
     path: '/scene/scene2',
     name: 'scene2',
     component: Scene2
+  },
+  {
+    path: '/scene/maze',
+    name: 'maze',
+    component: MazeScene
   }
 ]

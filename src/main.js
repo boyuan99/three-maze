@@ -2,8 +2,10 @@ import { createApp } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import App from './App.vue'
 import EntranceScene from './scenes/EntranceScene.vue'
-import Scene1 from './scenes/Scene1.vue'
-import Scene2 from './scenes/Scene2.vue'
+import Scene1 from './scenes/DemoScene1.vue'
+import Scene2 from './scenes/DemoScene2.vue'
+import MapScene from './scenes/MazeScene.vue'
+import MazeScene from "@/scenes/MazeScene.vue";
 
 const routes = [
   {
@@ -20,6 +22,11 @@ const routes = [
     path: '/scene/scene2',
     name: 'scene2',
     component: Scene2
+  },
+  {
+    path: '/scene/maze',
+    name: 'maze',
+    component: MazeScene
   }
 ]
 

@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { DemoWorld01 } from '../worlds/DemoWorld01.js'
 import { DemoWorld02 } from '../worlds/DemoWorld02.js'
+import { MazeWorld } from '../worlds/MazeWorld.js'
 
 const router = useRouter()
 
@@ -18,9 +19,15 @@ const getScenePreviews = async () => {
   const advancedPreview = advancedWorld.getPreviewRender()
   advancedWorld.dispose()
 
+  const mazeWorld = new MazeWorld(null)
+  await mazeWorld.init()
+  const mazePreview = mazeWorld.getPreviewRender()
+  mazeWorld.dispose()
+
   return {
     scene1: basicPreview,
-    scene2: advancedPreview
+    scene2: advancedPreview,
+    maze: mazePreview
   }
 }
 
@@ -31,6 +38,9 @@ const previewsLoaded = ref(false)
 getScenePreviews().then(result => {
   previews.value = result
   previewsLoaded.value = true
+}).catch(error => {
+  console.error('Error loading previews:', error)
+  previewsLoaded.value = true // Still set to true to remove loading state
 })
 
 const scenes = ref([
@@ -43,6 +53,11 @@ const scenes = ref([
     id: 'scene2',
     name: 'Advanced Scene',
     description: 'More complex physics and interactions',
+  },
+  {
+    id: 'maze',
+    name: 'Maze Scene',
+    description: 'First-person maze exploration with physics',
   }
 ])
 
