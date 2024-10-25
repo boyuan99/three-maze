@@ -1,9 +1,9 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { DemoWorld01 } from '../worlds/DemoWorld01.js'
-import { DemoWorld02 } from '../worlds/DemoWorld02.js'
-import { MazeWorld } from '../worlds/MazeWorld.js'
+import { DemoWorld01 } from '@/worlds/DemoWorld01.js'
+import { DemoWorld02 } from '@/worlds/DemoWorld02.js'
+import { HallwayWorld } from '@/worlds/HallwayWorld.js'
 
 const router = useRouter()
 
@@ -19,7 +19,7 @@ const getScenePreviews = async () => {
   const advancedPreview = advancedWorld.getPreviewRender()
   advancedWorld.dispose()
 
-  const mazeWorld = new MazeWorld(null)
+  const mazeWorld = new HallwayWorld(null)
   await mazeWorld.init()
   const mazePreview = mazeWorld.getPreviewRender()
   mazeWorld.dispose()
@@ -46,17 +46,17 @@ getScenePreviews().then(result => {
 const scenes = ref([
   {
     id: 'scene1',
-    name: 'Basic Physics Scene',
-    description: 'A simple scene with basic physics interactions',
+    name: 'Basic Physics Scene 01',
+    description: 'A simple scene with basic physics interactions attached to certain objects',
   },
   {
     id: 'scene2',
-    name: 'Advanced Scene',
+    name: 'Basic Physics Scene 02',
     description: 'More complex physics and interactions',
   },
   {
-    id: 'maze',
-    name: 'Maze Scene',
+    id: 'hallway',
+    name: 'Hallway Scene',
     description: 'First-person maze exploration with physics',
   }
 ])
@@ -105,7 +105,6 @@ const handleSceneSelect = (sceneId) => {
 </template>
 
 <style scoped>
-/* Wrapper for scrolling */
 .entrance-wrapper {
   width: 100vw;
   height: 100vh;
@@ -113,7 +112,6 @@ const handleSceneSelect = (sceneId) => {
   background-color: #1a1a1a;
 }
 
-/* Container with padding */
 .entrance-container {
   min-height: 100vh;
   display: flex;
@@ -139,7 +137,7 @@ const handleSceneSelect = (sceneId) => {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 2rem;
   padding: 1rem;
-  margin-bottom: 2rem; /* Add bottom margin for better scrolling experience */
+  margin-bottom: 2rem;
 }
 
 .scene-card {
@@ -148,7 +146,7 @@ const handleSceneSelect = (sceneId) => {
   overflow: hidden;
   cursor: pointer;
   transition: all 0.3s ease;
-  height: 100%; /* Ensure consistent card heights */
+  height: 100%;
 }
 
 .scene-card:hover {
@@ -197,12 +195,10 @@ const handleSceneSelect = (sceneId) => {
   margin: 0;
 }
 
-/* Add smooth scrolling */
 * {
   scroll-behavior: smooth;
 }
 
-/* Add scrollbar styling for better visibility */
 .entrance-wrapper::-webkit-scrollbar {
   width: 10px;
 }
