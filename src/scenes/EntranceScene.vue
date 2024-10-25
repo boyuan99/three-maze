@@ -56,30 +56,32 @@ const handleSceneSelect = (sceneId) => {
 </script>
 
 <template>
-  <div class="entrance-container">
-    <div class="entrance-content">
-      <h1 class="title">Select a Scene</h1>
-      <div class="scene-grid">
-        <div
-            v-for="scene in scenes"
-            :key="scene.id"
-            class="scene-card"
-            @click="handleSceneSelect(scene.id)"
-        >
-          <div class="scene-preview">
-            <div v-if="!previewsLoaded" class="preview-loading">
-              Loading preview...
+  <div class="entrance-wrapper">
+    <div class="entrance-container">
+      <div class="entrance-content">
+        <h1 class="title">Select a Scene</h1>
+        <div class="scene-grid">
+          <div
+              v-for="scene in scenes"
+              :key="scene.id"
+              class="scene-card"
+              @click="handleSceneSelect(scene.id)"
+          >
+            <div class="scene-preview">
+              <div v-if="!previewsLoaded" class="preview-loading">
+                Loading preview...
+              </div>
+              <img
+                  v-else
+                  :src="previews[scene.id]"
+                  :alt="scene.name"
+                  class="preview-image"
+              >
             </div>
-            <img
-                v-else
-                :src="previews[scene.id]"
-                :alt="scene.name"
-                class="preview-image"
-            >
-          </div>
-          <div class="scene-info">
-            <h2 class="scene-title">{{ scene.name }}</h2>
-            <p class="scene-description">{{ scene.description }}</p>
+            <div class="scene-info">
+              <h2 class="scene-title">{{ scene.name }}</h2>
+              <p class="scene-description">{{ scene.description }}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -88,13 +90,19 @@ const handleSceneSelect = (sceneId) => {
 </template>
 
 <style scoped>
-.entrance-container {
+/* Wrapper for scrolling */
+.entrance-wrapper {
   width: 100vw;
   height: 100vh;
+  overflow-y: auto;
   background-color: #1a1a1a;
+}
+
+/* Container with padding */
+.entrance-container {
+  min-height: 100vh;
   display: flex;
   justify-content: center;
-  align-items: center;
   padding: 2rem;
 }
 
@@ -108,6 +116,7 @@ const handleSceneSelect = (sceneId) => {
   font-size: 2.5rem;
   text-align: center;
   margin-bottom: 3rem;
+  padding-top: 1rem;
 }
 
 .scene-grid {
@@ -115,6 +124,7 @@ const handleSceneSelect = (sceneId) => {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 2rem;
   padding: 1rem;
+  margin-bottom: 2rem; /* Add bottom margin for better scrolling experience */
 }
 
 .scene-card {
@@ -123,6 +133,7 @@ const handleSceneSelect = (sceneId) => {
   overflow: hidden;
   cursor: pointer;
   transition: all 0.3s ease;
+  height: 100%; /* Ensure consistent card heights */
 }
 
 .scene-card:hover {
@@ -169,5 +180,28 @@ const handleSceneSelect = (sceneId) => {
   font-size: 1rem;
   line-height: 1.4;
   margin: 0;
+}
+
+/* Add smooth scrolling */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Add scrollbar styling for better visibility */
+.entrance-wrapper::-webkit-scrollbar {
+  width: 10px;
+}
+
+.entrance-wrapper::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.entrance-wrapper::-webkit-scrollbar-thumb {
+  background: #3a3a3a;
+  border-radius: 5px;
+}
+
+.entrance-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #4a4a4a;
 }
 </style>
