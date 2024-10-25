@@ -1,65 +1,20 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { DemoWorld01 } from '@/worlds/DemoWorld01.js'
-import { DemoWorld02 } from '@/worlds/DemoWorld02.js'
-import { HallwayWorld } from '@/worlds/HallwayWorld.js'
+import {ref} from 'vue'
+import {useRouter} from 'vue-router'
+import {scenes, generatePreviews} from '@/scenes'
 
 const router = useRouter()
-
-// Create temporary worlds for preview images
-const getScenePreviews = async () => {
-  const basicWorld = new DemoWorld01(null)
-  await basicWorld.init()
-  const basicPreview = basicWorld.getPreviewRender()
-  basicWorld.dispose()
-
-  const advancedWorld = new DemoWorld02(null)
-  await advancedWorld.init()
-  const advancedPreview = advancedWorld.getPreviewRender()
-  advancedWorld.dispose()
-
-  const mazeWorld = new HallwayWorld(null)
-  await mazeWorld.init()
-  const mazePreview = mazeWorld.getPreviewRender()
-  mazeWorld.dispose()
-
-  return {
-    scene1: basicPreview,
-    scene2: advancedPreview,
-    maze: mazePreview
-  }
-}
-
 const previews = ref({})
 const previewsLoaded = ref(false)
 
 // Load previews when component mounts
-getScenePreviews().then(result => {
+generatePreviews().then(result => {
   previews.value = result
   previewsLoaded.value = true
 }).catch(error => {
   console.error('Error loading previews:', error)
-  previewsLoaded.value = true // Still set to true to remove loading state
+  previewsLoaded.value = true
 })
-
-const scenes = ref([
-  {
-    id: 'scene1',
-    name: 'Basic Physics Scene 01',
-    description: 'A simple scene with basic physics interactions attached to certain objects',
-  },
-  {
-    id: 'scene2',
-    name: 'Basic Physics Scene 02',
-    description: 'More complex physics and interactions',
-  },
-  {
-    id: 'hallway',
-    name: 'Hallway Scene',
-    description: 'First-person maze exploration with physics',
-  }
-])
 
 const handleSceneSelect = (sceneId) => {
   if (window.electron) {
