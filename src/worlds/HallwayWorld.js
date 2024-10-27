@@ -2,6 +2,8 @@ import { BaseWorld } from './BaseWorld'
 import * as THREE from 'three'
 import wallTextureUrl from '@/assets/Chess_Pattern.jpg'
 
+const FAR = 1000
+
 export class HallwayWorld extends BaseWorld {
   constructor(canvas) {
     super(canvas, {
@@ -9,7 +11,7 @@ export class HallwayWorld extends BaseWorld {
         position: new THREE.Vector3(0, 5, 30),
         fov: 75,
         near: 0.1,
-        far: 1000
+        far: FAR
       },
       rendererConfig: {
         shadows: true,
@@ -19,7 +21,7 @@ export class HallwayWorld extends BaseWorld {
       controlsConfig: {
         enableDamping: true,
         dampingFactor: 0.05,
-        maxDistance: 50,
+        maxDistance: FAR,
         minDistance: 1
       },
       lights: [
