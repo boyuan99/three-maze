@@ -1,83 +1,21 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { scenes, generatePreviews, addLoadedScene } from '@/scenes'
-import { LoadedWorld } from '@/worlds/LoadedWorld'
+import {ref} from 'vue'
+import {useRouter} from 'vue-router'
+import {scenes, generatePreviews} from '@/scenes'
 
 const router = useRouter()
 const previews = ref({})
 const previewsLoaded = ref(false)
-const fileInput = ref(null)
-const loadError = ref(null)
-const recentScenes = ref([])
 
-const RECENT_SCENES_KEY = 'recentCustomScenes'
-const MAX_RECENT_SCENES = 5
-
-// Load previews and recent scenes when component mounts
-onMounted(async () => {
-  loadRecentScenes()
-  try {
-    previews.value = await generatePreviews()
-    previewsLoaded.value = true
-  } catch (error) {
-    console.error('Error loading previews:', error)
-    previewsLoaded.value = true
-  }
+// Load previews when component mounts
+generatePreviews().then(result => {
+  previews.value = result
+  previewsLoaded.value = true
+}).catch(error => {
+  console.error('Error loading previews:', error)
+  previewsLoaded.value = true
 })
 
-// Load recent scenes from localStorage
-const loadRecentScenes = () => {
-  try {
-    const saved = localStorage.getItem(RECENT_SCENES_KEY)
-    if (saved) {
-      recentScenes.value = JSON.parse(saved)
-    }
-  } catch (error) {
-    console.error('Error loading recent scenes:', error)
-  }
-}
-
-// Save recent scenes to localStorage
-const saveRecentScenes = () => {
-  try {
-    localStorage.setItem(RECENT_SCENES_KEY, JSON.stringify(recentScenes.value))
-  } catch (error) {
-    console.error('Error saving recent scenes:', error)
-  }
-}
-
-// Add a scene to recent scenes
-const addRecentScene = (scene) => {
-  // Remove if already exists
-  recentScenes.value = recentScenes.value.filter(s => s.id !== scene.id)
-
-  // Add to beginning of array
-  recentScenes.value.unshift(scene)
-
-  // Limit to max number of recent scenes
-  if (recentScenes.value.length > MAX_RECENT_SCENES) {
-    recentScenes.value.pop()
-  }
-
-  saveRecentScenes()
-}
-
-// Remove a scene from recent scenes
-const removeRecentScene = (sceneId) => {
-  recentScenes.value = recentScenes.value.filter(s => s.id !== sceneId)
-  saveRecentScenes()
-}
-
-// Load a recent scene
-const loadRecentScene = (scene) => {
-  router.push({
-    name: 'loadedScene',
-    params: { id: scene.id }
-  })
-}
-
-// Handle default scene selection
 const handleSceneSelect = (sceneId) => {
   if (window.electron) {
     window.electron.openScene(sceneId)
@@ -85,143 +23,34 @@ const handleSceneSelect = (sceneId) => {
     router.push(`/scene/${sceneId}`)
   }
 }
-
-// Handle loading new scene file
-const handleLoadMore = () => {
-  if (!fileInput.value) {
-    fileInput.value = document.createElement('input')
-    fileInput.value.type = 'file'
-    fileInput.value.accept = '.json'
-    fileInput.value.style.display = 'none'
-
-    fileInput.value.addEventListener('change', handleFileSelect)
-    document.body.appendChild(fileInput.value)
-  }
-
-  fileInput.value.click()
-}
-
-// Handle file selection
-const handleFileSelect = async (event) => {
-  const file = event.target.files[0]
-  if (!file) return
-
-  try {
-    // Read file content
-    const content = await readFileContent(file)
-    const sceneData = JSON.parse(content)
-
-    // Validate scene configuration
-    if (!LoadedWorld.validateSceneConfig(sceneData)) {
-      throw new Error('Invalid scene configuration')
-    }
-
-    // Generate sceneId and add to loaded scenes
-    const sceneId = addLoadedScene(sceneData)
-
-    // Add to recent scenes
-    addRecentScene({
-      id: sceneId,
-      name: sceneData.name || 'Custom Scene',
-      preview: null // You could generate a preview here if needed
-    })
-
-    // Navigate to the scene
-    router.push({
-      name: 'loadedScene',
-      params: { id: sceneId }
-    })
-
-  } catch (error) {
-    console.error('Error loading scene:', error)
-    loadError.value = `Error loading scene: ${error.message}`
-  }
-
-  // Reset file input
-  event.target.value = null
-}
-
-// Helper to read file content
-const readFileContent = (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = (e) => resolve(e.target.result)
-    reader.onerror = (e) => reject(e)
-    reader.readAsText(file)
-  })
-}
 </script>
 
 <template>
   <div class="entrance-wrapper">
     <div class="entrance-container">
       <div class="entrance-content">
-        <h1 class="title">Select a Scene to Observe</h1>
-
-        <!-- Loading error message -->
-        <div v-if="loadError" class="error-message">
-          {{ loadError }}
-          <button @click="loadError = null" class="error-close">×</button>
-        </div>
-
+        <h1 class="title">Select a Scene</h1>
         <div class="scene-grid">
-          <!-- Default scenes -->
           <div
-            v-for="scene in scenes"
-            :key="scene.id"
-            class="scene-card"
-            @click="handleSceneSelect(scene.id)"
+              v-for="scene in scenes"
+              :key="scene.id"
+              class="scene-card"
+              @click="handleSceneSelect(scene.id)"
           >
             <div class="scene-preview">
               <div v-if="!previewsLoaded" class="preview-loading">
                 Loading preview...
               </div>
               <img
-                v-else
-                :src="previews[scene.id]"
-                :alt="scene.name"
-                class="preview-image"
+                  v-else
+                  :src="previews[scene.id]"
+                  :alt="scene.name"
+                  class="preview-image"
               >
             </div>
             <div class="scene-info">
               <h2 class="scene-title">{{ scene.name }}</h2>
               <p class="scene-description">{{ scene.description }}</p>
-            </div>
-          </div>
-
-          <!-- Recently loaded scenes -->
-          <div
-            v-for="(scene, index) in recentScenes"
-            :key="scene.id"
-            class="scene-card recent-scene"
-          >
-            <div class="scene-preview" @click="loadRecentScene(scene)">
-              <img
-                :src="scene.preview || previews['hallway']"
-                :alt="scene.name"
-                class="preview-image"
-              >
-            </div>
-            <div class="scene-info">
-              <h2 class="scene-title">{{ scene.name || `Custom Scene ${index + 1}` }}</h2>
-              <p class="scene-description">Recent custom scene</p>
-              <button
-                class="remove-recent"
-                @click.stop="removeRecentScene(scene.id)"
-              >
-                Remove
-              </button>
-            </div>
-          </div>
-
-          <!-- Load More Card -->
-          <div class="scene-card load-more-card" @click="handleLoadMore">
-            <div class="scene-preview load-more-preview">
-              <div class="load-more-icon">+</div>
-            </div>
-            <div class="scene-info">
-              <h2 class="scene-title">Load Custom Scene</h2>
-              <p class="scene-description">Load a scene configuration from your computer</p>
             </div>
           </div>
         </div>
@@ -319,66 +148,6 @@ const readFileContent = (file) => {
   font-size: 1rem;
   line-height: 1.4;
   margin: 0;
-}
-
-.load-more-card {
-  border: 2px dashed #3a3a3a;
-  background-color: transparent;
-}
-
-.load-more-preview {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: transparent;
-}
-
-.load-more-icon {
-  font-size: 4rem;
-  color: #3a3a3a;
-  transition: color 0.3s ease;
-}
-
-.load-more-card:hover .load-more-icon {
-  color: #5a5a5a;
-}
-
-.error-message {
-  background-color: #ff4444;
-  color: white;
-  padding: 1rem;
-  margin: 1rem 0;
-  border-radius: 8px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.error-close {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 0 0.5rem;
-}
-
-.recent-scene {
-  border: 2px solid #3a3a3a;
-}
-
-.remove-recent {
-  background: #ff4444;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-top: 0.5rem;
-}
-
-.remove-recent:hover {
-  background: #ff6666;
 }
 
 * {

@@ -4,10 +4,6 @@ import { HallwayWorld } from '@/worlds/HallwayWorld.js'
 import Scene1 from '@/scenes/DemoScene1.vue'
 import Scene2 from '@/scenes/DemoScene2.vue'
 import HallwayScene from '@/scenes/HallwayScene.vue'
-import LoadedScene from "@/scenes/LoadedScene.vue"
-
-// Store for loaded scenes
-export const loadedScenes = new Map()
 
 // Central scene configuration
 export const scenes = [
@@ -65,12 +61,6 @@ export const generateRoutes = () => {
       path: '/',
       name: 'entrance',
       component: () => import('@/scenes/EntranceScene.vue')
-    },
-    {
-      path: '/loaded-scene/:id',  // Updated to use route parameter
-      name: 'loadedScene',
-      component: LoadedScene,
-      props: true,
     }
   ]
 
@@ -96,33 +86,4 @@ export const generatePreviews = async () => {
     }
   }
   return previews
-}
-
-// Helper functions for loaded scenes
-export const addLoadedScene = (sceneData) => {
-  const sceneId = `custom-${Date.now()}`
-  loadedScenes.set(sceneId, sceneData)
-  return sceneId
-}
-
-export const getLoadedScene = (id) => {
-  return loadedScenes.get(id)
-}
-
-export const removeLoadedScene = (id) => {
-  loadedScenes.delete(id)
-}
-
-// Helper to generate preview for loaded scenes
-export const generateLoadedScenePreview = async (sceneData) => {
-  try {
-    const world = new LoadedWorld(null, sceneData)
-    await world.init()
-    const preview = world.getPreviewRender()
-    world.dispose()
-    return preview
-  } catch (error) {
-    console.error('Error generating preview for loaded scene:', error)
-    return null
-  }
 }
