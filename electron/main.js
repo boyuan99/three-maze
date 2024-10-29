@@ -1,9 +1,13 @@
-import {app, BrowserWindow, ipcMain} from 'electron'
-import {fileURLToPath} from 'url'
-import {dirname, join} from 'path'
+import { app, BrowserWindow, ipcMain } from 'electron'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
+import fs from 'fs'
+import path from 'path'
 
 const isDevelopment = process.env.NODE_ENV === 'development'
 const VITE_DEV_SERVER_URL = 'http://localhost:5173'
+const userDataPath = app.getPath('userData')
+const customScenesPath = path.join(userDataPath, 'customScenes.json')
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -121,6 +125,26 @@ async function createSceneWindow(sceneName) {
   return sceneWindow
 }
 
+function loadStoredScenes() {
+  try {
+    if (fs.existsSync(customScenesPath)) {
+      const data = fs.readFileSync(customScenesPath, 'utf8')
+      return JSON.parse(data)
+    }
+  } catch (error) {
+    console.error('Error loading stored scenes:', error)
+  }
+  return {}
+}
+
+function saveStoredScenes(scenes) {
+  try {
+    fs.writeFileSync(customScenesPath, JSON.stringify(scenes, null, 2))
+  } catch (error) {
+    console.error('Error saving stored scenes:', error)
+  }
+}
+
 // App initialization
 app.whenReady().then(async () => {
   try {
@@ -142,21 +166,27 @@ app.on('activate', async () => {
   }
 })
 
-// IPC handlers
 ipcMain.on('open-scene', async (event, sceneName, sceneConfig) => {
   console.log('Main: Received open-scene request for:', sceneName)
-  // console.log('Main: With config:', sceneConfig)
 
   if (sceneConfig) {
     console.log('Main: Storing config for scene:', sceneName)
     sceneConfigs.set(sceneName, sceneConfig)
+
+    // Store custom scenes persistently
+    if (sceneName.startsWith('custom_')) {
+      const storedScenes = loadStoredScenes()
+      storedScenes[sceneName] = {
+        id: sceneName,
+        config: sceneConfig
+      }
+      saveStoredScenes(storedScenes)
+    }
   }
 
   await createSceneWindow(sceneName)
 })
 
-
-// IPC handler for scene config requests
 ipcMain.handle('get-scene-config', async (event) => {
   const windowId = event.sender.id
   console.log('Main: Received config request from window:', windowId)
@@ -174,7 +204,24 @@ ipcMain.handle('get-scene-config', async (event) => {
   return null
 })
 
-// Error handling
+ipcMain.handle('store-custom-scene', async (event, sceneData) => {
+  const storedScenes = loadStoredScenes()
+  storedScenes[sceneData.id] = sceneData
+  saveStoredScenes(storedScenes)
+  return true
+})
+
+ipcMain.handle('get-stored-scenes', async () => {
+  return loadStoredScenes()
+})
+
+ipcMain.handle('delete-stored-scene', async (event, sceneId) => {
+  const storedScenes = loadStoredScenes()
+  delete storedScenes[sceneId]
+  saveStoredScenes(storedScenes)
+  return true
+})
+
 process.on('uncaughtException', (error) => {
   console.error('Uncaught exception:', error)
 })
@@ -183,7 +230,6 @@ process.on('unhandledRejection', (error) => {
   console.error('Unhandled rejection:', error)
 })
 
-// Development specific
 if (isDevelopment) {
   app.commandLine.appendSwitch('ignore-certificate-errors')
 }

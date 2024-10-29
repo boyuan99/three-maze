@@ -6,6 +6,7 @@ import Scene1 from '@/scenes/DemoScene1.vue'
 import Scene2 from '@/scenes/DemoScene2.vue'
 import HallwayScene from '@/scenes/HallwayScene.vue'
 import CustomScene from '@/scenes/CustomScene.vue'
+import { storageService } from '@/storage.js'
 
 // Central scene configuration
 export const scenes = [
@@ -99,7 +100,7 @@ export const loadCustomScene = async (file) => {
 
     const customScene = {
       id: sceneId,
-      path: `/scene/custom/${sceneId}`, // Update path format
+      path: `/scene/custom/${sceneId}`,
       name: sceneConfig.name,
       description: sceneConfig.description || 'Custom loaded scene',
       component: () => import('@/scenes/CustomScene.vue'),
@@ -115,6 +116,13 @@ export const loadCustomScene = async (file) => {
     }
 
     scenes.push(customScene)
+
+    // Store using storage service
+    await storageService.storeScene({
+      id: sceneId,
+      config: sceneConfig
+    })
+
     return customScene
   } catch (error) {
     console.error('Error loading custom scene:', error)
@@ -122,7 +130,41 @@ export const loadCustomScene = async (file) => {
   }
 }
 
-// Helper to generate all previews
+export const loadStoredScenes = async () => {
+  try {
+    const storedScenes = await storageService.getStoredScenes()
+
+    // Convert stored scenes back to scene objects and add them to scenes array
+    Object.values(storedScenes).forEach(storedScene => {
+      const existingIndex = scenes.findIndex(s => s.id === storedScene.id)
+      const customScene = {
+        id: storedScene.id,
+        path: `/scene/custom/${storedScene.id}`,
+        name: storedScene.config.name,
+        description: storedScene.config.description || 'Custom loaded scene',
+        component: () => import('@/scenes/CustomScene.vue'),
+        worldClass: CustomWorld,
+        config: storedScene.config,
+        previewGenerator: async () => {
+          const world = new CustomWorld(null, storedScene.config)
+          await world.init()
+          const preview = world.getPreviewRender()
+          world.dispose()
+          return preview
+        }
+      }
+
+      if (existingIndex >= 0) {
+        scenes[existingIndex] = customScene
+      } else {
+        scenes.push(customScene)
+      }
+    })
+  } catch (error) {
+    console.error('Error loading stored scenes:', error)
+  }
+}
+
 export const generatePreviews = async () => {
   const previews = {}
   for (const scene of scenes) {
@@ -135,7 +177,6 @@ export const generatePreviews = async () => {
   return previews
 }
 
-// Function to validate scene configuration
 const validateSceneConfig = (config) => {
   const required = ['name', 'objects']
   const missing = required.filter(field => !config[field])
@@ -148,14 +189,13 @@ const validateSceneConfig = (config) => {
 }
 
 
-// Export validation function for use in other components
 export const validateCustomScene = validateSceneConfig
 
-// Function to remove a custom scene
-export const removeCustomScene = (sceneId) => {
+export const removeCustomScene = async (sceneId) => {
   const index = scenes.findIndex(scene => scene.id === sceneId)
   if (index !== -1 && sceneId.startsWith('custom_')) {
     scenes.splice(index, 1)
+    await storageService.deleteScene(sceneId)
     return true
   }
   return false

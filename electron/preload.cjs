@@ -19,7 +19,10 @@ contextBridge.exposeInMainWorld('electron', {
   getSceneConfig: () => {
     console.log('Preload: Requesting scene config')
     return ipcRenderer.invoke('get-scene-config')
-  }
+  },
+  storeCustomScene: (sceneData) => ipcRenderer.invoke('store-custom-scene', sceneData),
+  getStoredScenes: () => ipcRenderer.invoke('get-stored-scenes'),
+  deleteStoredScene: (sceneId) => ipcRenderer.invoke('delete-stored-scene', sceneId)
 })
 
 console.log('Preload: Script initialized')

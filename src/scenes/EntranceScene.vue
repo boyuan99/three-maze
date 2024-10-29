@@ -1,7 +1,7 @@
 <script setup>
 import {ref, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
-import {scenes, generatePreviews, loadCustomScene, removeCustomScene} from '@/scenes'
+import {scenes, generatePreviews, loadCustomScene, removeCustomScene, loadStoredScenes} from '@/scenes'
 
 const router = useRouter()
 const previews = ref({})
@@ -13,11 +13,15 @@ const fileInput = ref(null)
 // Load previews when component mounts
 onMounted(async () => {
   try {
+    // First load stored scenes
+    await loadStoredScenes()
+
+    // Then generate previews
     const result = await generatePreviews()
     previews.value = result
     previewsLoaded.value = true
   } catch (error) {
-    console.error('Error loading previews:', error)
+    console.error('Error loading scenes and previews:', error)
     previewsLoaded.value = true
   }
 })
@@ -37,8 +41,8 @@ const handleSceneSelect = (sceneId) => {
     window.electron.openScene(sceneId, scene?.config)
   } else {
     const path = sceneId.startsWith('custom_')
-      ? `/scene/custom/${sceneId}`
-      : `/scene/${sceneId}`
+        ? `/scene/custom/${sceneId}`
+        : `/scene/${sceneId}`
     console.log('EntranceScene: Opening in browser:', path)
     router.push(path)
   }
