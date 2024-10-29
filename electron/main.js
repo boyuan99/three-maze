@@ -1,6 +1,6 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
+import {app, BrowserWindow, ipcMain} from 'electron'
+import {fileURLToPath} from 'url'
+import {dirname, join} from 'path'
 
 const isDevelopment = process.env.NODE_ENV === 'development'
 const VITE_DEV_SERVER_URL = 'http://localhost:5173'
@@ -10,6 +10,7 @@ const __dirname = dirname(__filename)
 
 let mainWindow = null
 const sceneWindows = new Map()
+const sceneConfigs = new Map()
 
 async function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -49,7 +50,6 @@ async function createMainWindow() {
     mainWindow = null
   })
 
-  // Keyboard shortcuts
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.key === 'Escape') {
       app.quit()
@@ -60,6 +60,11 @@ async function createMainWindow() {
 }
 
 async function createSceneWindow(sceneName) {
+
+  console.log('Main: Creating window for scene:', sceneName)
+  const hasConfig = sceneConfigs.has(sceneName)
+  console.log('Main: Has config:', hasConfig)
+
   if (sceneWindows.has(sceneName)) {
     const existingWindow = sceneWindows.get(sceneName)
     if (existingWindow && !existingWindow.isDestroyed()) {
@@ -80,7 +85,7 @@ async function createSceneWindow(sceneName) {
       preload: join(__dirname, 'preload.cjs')
     },
     backgroundColor: '#1a1a1a',
-    titleBarStyle: 'hiddenInset'  // Use hiddenInset instead of hidden to avoid texture warning
+    titleBarStyle: 'hiddenInset'
   })
 
   sceneWindow.setMenuBarVisibility(false)
@@ -90,18 +95,18 @@ async function createSceneWindow(sceneName) {
   })
 
   try {
+    const scenePath = sceneName.startsWith('custom_')
+      ? `scene/custom/${sceneName}`
+      : `scene/${sceneName}`
+
     const url = isDevelopment
-      ? `${VITE_DEV_SERVER_URL}/#/scene/${sceneName}`
-      : `file://${join(__dirname, '../dist/index.html')}#/scene/${sceneName}`
+      ? `${VITE_DEV_SERVER_URL}/#/${scenePath}`
+      : `file://${join(__dirname, '../dist/index.html')}#/${scenePath}`
 
-    console.log('Loading scene URL:', url)
+    console.log('Main: Loading scene URL:', url)
     await sceneWindow.loadURL(url)
-
-    // if (isDevelopment) {
-    //   sceneWindow.webContents.openDevTools()
-    // }
   } catch (e) {
-    console.error('Failed to load scene:', e)
+    console.error('Main: Failed to load scene:', e)
     sceneWindow.close()
     return null
   }
@@ -110,12 +115,7 @@ async function createSceneWindow(sceneName) {
 
   sceneWindow.on('closed', () => {
     sceneWindows.delete(sceneName)
-  })
-
-  sceneWindow.webContents.on('before-input-event', (event, input) => {
-    if (input.key === 'Escape') {
-      sceneWindow.close()
-    }
+    sceneConfigs.delete(sceneName)
   })
 
   return sceneWindow
@@ -143,9 +143,35 @@ app.on('activate', async () => {
 })
 
 // IPC handlers
-ipcMain.on('open-scene', async (event, sceneName) => {
-  console.log('Opening scene:', sceneName)
+ipcMain.on('open-scene', async (event, sceneName, sceneConfig) => {
+  console.log('Main: Received open-scene request for:', sceneName)
+  console.log('Main: With config:', sceneConfig)
+
+  if (sceneConfig) {
+    console.log('Main: Storing config for scene:', sceneName)
+    sceneConfigs.set(sceneName, sceneConfig)
+  }
+
   await createSceneWindow(sceneName)
+})
+
+
+// IPC handler for scene config requests
+ipcMain.handle('get-scene-config', async (event) => {
+  const windowId = event.sender.id
+  console.log('Main: Received config request from window:', windowId)
+
+  for (const [sceneName, window] of sceneWindows.entries()) {
+    if (window.webContents.id === windowId) {
+      const config = sceneConfigs.get(sceneName)
+      console.log('Main: Found config for scene:', sceneName)
+      console.log('Main: Returning config:', config)
+      return {sceneName, config}
+    }
+  }
+
+  console.log('Main: No config found for window:', windowId)
+  return null
 })
 
 // Error handling

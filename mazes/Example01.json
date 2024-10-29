@@ -1,0 +1,71 @@
+{
+  "name": "Simple Room",
+  "description": "A simple room with some basic objects",
+  "camera": {
+    "position": {"x": 5, "y": 5, "z": 5},
+    "fov": 75
+  },
+  "renderer": {
+    "shadows": true
+  },
+  "lights": [
+    {
+      "type": "ambient",
+      "color": 16777215,
+      "intensity": 0.5
+    },
+    {
+      "type": "directional",
+      "color": 16777215,
+      "intensity": 1,
+      "position": {"x": 5, "y": 5, "z": 5},
+      "castShadow": true
+    }
+  ],
+  "objects": [
+    {
+      "name": "floor",
+      "geometry": {
+        "type": "box",
+        "width": 10,
+        "height": 0.1,
+        "depth": 10
+      },
+      "material": {
+        "color": 8421504,
+        "metalness": 0.1,
+        "roughness": 0.7
+      },
+      "position": {"x": 0, "y": 0, "z": 0},
+      "physics": {
+        "enabled": true,
+        "type": "static",
+        "shape": "cuboid",
+        "friction": 0.8
+      },
+      "receiveShadow": true
+    },
+    {
+      "name": "sphere",
+      "geometry": {
+        "type": "sphere",
+        "radius": 0.5,
+        "segments": 32
+      },
+      "material": {
+        "color": 16711680,
+        "metalness": 0.3,
+        "roughness": 0.5
+      },
+      "position": {"x": 0, "y": 2, "z": 0},
+      "physics": {
+        "enabled": true,
+        "type": "dynamic",
+        "shape": "sphere",
+        "restitution": 0.7,
+        "friction": 0.3
+      },
+      "castShadow": true
+    }
+  ]
+}
