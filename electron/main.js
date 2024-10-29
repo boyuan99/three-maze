@@ -145,7 +145,7 @@ app.on('activate', async () => {
 // IPC handlers
 ipcMain.on('open-scene', async (event, sceneName, sceneConfig) => {
   console.log('Main: Received open-scene request for:', sceneName)
-  console.log('Main: With config:', sceneConfig)
+  // console.log('Main: With config:', sceneConfig)
 
   if (sceneConfig) {
     console.log('Main: Storing config for scene:', sceneName)
@@ -165,7 +165,7 @@ ipcMain.handle('get-scene-config', async (event) => {
     if (window.webContents.id === windowId) {
       const config = sceneConfigs.get(sceneName)
       console.log('Main: Found config for scene:', sceneName)
-      console.log('Main: Returning config:', config)
+      // console.log('Main: Returning config:', config)
       return {sceneName, config}
     }
   }
