@@ -6,6 +6,8 @@ import Scene1 from '@/scenes/DemoScene1.vue'
 import Scene2 from '@/scenes/DemoScene2.vue'
 import HallwayScene from '@/scenes/HallwayScene.vue'
 import CustomScene from '@/scenes/CustomScene.vue'
+import HallwayControlScene from "@/scenes/HallwayControlScene.vue"
+import { createApp } from 'vue'
 import { storageService } from '@/storage.js'
 
 // Central scene configuration
@@ -54,6 +56,26 @@ export const scenes = [
       world.dispose()
       return preview
     }
+  },
+  {
+    id: 'maze',
+    path: '/scene/maze',
+    name: 'Physics Maze',
+    description: 'First-person maze exploration with textured walls and physics',
+    component: HallwayControlScene,
+    previewGenerator: async () => {
+    const div = document.createElement('div')
+    const app = createApp(HallwayControlScene)
+    const instance = app.mount(div)
+
+    try {
+      const preview = await instance.generatePreview()
+      return preview
+    } finally {
+      app.unmount()
+      div.remove()
+    }
+  }
   }
 ]
 
