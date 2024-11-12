@@ -11,6 +11,8 @@ defineOptions({
   name: 'HallwayControlScene'
 })
 
+const showInfo = ref(true)
+
 // Constants
 const HALLWAY_LENGTH = 200
 const HALLWAY_WIDTH = 20
@@ -281,7 +283,7 @@ async function init() {
 
   // Create player
   const playerBodyDesc = RAPIER.RigidBodyDesc.dynamic()
-    .setTranslation(0, PLAYER_RADIUS + 0.1, 0)
+    .setTranslation(0, PLAYER_RADIUS, 0)
     .setLinearDamping(0.9)
     .setAngularDamping(0.9)
 
@@ -421,13 +423,93 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <canvas ref="canvas"></canvas>
+  <div class="scene-container">
+    <canvas ref="canvas"></canvas>
+    <div class="overlay-info" v-if="showInfo">
+      <div class="info-panel">
+        <h3>Hallway Control Scene</h3>
+        <p>Controls:</p>
+        <ul>
+          <li>WASD - Move around</li>
+          <li>Mouse - Look around</li>
+          <li>Click - Unlock mouse</li>
+          <li>ESC - Release mouse</li>
+        </ul>
+      </div>
+      <button class="toggle-info" @click="showInfo = false">Hide Info</button>
+    </div>
+    <button
+      v-else
+      class="toggle-info-mini"
+      @click="showInfo = true"
+    >
+      Show Info
+    </button>
+  </div>
 </template>
 
 <style scoped>
-canvas {
+.scene-container {
   width: 100vw;
   height: 100vh;
-  display: block;
+  position: relative;
+  overflow: hidden;
+}
+
+canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.overlay-info {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.info-panel {
+  background: rgba(0, 0, 0, 0.7);
+  padding: 20px;
+  border-radius: 8px;
+  color: white;
+  min-width: 200px;
+}
+
+.info-panel h3 {
+  margin: 0 0 15px 0;
+  text-align: center;
+}
+
+.info-panel ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.info-panel li {
+  margin: 5px 0;
+}
+
+button {
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+button:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.toggle-info-mini {
+  position: absolute;
+  top: 20px;
+  right: 20px;
 }
 </style>
