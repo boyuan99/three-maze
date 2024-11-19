@@ -1,8 +1,8 @@
 <template>
   <nav class="navigation">
     <div class="nav-content">
-      <router-link to="/" class="nav-link">Main Gallery</router-link>
-      <router-link to="/physics-mazes" class="nav-link"> Mazes</router-link>
+      <router-link to="/" class="nav-link">Observe Gallery</router-link>
+      <router-link to="/physics-mazes" class="nav-link">Interactive Mazes</router-link>
     </div>
   </nav>
 </template>
@@ -11,6 +11,7 @@
 .navigation {
   background-color: #1a1a1a;
   padding: 1rem 0;
+  padding-top: 40px;
   position: fixed;
   top: 0;
   width: 100%;
