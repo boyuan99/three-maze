@@ -76,7 +76,8 @@ export const scenes = [
       div.remove()
     }
   }
-  }
+  },
+
 ]
 
 // Generate routes automatically from scenes
@@ -85,9 +86,13 @@ export const generateRoutes = () => {
     {
       path: '/',
       name: 'entrance',
-      component: () => import('@/scenes/EntranceScene.vue')
+      component: () => import('@/components/EntranceScene.vue')
     },
-    // Generic route for custom scenes should come first
+    {
+      path: '/physics-mazes',
+      name: 'physics-mazes',
+      component: () => import('@/components/PhysicsMazesScene.vue')
+    },
     {
       path: '/scene/custom/:id',
       name: 'custom-scene',
