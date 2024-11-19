@@ -28,10 +28,29 @@ export class CustomWorld extends BaseWorld {
       ]
     })
     this.sceneConfig = sceneConfig
+    this.textureCache = new Map()
+  }
+
+  async loadTexture(path) {
+    if (this.textureCache.has(path)) {
+      return this.textureCache.get(path).clone()
+    }
+
+    const textureLoader = new THREE.TextureLoader()
+    const texture = await new Promise((resolve, reject) => {
+      textureLoader.load(
+        path.replace('@/', '/'),
+        resolve,
+        undefined,
+        reject
+      )
+    })
+    
+    this.textureCache.set(path, texture)
+    return texture.clone()
   }
 
   async setupScene() {
-    // Create objects defined in the scene configuration
     if (this.sceneConfig.objects) {
       for (const objConfig of this.sceneConfig.objects) {
         let geometry
@@ -66,6 +85,26 @@ export class CustomWorld extends BaseWorld {
           metalness: objConfig.material?.metalness || 0,
           roughness: objConfig.material?.roughness || 1
         })
+
+        if (objConfig.material?.map) {
+          try {
+            const texture = await this.loadTexture(objConfig.material.map)
+            
+            if (objConfig.material.repeat) {
+              texture.wrapS = THREE.RepeatWrapping
+              texture.wrapT = THREE.RepeatWrapping
+              texture.repeat.set(
+                objConfig.material.repeat.x,
+                objConfig.material.repeat.y
+              )
+            }
+
+            material.map = texture
+            material.needsUpdate = true
+          } catch (error) {
+            console.warn(`Failed to load texture: ${objConfig.material.map}`, error)
+          }
+        }
 
         this.createObject({
           geometry,

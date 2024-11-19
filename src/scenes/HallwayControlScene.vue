@@ -12,6 +12,7 @@ defineOptions({
 })
 
 const showInfo = ref(true)
+const isPointerLocked = ref(false)
 
 // Constants
 const HALLWAY_LENGTH = 200
@@ -388,6 +389,11 @@ function onWindowResize() {
 onMounted(async () => {
   await init()
   animate()
+
+  // Add pointer lock change listener
+  document.addEventListener('pointerlockchange', () => {
+    isPointerLocked.value = document.pointerLockElement === canvas.value
+  })
 })
 
 onUnmounted(() => {
@@ -419,12 +425,25 @@ onUnmounted(() => {
   if (world) {
     world.free()
   }
+
+  document.removeEventListener('pointerlockchange', () => {
+    isPointerLocked.value = document.pointerLockElement === canvas.value
+  })
 })
 </script>
 
 <template>
   <div class="scene-container">
     <canvas ref="canvas"></canvas>
+    
+    <!-- Add the translucent overlay -->
+    <div v-if="!isPointerLocked" class="scene-overlay" @click="canvas.requestPointerLock()">
+      <div class="activate-prompt">
+        Click anywhere to activate controls
+      </div>
+    </div>
+
+    <!-- Existing overlays -->
     <div class="overlay-info" v-if="showInfo">
       <div class="info-panel">
         <h3>Hallway Control Scene</h3>
@@ -511,5 +530,31 @@ button:hover {
   position: absolute;
   top: 20px;
   right: 20px;
+}
+
+.scene-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);  /* Dark translucent overlay */
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.activate-prompt {
+  color: white;
+  font-size: 1.5em;
+  padding: 20px 40px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  backdrop-filter: blur(2px);
+}
+
+.activate-prompt:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 </style>
