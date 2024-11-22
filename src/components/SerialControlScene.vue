@@ -1,7 +1,15 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { serialControlScenes, generatePreviews } from '@/scenes'
+import { 
+  galleryScenes, 
+  mazeScenes, 
+  serialControlScenes,
+  generatePreviews, 
+  loadCustomScene, 
+  removeCustomScene, 
+  loadStoredScenes 
+} from '@/scenes'
 import NavigationBar from '@/components/NavigationBar.vue'
 
 const router = useRouter()
@@ -24,8 +32,10 @@ onMounted(async () => {
 })
 
 const handleSceneSelect = (sceneId) => {
+  // Look in all scene collections to ensure we find the right config
+  const scene = [...galleryScenes, ...mazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
+  
   if (window.electron) {
-    const scene = serialControlScenes.find(s => s.id === sceneId)
     window.electron.openScene(sceneId, scene?.config)
   } else {
     router.push(`/scene/${sceneId}`)

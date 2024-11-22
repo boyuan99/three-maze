@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import fs from 'fs'
 import path from 'path'
+import { SerialPort } from 'serialport'
 
 const isDevelopment = process.env.NODE_ENV === 'development'
 const VITE_DEV_SERVER_URL = 'http://localhost:5173'
@@ -15,6 +16,7 @@ const __dirname = dirname(__filename)
 let mainWindow = null
 const sceneWindows = new Map()
 const sceneConfigs = new Map()
+let serialPort = null
 
 async function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -95,6 +97,7 @@ async function createSceneWindow(sceneName) {
   sceneWindow.setMenuBarVisibility(false)
 
   sceneWindow.once('ready-to-show', () => {
+    sceneWindow.setFullScreen(true)
     sceneWindow.show()
   })
 
@@ -219,6 +222,42 @@ ipcMain.handle('delete-stored-scene', async (event, sceneId) => {
   const storedScenes = loadStoredScenes()
   delete storedScenes[sceneId]
   saveStoredScenes(storedScenes)
+  return true
+})
+
+ipcMain.handle('list-serial-ports', async () => {
+  try {
+    return await SerialPort.list()
+  } catch (error) {
+    console.error('Failed to list serial ports:', error)
+    throw error
+  }
+})
+
+ipcMain.handle('connect-serial-port', async (event, path, options) => {
+  try {
+    if (serialPort) {
+      await new Promise((resolve) => serialPort.close(resolve))
+    }
+    
+    serialPort = new SerialPort({ path, ...options })
+    
+    serialPort.on('data', (data) => {
+      event.sender.send('serial-data', data)
+    })
+    
+    return true
+  } catch (error) {
+    console.error('Failed to connect to serial port:', error)
+    throw error
+  }
+})
+
+ipcMain.handle('disconnect-serial-port', async () => {
+  if (serialPort) {
+    await new Promise((resolve) => serialPort.close(resolve))
+    serialPort = null
+  }
   return true
 })
 

@@ -1,12 +1,21 @@
 <script setup>
 import {ref, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
-import {galleryScenes, generatePreviews, loadCustomScene, removeCustomScene, loadStoredScenes} from '@/scenes'
+import { 
+  galleryScenes, 
+  mazeScenes, 
+  serialControlScenes,
+  generatePreviews, 
+  loadCustomScene, 
+  removeCustomScene, 
+  loadStoredScenes 
+} from '@/scenes'
 import NavigationBar from '@/components/NavigationBar.vue'
 
 const router = useRouter()
 const previews = ref({})
 const previewsLoaded = ref(false)
+const customScenes = ref([])
 const loadingScene = ref(false)
 const error = ref(null)
 const fileInput = ref(null)
@@ -34,18 +43,13 @@ const handleLoadScene = () => {
 
 const handleSceneSelect = (sceneId) => {
   console.log('EntranceScene: Selecting scene:', sceneId)
-  const scene = galleryScenes.find(s => s.id === sceneId)
+  const scene = [...galleryScenes, ...mazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
 
   if (window.electron) {
     console.log('EntranceScene: Opening in Electron:', sceneId)
-    // Pass both scene ID and config to electron
     window.electron.openScene(sceneId, scene?.config)
   } else {
-    const path = sceneId.startsWith('custom_')
-        ? `/scene/custom/${sceneId}`
-        : `/scene/${sceneId}`
-    console.log('EntranceScene: Opening in browser:', path)
-    router.push(path)
+    router.push(`/scene/${sceneId}`)
   }
 }
 
