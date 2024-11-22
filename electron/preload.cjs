@@ -1,4 +1,5 @@
 const {contextBridge, ipcRenderer} = require('electron')
+const SerialPort = require('serialport')
 
 console.log('Preload: Script starting')
 
@@ -22,7 +23,12 @@ contextBridge.exposeInMainWorld('electron', {
   },
   storeCustomScene: (sceneData) => ipcRenderer.invoke('store-custom-scene', sceneData),
   getStoredScenes: () => ipcRenderer.invoke('get-stored-scenes'),
-  deleteStoredScene: (sceneId) => ipcRenderer.invoke('delete-stored-scene', sceneId)
+  deleteStoredScene: (sceneId) => ipcRenderer.invoke('delete-stored-scene', sceneId),
+  
+  listSerialPorts: () => ipcRenderer.invoke('list-serial-ports'),
+  connectSerialPort: (path, options) => ipcRenderer.invoke('connect-serial-port', path, options),
+  disconnectSerialPort: () => ipcRenderer.invoke('disconnect-serial-port'),
+  onSerialData: (callback) => ipcRenderer.on('serial-data', callback)
 })
 
 console.log('Preload: Script initialized')

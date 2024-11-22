@@ -1,7 +1,7 @@
 <script setup>
 import {ref, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
-import {scenes, generatePreviews, loadCustomScene, removeCustomScene, loadStoredScenes} from '@/scenes'
+import {galleryScenes, generatePreviews, loadCustomScene, removeCustomScene, loadStoredScenes} from '@/scenes'
 import NavigationBar from '@/components/NavigationBar.vue'
 
 const router = useRouter()
@@ -34,7 +34,7 @@ const handleLoadScene = () => {
 
 const handleSceneSelect = (sceneId) => {
   console.log('EntranceScene: Selecting scene:', sceneId)
-  const scene = scenes.find(s => s.id === sceneId)
+  const scene = galleryScenes.find(s => s.id === sceneId)
 
   if (window.electron) {
     console.log('EntranceScene: Opening in Electron:', sceneId)
@@ -137,7 +137,7 @@ const handleDeleteScene = async (sceneId) => {
 
           <!-- Scene Cards -->
           <div
-              v-for="scene in scenes"
+              v-for="scene in galleryScenes"
               :key="scene.id"
               class="scene-card"
               @click="handleSceneSelect(scene.id)"
@@ -218,9 +218,13 @@ const handleDeleteScene = async (sceneId) => {
   gap: 2rem;
   padding: 1rem;
   margin-bottom: 2rem;
+  justify-items: start;
 }
 
 .scene-card {
+  width: 100%;
+  min-width: 300px;
+  max-width: 400px;
   background-color: #2a2a2a;
   border-radius: 12px;
   overflow: hidden;

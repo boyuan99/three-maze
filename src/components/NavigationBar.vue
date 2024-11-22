@@ -3,6 +3,7 @@
     <div class="nav-content">
       <router-link to="/" class="nav-link">Observe Gallery</router-link>
       <router-link to="/physics-mazes" class="nav-link">Interactive Mazes</router-link>
+      <router-link to="/serial-control" class="nav-link">Serial Control</router-link>
     </div>
   </nav>
 </template>

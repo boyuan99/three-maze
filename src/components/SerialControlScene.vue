@@ -1,16 +1,15 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { scenes, generatePreviews } from '@/scenes'
-import { mazeScenes as mazeScenesList } from '@/scenes'
+import { serialControlScenes, generatePreviews } from '@/scenes'
 import NavigationBar from '@/components/NavigationBar.vue'
 
 const router = useRouter()
 const previews = ref({})
 const previewsLoaded = ref(false)
 
-const availableMazeScenes = computed(() => {
-  return mazeScenesList
+const availableSerialScenes = computed(() => {
+  return serialControlScenes
 })
 
 onMounted(async () => {
@@ -26,7 +25,7 @@ onMounted(async () => {
 
 const handleSceneSelect = (sceneId) => {
   if (window.electron) {
-    const scene = scenes.find(s => s.id === sceneId)
+    const scene = serialControlScenes.find(s => s.id === sceneId)
     window.electron.openScene(sceneId, scene?.config)
   } else {
     router.push(`/scene/${sceneId}`)
@@ -39,10 +38,10 @@ const handleSceneSelect = (sceneId) => {
     <NavigationBar />
     <div class="entrance-container">
       <div class="entrance-content">
-        <h1 class="title">Physics Mazes</h1>
+        <h1 class="title">Serial Control Scenes</h1>
         <div class="scene-grid">
           <div 
-            v-for="scene in availableMazeScenes" 
+            v-for="scene in availableSerialScenes" 
             :key="scene.id"
             class="scene-card"
             @click="handleSceneSelect(scene.id)"
