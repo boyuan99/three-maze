@@ -1,10 +1,9 @@
 <script setup>
 import {ref, onMounted} from 'vue'
 import {useRouter} from 'vue-router'
-import { 
-  galleryScenes, 
-  mazeScenes, 
-  serialControlScenes,
+import {
+  scenes,
+  galleryScenes,
   generatePreviews, 
   loadCustomScene, 
   removeCustomScene, 
@@ -43,17 +42,17 @@ const handleLoadScene = () => {
 
 const handleSceneSelect = (sceneId) => {
   console.log('EntranceScene: Selecting scene:', sceneId)
-  const scene = [...galleryScenes, ...mazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
+  const scene = [...scenes].find(s => s.id === sceneId)
 
   if (window.electron) {
     console.log('EntranceScene: Opening in Electron:', sceneId)
     window.electron.openScene(sceneId, scene?.config)
   } else {
-      const path = sceneId.startsWith('custom_')
-          ? `/scene/custom/${sceneId}`
-          : `/scene/${sceneId}`
-      console.log('EntranceScene: Opening in browser:', path)
-      router.push(path)
+    const path = sceneId.startsWith('custom_')
+        ? `/scene/custom/${sceneId}`
+        : `/scene/${sceneId}`
+    console.log('EntranceScene: Opening in browser:', path)
+    router.push(path)
   }
 }
 
@@ -143,9 +142,33 @@ const handleDeleteScene = async (sceneId) => {
             >
           </div>
 
-          <!-- Scene Cards -->
+          <!-- Gallery Scenes -->
           <div
               v-for="scene in galleryScenes"
+              :key="scene.id"
+              class="scene-card"
+              @click="handleSceneSelect(scene.id)"
+          >
+            <div class="scene-preview">
+              <div v-if="!previewsLoaded || !previews[scene.id]" class="preview-loading">
+                Loading preview...
+              </div>
+              <img
+                  v-else
+                  :src="previews[scene.id]"
+                  :alt="scene.name"
+                  class="preview-image"
+              >
+            </div>
+            <div class="scene-info">
+              <h2 class="scene-title">{{ scene.name }}</h2>
+              <p class="scene-description">{{ scene.description }}</p>
+            </div>
+          </div>
+
+          <!-- Custom Scenes -->
+          <div
+              v-for="scene in scenes.filter(s => s.id.startsWith('custom_'))"
               :key="scene.id"
               class="scene-card"
               @click="handleSceneSelect(scene.id)"
@@ -165,7 +188,6 @@ const handleDeleteScene = async (sceneId) => {
               <div class="scene-header">
                 <h2 class="scene-title">{{ scene.name }}</h2>
                 <button
-                    v-if="scene.id.startsWith('custom_')"
                     class="delete-button"
                     @click.stop="handleDeleteScene(scene.id)"
                     title="Delete custom scene"
