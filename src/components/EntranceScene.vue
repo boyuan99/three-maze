@@ -49,7 +49,11 @@ const handleSceneSelect = (sceneId) => {
     console.log('EntranceScene: Opening in Electron:', sceneId)
     window.electron.openScene(sceneId, scene?.config)
   } else {
-    router.push(`/scene/${sceneId}`)
+      const path = sceneId.startsWith('custom_')
+          ? `/scene/custom/${sceneId}`
+          : `/scene/${sceneId}`
+      console.log('EntranceScene: Opening in browser:', path)
+      router.push(path)
   }
 }
 
