@@ -11,31 +11,41 @@ import { HallwayWorld } from '../worlds/HallwayWorld.js'
 
 const canvas = ref(null)
 const world = shallowRef(null)
-const state = ref({})
+const currentState = ref({})
 
 // Handle incoming data from Python backend
 const updateFromPython = (data) => {
   if (!world.value) return
   
   try {
-    const { x, y, theta, water, timestamp, isWhite } = data
-    const { playerBody, camera } = state.value
-
-    // Update position and rotation (similar to grittonmove.m)
-    const rotMatrix = new THREE.Matrix4().makeRotationY(theta)
-    const position = new THREE.Vector3(x, 2, y)
-    position.applyMatrix4(rotMatrix)
-
-    // Update player position
+    const { dx, dy, dtheta, x, y, theta, water } = data
+    const { playerBody, camera } = world.value
+    
+    // Use the current accumulated position from Python backend
+    const newPosition = new THREE.Vector3(x, 2, y)
+    
+    // Update player position and rotation
     playerBody.setTranslation({
-      x: position.x,
-      y: 2,  // Fixed height
-      z: position.z
+      x: newPosition.x,
+      y: 2,
+      z: newPosition.z
+    })
+    
+    playerBody.setRotation({
+      x: 0,
+      y: theta,
+      z: 0
     })
 
     // Update camera
-    camera.position.copy(position)
+    camera.position.copy(newPosition)
     camera.rotation.y = theta
+    
+    // Store current state
+    currentState.value = {
+      position: newPosition,
+      rotation: theta
+    }
   } catch (err) {
     console.error('Error updating scene:', err)
   }
@@ -43,9 +53,8 @@ const updateFromPython = (data) => {
 
 onMounted(async () => {
   if (canvas.value) {
-    // Create world with orbit controls disabled
     world.value = new HallwayWorld(canvas.value, {
-      useOrbitControls: false  // Explicitly disable orbit controls
+      useOrbitControls: false
     })
     await world.value.init()
     

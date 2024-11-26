@@ -15,12 +15,15 @@ class HallwayController:
         
     def initialize(self):
         """Initialize the controller and reset state"""
+        print("Controller initializing...", flush=True)
         self.state = HallwayState()
         
         if not self.is_initialized:
+            print("Initializing serial communication...", flush=True)
             self.serial.initialize_communication()
             self.is_initialized = True
         
+        print("Starting new logging session...", flush=True)
         self.logger.start_new_session()
         
         # Reset trial flags
