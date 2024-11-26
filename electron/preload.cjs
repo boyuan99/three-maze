@@ -27,7 +27,11 @@ contextBridge.exposeInMainWorld('electron', {
   listSerialPorts: () => ipcRenderer.invoke('list-serial-ports'),
   connectSerialPort: (path, options) => ipcRenderer.invoke('connect-serial-port', path, options),
   disconnectSerialPort: () => ipcRenderer.invoke('disconnect-serial-port'),
-  onSerialData: (callback) => ipcRenderer.on('serial-data', callback)
+  onSerialData: (callback) => ipcRenderer.on('serial-data', callback),
+  
+  startPythonSerial: (port, options) => ipcRenderer.invoke('start-python-serial', port, options),
+  stopPythonSerial: () => ipcRenderer.invoke('stop-python-serial'),
+  onPythonSerialData: (callback) => ipcRenderer.on('python-serial-data', callback)
 })
 
 console.log('Preload: Script initialized')

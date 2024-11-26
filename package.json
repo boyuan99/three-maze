@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "vite build",
     "electron:dev": "cross-env NODE_ENV=development concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
-    "electron:build": "electron-builder"
+    "electron:build": "electron-builder",
+    "postinstall": "node setup/setup-python.js"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",

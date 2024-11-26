@@ -4,6 +4,7 @@ import { dirname, join } from 'path'
 import fs from 'fs'
 import path from 'path'
 import { SerialPort } from 'serialport'
+import { spawn } from 'child_process'
 
 const isDevelopment = process.env.NODE_ENV === 'development'
 const VITE_DEV_SERVER_URL = 'http://localhost:5173'
@@ -17,6 +18,8 @@ let mainWindow = null
 const sceneWindows = new Map()
 const sceneConfigs = new Map()
 let serialPort = null
+let pythonProcess = null
+let serialDataHandler = null
 
 async function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -158,6 +161,10 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
+  if (pythonProcess) {
+    pythonProcess.kill()
+    pythonProcess = null
+  }
   if (process.platform !== 'darwin') {
     app.quit()
   }
@@ -257,6 +264,89 @@ ipcMain.handle('disconnect-serial-port', async () => {
   if (serialPort) {
     await new Promise((resolve) => serialPort.close(resolve))
     serialPort = null
+  }
+  return true
+})
+
+const getPythonConfig = () => {
+  const platform = process.platform
+  const venvPath = path.join(__dirname, '../.venv')
+  
+  switch (platform) {
+    case 'win32':
+      return {
+        interpreter: path.join(venvPath, 'Scripts', 'python.exe'),
+        pip: path.join(venvPath, 'Scripts', 'pip.exe'),
+        venvCommand: ['python', '-m', 'venv'],
+        requirements: ['pyserial', 'numpy', 'nidaqmx']
+      }
+    case 'darwin':
+      return {
+        interpreter: path.join(venvPath, 'bin', 'python3'),
+        pip: path.join(venvPath, 'bin', 'pip3'),
+        venvCommand: ['python3', '-m', 'venv'],
+        requirements: ['pyserial', 'numpy', 'nidaqmx']
+      }
+    case 'linux':
+      return {
+        interpreter: path.join(venvPath, 'bin', 'python3'),
+        pip: path.join(venvPath, 'bin', 'pip3'),
+        venvCommand: ['python3', '-m', 'venv'],
+        requirements: ['pyserial', 'numpy', 'nidaqmx']
+      }
+    default:
+      throw new Error(`Unsupported platform: ${platform}`)
+  }
+}
+
+ipcMain.handle('start-python-serial', async (event, options) => {
+  try {
+    if (pythonProcess) {
+      pythonProcess.kill()
+    }
+
+    const config = getPythonConfig()
+    const scriptPath = path.join(__dirname, '../control/hallway/controller.py')
+    
+    // Check if interpreter exists
+    if (!fs.existsSync(config.interpreter)) {
+      throw new Error('Python environment not found. Please run setup first.')
+    }
+
+    pythonProcess = spawn(config.interpreter, [scriptPath, options.baudRate])
+    serialDataHandler = event.sender
+
+    pythonProcess.stdout.on('data', (data) => {
+      try {
+        const serialData = JSON.parse(data.toString())
+        serialDataHandler.send('python-serial-data', serialData)
+      } catch (err) {
+        console.error('Error parsing Python output:', err)
+      }
+    })
+
+    pythonProcess.stderr.on('data', (data) => {
+      console.error(`Python Error: ${data}`)
+    })
+
+    pythonProcess.on('close', (code) => {
+      console.log(`Python process exited with code ${code}`)
+      pythonProcess = null
+      serialDataHandler = null
+    })
+
+    return true
+  } catch (error) {
+    console.error('Failed to start Python serial reader:', error)
+    throw error
+  }
+})
+
+ipcMain.handle('stop-python-serial', async () => {
+  if (pythonProcess) {
+    pythonProcess.kill()
+    pythonProcess = null
+    serialDataHandler = null
   }
   return true
 })
