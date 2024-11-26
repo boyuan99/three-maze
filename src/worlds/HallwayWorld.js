@@ -5,8 +5,8 @@ import wallTextureUrl from '@/assets/Chess_Pattern.jpg'
 const FAR = 1000
 
 export class HallwayWorld extends BaseWorld {
-  constructor(canvas) {
-    super(canvas, {
+  constructor(canvas, options = {}) {
+    const defaultOptions = {
       cameraConfig: {
         position: new THREE.Vector3(0, 5, 30),
         fov: 75,
@@ -58,7 +58,9 @@ export class HallwayWorld extends BaseWorld {
           castShadow: true
         }
       ]
-    })
+    }
+
+    super(canvas, { ...defaultOptions, ...options })
   }
 
   async setupScene() {
