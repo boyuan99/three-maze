@@ -3,7 +3,6 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import fs from 'fs'
 import path from 'path'
-import { SerialPort } from 'serialport'
 import { spawn } from 'child_process'
 
 const isDevelopment = process.env.NODE_ENV === 'development'
@@ -17,9 +16,7 @@ const __dirname = dirname(__filename)
 let mainWindow = null
 const sceneWindows = new Map()
 const sceneConfigs = new Map()
-let serialPort = null
 let pythonProcess = null
-let serialDataHandler = null
 
 async function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -45,9 +42,8 @@ async function createMainWindow() {
     if (isDevelopment) {
       console.log('Loading dev server URL:', VITE_DEV_SERVER_URL)
       await mainWindow.loadURL(VITE_DEV_SERVER_URL)
-      // mainWindow.webContents.openDevTools()
     } else {
-      const indexHtml = join(__dirname, '../dist/index.html')
+      const indexHtml = join(process.resourcesPath, 'app', 'dist', 'index.html')
       console.log('Loading production file:', indexHtml)
       await mainWindow.loadFile(indexHtml)
     }
@@ -232,42 +228,6 @@ ipcMain.handle('delete-stored-scene', async (event, sceneId) => {
   return true
 })
 
-ipcMain.handle('list-serial-ports', async () => {
-  try {
-    return await SerialPort.list()
-  } catch (error) {
-    console.error('Failed to list serial ports:', error)
-    throw error
-  }
-})
-
-ipcMain.handle('connect-serial-port', async (event, path, options) => {
-  try {
-    if (serialPort) {
-      await new Promise((resolve) => serialPort.close(resolve))
-    }
-    
-    serialPort = new SerialPort({ path, ...options })
-    
-    serialPort.on('data', (data) => {
-      event.sender.send('serial-data', data)
-    })
-    
-    return true
-  } catch (error) {
-    console.error('Failed to connect to serial port:', error)
-    throw error
-  }
-})
-
-ipcMain.handle('disconnect-serial-port', async () => {
-  if (serialPort) {
-    await new Promise((resolve) => serialPort.close(resolve))
-    serialPort = null
-  }
-  return true
-})
-
 const getPythonConfig = () => {
   const platform = process.platform
   const venvPath = path.join(__dirname, '../.venv')
@@ -314,12 +274,11 @@ ipcMain.handle('start-python-serial', async (event, options) => {
     }
 
     pythonProcess = spawn(config.interpreter, [scriptPath, options.baudRate])
-    serialDataHandler = event.sender
 
     pythonProcess.stdout.on('data', (data) => {
       try {
         const serialData = JSON.parse(data.toString())
-        serialDataHandler.send('python-serial-data', serialData)
+        event.sender.send('python-serial-data', serialData)
       } catch (err) {
         console.error('Error parsing Python output:', err)
       }
@@ -332,7 +291,6 @@ ipcMain.handle('start-python-serial', async (event, options) => {
     pythonProcess.on('close', (code) => {
       console.log(`Python process exited with code ${code}`)
       pythonProcess = null
-      serialDataHandler = null
     })
 
     return true
@@ -346,7 +304,6 @@ ipcMain.handle('stop-python-serial', async () => {
   if (pythonProcess) {
     pythonProcess.kill()
     pythonProcess = null
-    serialDataHandler = null
   }
   return true
 })
