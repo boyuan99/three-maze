@@ -124,6 +124,17 @@ async function createSceneWindow(sceneName) {
     sceneConfigs.delete(sceneName)
   })
 
+  sceneWindow.on('close', () => {
+    if (pythonProcess) {
+      pythonProcess.stdin.write(JSON.stringify({ command: 'stop_logging' }) + '\n')
+      
+      setTimeout(() => {
+        pythonProcess.kill()
+        pythonProcess = null
+      }, 1000)
+    }
+  })
+
   return sceneWindow
 }
 
@@ -190,7 +201,16 @@ ipcMain.on('open-scene', async (event, sceneName, sceneConfig) => {
     }
   }
 
-  await createSceneWindow(sceneName)
+  const sceneWindow = await createSceneWindow(sceneName)
+  
+  // Auto-start Python backend for serial scenes
+  if (sceneName.startsWith('serial-')) {
+    try {
+      await startPythonBackend(sceneWindow)
+    } catch (error) {
+      sceneWindow.webContents.send('python-error', error.message)
+    }
+  }
 })
 
 ipcMain.handle('get-scene-config', async (event) => {
@@ -259,45 +279,8 @@ const getPythonConfig = () => {
   }
 }
 
-ipcMain.handle('start-python-serial', async (event, options) => {
-  try {
-    if (pythonProcess) {
-      pythonProcess.kill()
-    }
-
-    const config = getPythonConfig()
-    const scriptPath = path.join(__dirname, '../control/hallway/controller.py')
-    
-    // Check if interpreter exists
-    if (!fs.existsSync(config.interpreter)) {
-      throw new Error('Python environment not found. Please run setup first.')
-    }
-
-    pythonProcess = spawn(config.interpreter, [scriptPath, options.baudRate])
-
-    pythonProcess.stdout.on('data', (data) => {
-      try {
-        const serialData = JSON.parse(data.toString())
-        event.sender.send('python-serial-data', serialData)
-      } catch (err) {
-        console.error('Error parsing Python output:', err)
-      }
-    })
-
-    pythonProcess.stderr.on('data', (data) => {
-      console.error(`Python Error: ${data}`)
-    })
-
-    pythonProcess.on('close', (code) => {
-      console.log(`Python process exited with code ${code}`)
-      pythonProcess = null
-    })
-
-    return true
-  } catch (error) {
-    console.error('Failed to start Python serial reader:', error)
-    throw error
-  }
+ipcMain.handle('start-python-serial', async (event) => {
+  return startPythonBackend()
 })
 
 ipcMain.handle('stop-python-serial', async () => {
@@ -318,4 +301,84 @@ process.on('unhandledRejection', (error) => {
 
 if (isDevelopment) {
   app.commandLine.appendSwitch('ignore-certificate-errors')
+}
+
+const startPythonBackend = async (window) => {
+  try {
+    const config = getPythonConfig()
+    const scriptPath = path.join(__dirname, '..')
+    
+    if (!fs.existsSync(config.interpreter)) {
+      throw new Error('Python environment not found. Please run setup first.')
+    }
+
+    if (pythonProcess) {
+      pythonProcess.kill()
+    }
+
+    pythonProcess = spawn(config.interpreter, ['-m', 'control.hallway'], {
+      cwd: scriptPath
+    })
+
+    pythonProcess.stdout.on('data', (data) => {
+      const output = data.toString().trim()
+      
+      // Handle special commands
+      if (output === 'STOP_LOGGING') {
+        console.log('Python logging stopped')
+        return
+      }
+      
+      // Skip initialization messages
+      if (output.includes('initializing') || output.includes('Starting')) {
+        console.log('Python:', output)
+        return
+      }
+      
+      // Parse comma-separated values
+      try {
+        const [x, y, theta, water, timestamp, isWhite, currentWorld] = output.split(',')
+        const serialData = {
+          x: parseFloat(x),
+          y: parseFloat(y),
+          theta: parseFloat(theta),
+          water: parseInt(water),
+          timestamp,
+          isWhite: parseInt(isWhite) === 1,
+          currentWorld: parseInt(currentWorld)
+        }
+        
+        if (window) {
+          window.webContents.send('python-serial-data', serialData)
+        } else {
+          BrowserWindow.getAllWindows().forEach(win => {
+            win.webContents.send('python-serial-data', serialData)
+          })
+        }
+      } catch (err) {
+        console.error('Error parsing Python output:', err, 'Output was:', output)
+      }
+    })
+
+    pythonProcess.stderr.on('data', (data) => {
+      console.error(`Python Error: ${data}`)
+    })
+
+    pythonProcess.on('close', (code) => {
+      console.log(`Python process exited with code ${code}`)
+      pythonProcess = null
+    })
+
+    // Handle data from renderer to Python
+    ipcMain.on('python-data', (event, data) => {
+      if (pythonProcess && pythonProcess.stdin.writable) {
+        pythonProcess.stdin.write(data + '\n')
+      }
+    })
+
+    return true
+  } catch (error) {
+    console.error('Failed to start Python backend:', error)
+    throw error
+  }
 }

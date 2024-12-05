@@ -1,6 +1,6 @@
-from .state import HallwayState
-from .serial_handler import SerialHandler
-from ..utils.data_logger import DataLogger
+from control.hallway.state import HallwayState
+from control.hallway.serial_handler import SerialHandler
+from control.utils.data_logger import DataLogger
 import numpy as np
 import time
 import nidaqmx
@@ -46,15 +46,8 @@ class HallwayController:
             
         self.logger.log_frame(self.state, position)
         
-        return {
-            'x': position[0],
-            'y': position[1],
-            'theta': position[3],
-            'water': self.state.water,
-            'timestamp': serial_data['timestamp'],
-            'isWhite': self.state.white == 1,
-            'currentWorld': self.state.currentWorld
-        }
+        # Send as comma-separated values
+        print(f"{position[0]},{position[1]},{position[3]},{self.state.water},{serial_data['timestamp']},{self.state.white},{self.state.currentWorld}", flush=True)
     
     def reward_circle_small(self):
         """Implement reward mechanism using NI-DAQmx"""
@@ -79,10 +72,15 @@ class HallwayController:
     def termination(self):
         """Clean up resources"""
         print(f"NUM REWARDS: {self.state.numrewards}")
-        if self.logger.file:
-            self.logger.file.close()
+        self.stop_logging()
         if self.serial:
             self.serial.close()
+    
+    def stop_logging(self):
+        """Safely close the log file"""
+        if self.logger and self.logger.file:
+            self.logger.file.close()
+            print("STOP_LOGGING", flush=True)  # Special command instead of JSON
     
     def _process_movement(self, serial_data: Dict[str, Any]) -> List[float]:
         """Process movement data from serial input"""

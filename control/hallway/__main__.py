@@ -2,7 +2,8 @@ import sys
 import json
 import time
 import traceback
-from .controller import HallwayController
+import select
+from control.hallway.controller import HallwayController
 
 def main():
     baudrate = int(sys.argv[1]) if len(sys.argv) > 1 else 115200
@@ -12,6 +13,18 @@ def main():
         controller.initialize()
         
         while True:
+            # Read any incoming commands from stdin
+            if select.select([sys.stdin], [], [], 0)[0]:
+                line = sys.stdin.readline()
+                if line:
+                    try:
+                        command = json.loads(line)
+                        if command.get('command') == 'stop_logging':
+                            controller.stop_logging()
+                    except json.JSONDecodeError:
+                        print(json.dumps({"error": "Invalid command format"}), flush=True)
+            
+            # Regular data processing
             data = controller.update()
             if data:
                 print(json.dumps(data), flush=True)
