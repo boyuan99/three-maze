@@ -7,7 +7,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, shallowRef } from 'vue'
 import * as THREE from 'three'
-import { HallwayWorld } from '../worlds/HallwayWorld.js'
+import { HallwayWorld } from '../../worlds/HallwayWorld.js'
 
 const canvas = ref(null)
 const world = shallowRef(null)

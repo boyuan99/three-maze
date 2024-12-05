@@ -6,16 +6,16 @@
 
 <script>
 import { onMounted, onUnmounted, ref } from 'vue'
-import { DemoWorld02 } from '../worlds/DemoWorld02.js'
+import { DemoWorld01 } from '../../worlds/DemoWorld01.js'
 
 export default {
-  name: 'Scene2',
+  name: 'Scene1',
   setup() {
     const canvas = ref(null)
     let world = null
 
     onMounted(() => {
-      world = new DemoWorld02(canvas.value)
+      world = new DemoWorld01(canvas.value)
       world.init()
     })
 

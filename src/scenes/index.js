@@ -2,12 +2,12 @@ import { DemoWorld01 } from '@/worlds/DemoWorld01.js'
 import { DemoWorld02 } from '@/worlds/DemoWorld02.js'
 import { HallwayWorld } from '@/worlds/HallwayWorld.js'
 import { CustomWorld } from '@/worlds/CustomWorld.js'
-import Scene1 from '@/scenes/DemoScene1.vue'
-import Scene2 from '@/scenes/DemoScene2.vue'
-import HallwayScene from '@/scenes/HallwayScene.vue'
+import Scene1 from '@/scenes/gallery/DemoScene1.vue'
+import Scene2 from '@/scenes/gallery/DemoScene2.vue'
+import HallwayScene from '@/scenes/gallery/HallwayScene.vue'
 import CustomScene from '@/scenes/CustomScene.vue'
-import HallwayControlScene from "@/scenes/HallwayControlScene.vue"
-import SerialHallwayScene from "@/scenes/SerialHallwayScene.vue"
+import HallwayControlScene from "@/scenes/hallway/HallwayControlScene.vue"
+import SerialHallwayScene from "@/scenes/serial/SerialHallwayScene.vue"
 import { createApp } from 'vue'
 import { storageService } from '@/storage.js'
 
