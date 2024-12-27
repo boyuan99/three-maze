@@ -49,6 +49,7 @@ const handleSceneSelect = (sceneId) => {
     <div class="entrance-container">
       <div class="entrance-content">
         <h1 class="title">Serial Control Scenes</h1>
+        
         <div class="scene-grid">
           <div 
             v-for="scene in availableSerialScenes" 
@@ -332,5 +333,16 @@ const handleSceneSelect = (sceneId) => {
 
 .entrance-wrapper::-webkit-scrollbar-thumb:hover {
   background: #4a4a4a;
+}
+
+.monitor-card {
+  min-height: 400px;
+  cursor: default !important;
+}
+
+.monitor-card:hover {
+  transform: none !important;
+  background-color: #2a2a2a !important;
+  box-shadow: none !important;
 }
 </style>
