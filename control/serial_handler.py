@@ -45,14 +45,31 @@ class SerialHandler:
         try:
             line = self.serial.readline().decode().strip()
             values = line.split(',')
-            if len(values) >= 11:  # Make sure we have all expected values
-                return {
+            if len(values) >= 13:  # Make sure we have all expected values
+                # print(f"Python serial raw x value: {values[7]}", flush=True)
+                data = {
                     'timestamp': values[0],
+                    'leftSensor': {
+                        'dx': float(values[1]),
+                        'dy': float(values[2]),
+                        'dt': float(values[3])
+                    },
+                    'rightSensor': {
+                        'dx': float(values[4]),
+                        'dy': float(values[5]),
+                        'dt': float(values[6])
+                    },
                     'x': float(values[7]),
                     'y': float(values[8]),
                     'theta': float(values[9]),
-                    'water': int(values[10])
+                    'water': int(values[10]),
+                    'direction': float(values[11]),
+                    'frameCount': int(values[12])
                 }
+                # print(f"Python parsed x value: {data['x']}", flush=True)
+                return data
+            else:
+                print(f"Invalid data length: {len(values)}")  # Debug data length
         except Exception as e:
             print(f"Error reading serial data: {e}")
         return None

@@ -1,5 +1,5 @@
 from control.hallway.state import HallwayState
-from control.hallway.serial_handler import SerialHandler
+from control.serial_handler import SerialHandler
 from control.utils.data_logger import DataLogger
 import numpy as np
 import time

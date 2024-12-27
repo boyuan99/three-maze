@@ -2,7 +2,7 @@ import sys
 import json
 import time
 import traceback
-import select
+import msvcrt  # Windows-specific module for console input
 from control.hallway.controller import HallwayController
 
 def main():
@@ -11,16 +11,19 @@ def main():
     try:
         controller = HallwayController()
         controller.initialize()
+        running = True
         
-        while True:
-            # Read any incoming commands from stdin
-            if select.select([sys.stdin], [], [], 0)[0]:
+        while running:
+            # Check for input using msvcrt on Windows
+            if msvcrt.kbhit():
                 line = sys.stdin.readline()
                 if line:
                     try:
                         command = json.loads(line)
                         if command.get('command') == 'stop_logging':
                             controller.stop_logging()
+                            running = False
+                            break
                     except json.JSONDecodeError:
                         print(json.dumps({"error": "Invalid command format"}), flush=True)
             
@@ -29,6 +32,10 @@ def main():
             if data:
                 print(json.dumps(data), flush=True)
             time.sleep(1/60)
+            
+        # Clean up before exiting
+        controller.termination()
+        sys.exit(0)
             
     except KeyboardInterrupt:
         controller.termination()
