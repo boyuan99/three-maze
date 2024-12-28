@@ -321,65 +321,17 @@ const startPythonBackend = async (window) => {
     })
 
     pythonProcess.stdout.on('data', (data) => {
-      // console.log('Raw Python output:', data.toString()) 
-      const output = data.toString().trim()
-      
-      // Skip empty output
-      if (!output) return
-
-      // Handle regular position updates (7 comma-separated values)
-      if (output.split(',').length === 7) {
-        const [x, y, theta, water, timestamp, white, currentWorld] = output.split(',')
-        const positionData = {
-          x: parseFloat(x),
-          y: parseFloat(y),
-          theta: parseFloat(theta),
-          water: parseInt(water),
-          timestamp: timestamp,
-          white: parseInt(white),
-          currentWorld: parseInt(currentWorld)
-        }
-        
-        // Forward position data to renderer
-        BrowserWindow.getAllWindows().forEach(win => {
-          win.webContents.send('python-position-data', positionData)
-        })
-        return
-      }
-
-      // Handle initialization data (same as before)
-      if (output.startsWith('nreps:') || 
-          output.startsWith('repcycles:') || 
-          output.startsWith('water_jitter:') ||
-          output.startsWith('water_spacing:') ||
-          output.startsWith('blank')) {
+      const messages = data.toString().trim().split('\n')
+      messages.forEach(message => {
         try {
-          const values = output.split(',')
-          if (values.length >= 13) {
-            const serialData = {
-              timestamp: values[0],
-              leftSensor: { dx: parseFloat(values[1]), dy: parseFloat(values[2]), dt: parseFloat(values[3]) },
-              rightSensor: { dx: parseFloat(values[4]), dy: parseFloat(values[5]), dt: parseFloat(values[6]) },
-              x: parseFloat(values[7]),
-              y: parseFloat(values[8]),
-              theta: parseFloat(values[9]),
-              water: parseInt(values[10]),
-              direction: parseFloat(values[11]),
-              frameCount: parseInt(values[12])
-            }
-            BrowserWindow.getAllWindows().forEach(win => {
-              win.webContents.send('python-serial-data', serialData)
-            })
+          if (message.trim().startsWith('{')) {
+            const parsedData = JSON.parse(message)
+            window.webContents.send('python-serial-data', parsedData)
           }
         } catch (err) {
-          console.error('Error parsing initialization data:', err)
+          // console.log('Debug message:', message)
         }
-      }
-
-      // Log any other output (for debugging)
-      if (output.startsWith('Python output:') || output.includes('error')) {
-        console.log(output)
-      }
+      })
     })
 
     pythonProcess.stderr.on('data', (data) => {

@@ -15,19 +15,19 @@
           <div class="data-grid">
             <div class="data-item">
               <span class="label">Position X:</span>
-              <span class="value">{{ formatNumber(latestData.x) }}</span>
+              <span class="value">{{ formatNumber(latestData.position?.x) }}</span>
             </div>
             <div class="data-item">
               <span class="label">Position Y:</span>
-              <span class="value">{{ formatNumber(latestData.y) }}</span>
+              <span class="value">{{ formatNumber(latestData.position?.y) }}</span>
             </div>
             <div class="data-item">
               <span class="label">Theta:</span>
-              <span class="value">{{ formatNumber(latestData.theta) }}</span>
+              <span class="value">{{ formatNumber(latestData.position?.theta) }}</span>
             </div>
             <div class="data-item">
               <span class="label">Water:</span>
-              <span class="value">{{ latestData.water }}</span>
+              <span class="value">{{ latestData.water ? 'Yes' : 'No' }}</span>
             </div>
             <div class="data-item">
               <span class="label">World:</span>
@@ -54,12 +54,13 @@ import { ref, onMounted, onUnmounted } from 'vue'
 const isMonitoring = ref(false)
 const error = ref(null)
 const latestData = ref({
-  x: 0,
-  y: 0,
-  theta: 0,
-  water: 0,
+  position: {
+    x: 0,
+    y: 0,
+    theta: 0
+  },
+  water: false,
   timestamp: '',
-  isWhite: true,
   currentWorld: 1
 })
 
@@ -84,8 +85,6 @@ const startMonitoring = async () => {
 const stopMonitoring = async () => {
   try {
     if (window.electron) {
-      window.electron.sendToPython({ command: 'stop_logging' })
-      await new Promise(resolve => setTimeout(resolve, 100))
       await window.electron.stopPythonSerial()
       isMonitoring.value = false
     }
@@ -95,19 +94,19 @@ const stopMonitoring = async () => {
 }
 
 onMounted(() => {
+  console.log('SerialMonitorScene: Component mounted')
+  
   if (window.electron) {
-    // Listen for initialization data
+    console.log('SerialMonitorScene: electron object exists')
+    
     window.electron.onPythonSerialData((data) => {
-      // Handle initialization data
-      console.log('Initialization data:', data)
+      console.log('SerialMonitorScene: Received data:', data)
+      if (data.type === 'position_update') {
+        latestData.value = data.data
+      }
     })
-
-    // Listen for position updates
-    window.electron.onPythonPositionData((data) => {
-      // Handle position updates
-      console.log('Position update:', data)
-      // Update your UI here
-    })
+  } else {
+    console.log('SerialMonitorScene: electron object not found')
   }
 })
 

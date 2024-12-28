@@ -24,11 +24,19 @@ contextBridge.exposeInMainWorld('electron', {
   getStoredScenes: () => ipcRenderer.invoke('get-stored-scenes'),
   deleteStoredScene: (sceneId) => ipcRenderer.invoke('delete-stored-scene', sceneId),
   
-  startPythonSerial: (port, options) => ipcRenderer.invoke('start-python-serial', port, options),
+  startPythonSerial: () => ipcRenderer.invoke('start-python-serial'),
   stopPythonSerial: () => ipcRenderer.invoke('stop-python-serial'),
-  onPythonSerialData: (callback) => ipcRenderer.on('python-serial-data', (event, data) => callback(data)),
+  onPythonSerialData: (callback) => {
+    console.log('Setting up serial data listener')
+    ipcRenderer.on('python-serial-data', (event, data) => {
+      console.log('Preload received data:', data)
+      callback(data)
+    })
+  },
   isSerialScene: (scenePath) => ipcRenderer.invoke('is-serial-scene', scenePath),
-  onPythonError: (callback) => ipcRenderer.on('python-error', (event, error) => callback(error)),
+  onPythonError: (callback) => {
+    ipcRenderer.on('python-error', (event, error) => callback(error))
+  },
   sendToPython: (data) => ipcRenderer.send('python-data', data),
   onWindowClose: (callback) => ipcRenderer.on('window-close', callback),
   onPythonPositionData: (callback) => {ipcRenderer.on('python-position-data', (_, data) => callback(data))}

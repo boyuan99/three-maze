@@ -46,8 +46,18 @@ class HallwayController:
             
         self.logger.log_frame(self.state, position)
         
-        # Send as comma-separated values
-        print(f"{position[0]},{position[1]},{position[3]},{self.state.water},{serial_data['timestamp']},{self.state.white},{self.state.currentWorld}", flush=True)
+        # Return structured data
+        return {
+            "position": {
+                "x": position[0],
+                "y": position[1],
+                "theta": position[3]
+            },
+            "water": self.state.water,
+            "timestamp": serial_data['timestamp'],
+            "white": self.state.white,
+            "currentWorld": self.state.currentWorld
+        }
     
     def reward_circle_small(self):
         """Implement reward mechanism using NI-DAQmx"""
