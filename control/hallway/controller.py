@@ -64,8 +64,8 @@ class HallwayController:
         try:
             with nidaqmx.Task() as task:
                 # Configure analog output channel
-                task.ao_channels.add_ao_voltage_chan("Dev1/ao0")
-                task.timing.cfg_samp_clk_timing(rate=1)
+                task.ao_channels.add_ao_voltage_chan("Dev1/ao0", min_val=0.0, max_val=5.0)
+                task.timing.samp_timing_type = nidaqmx.constants.SampleTimingType.ON_DEMAND
                 
                 # Send 5V pulse
                 task.write([5], auto_start=True)

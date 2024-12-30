@@ -327,15 +327,22 @@ const startPythonBackend = async (window) => {
           if (message.trim().startsWith('{')) {
             const parsedData = JSON.parse(message)
             window.webContents.send('python-serial-data', parsedData)
+          } else {
+            console.log('Python output:', message)
           }
         } catch (err) {
-          // console.log('Debug message:', message)
+          console.log('Python debug message:', message)
         }
       })
     })
 
     pythonProcess.stderr.on('data', (data) => {
-      console.error(`Python Error: ${data}`)
+      const message = data.toString()
+      if (message.startsWith('DEBUG:')) {
+        console.log('Python debug:', message.substring(6).trim())
+      } else {
+        console.error(`Python Error: ${message}`)
+      }
     })
 
     pythonProcess.on('close', (code) => {
