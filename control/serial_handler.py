@@ -44,6 +44,9 @@ class SerialHandler:
         """Read and parse serial data"""
         try:
             line = self.serial.readline().decode().strip()
+            if not line:
+                print("No data read from serial port.", flush=True)
+                return None
             values = line.split(',')
             if len(values) >= 13:  # Make sure we have all expected values
                 # print(f"Python serial raw x value: {values[7]}", flush=True)

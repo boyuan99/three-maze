@@ -77,7 +77,9 @@ class HallwayController:
         except nidaqmx.DaqError as e:
             print(f"DAQ Error in reward delivery: {e}")
         finally:
-            nidaqmx.system.System().reset_device("Dev1")
+            # Properly close the task without resetting the device
+            task.close()
+            print("Task closed successfully.")
     
     def termination(self):
         """Clean up resources"""
