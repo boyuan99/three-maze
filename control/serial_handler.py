@@ -49,7 +49,6 @@ class SerialHandler:
                 return None
             values = line.split(',')
             if len(values) >= 13:  # Make sure we have all expected values
-                # print(f"Python serial raw x value: {values[7]}", flush=True)
                 data = {
                     'timestamp': values[0],
                     'leftSensor': {
@@ -69,10 +68,9 @@ class SerialHandler:
                     'direction': float(values[11]),
                     'frameCount': int(values[12])
                 }
-                # print(f"Python parsed x value: {data['x']}", flush=True)
                 return data
             else:
-                print(f"Invalid data length: {len(values)}")  # Debug data length
+                print(f"Invalid data length: {len(values)}")
         except Exception as e:
             print(f"Error reading serial data: {e}")
         return None

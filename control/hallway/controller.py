@@ -38,26 +38,12 @@ class HallwayController:
         serial_data = self.serial.read_data()
         if not serial_data:
             return None
-            
-        position = self._process_movement(serial_data)
         
-        if self._should_end_trial():
-            self._handle_trial_end()
-            
-        self.logger.log_frame(self.state, position)
+        # Do not process movement here; send the raw serial data instead
+        self.logger.log_frame(self.state, serial_data)
         
-        # Return structured data
-        return {
-            "position": {
-                "x": position[0],
-                "y": position[1],
-                "theta": position[3]
-            },
-            "water": self.state.water,
-            "timestamp": serial_data['timestamp'],
-            "white": self.state.white,
-            "currentWorld": self.state.currentWorld
-        }
+        # Return the raw serial data
+        return serial_data
     
     def reward_circle_small(self):
         """Implement reward mechanism using NI-DAQmx"""

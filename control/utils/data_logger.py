@@ -18,11 +18,15 @@ class DataLogger:
         except Exception as e:
             print(f"Failed to open log file: {e}", flush=True)
         
-    def log_frame(self, state, position):
-        if not self.file:
-            return
-            
-        data_line = (f"{position[0]}\t{position[1]}\t{position[3]}\t"
-                    f"{state.velocity[0]}\t{state.velocity[1]}\t"
-                    f"{state.water}\t{state.timestamp}\t{state.white}\n")
-        self.file.write(data_line) 
+    def log_frame(self, state, serial_data):
+        position = serial_data
+
+        data_line = (
+            f"{position['x']}\t{position['y']}\t{position['theta']}\t"
+            f"{state.currentWorld}\t{state.water}\t{state.timestamp}\n"
+        )
+        if self.file is not None:
+            self.file.write(data_line)
+            self.file.flush()  # Ensure data is written to disk
+        else:
+            print("Error: Log file is not open.", flush=True) 

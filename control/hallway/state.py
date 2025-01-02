@@ -6,7 +6,7 @@ import numpy as np
 class HallwayState:
     position: List[float] = field(default_factory=lambda: [0, -50, 2.0, 0])
     water: int = 0
-    timestamp: str = ""
+    timestamp: str = "101"
     numrewards: int = 0
     isTrialStart: bool = True
     isTrialEnd: bool = False

@@ -53,11 +53,17 @@ import { ref, onMounted, onUnmounted } from 'vue'
 
 const isMonitoring = ref(false)
 const error = ref(null)
+
+// Initialize position state
+const posX = ref(0)
+const posY = ref(0)
+const theta = ref(0)
+
 const latestData = ref({
   position: {
-    x: 0,
-    y: 0,
-    theta: 0
+    x: posX.value,
+    y: posY.value,
+    theta: theta.value
   },
   water: false,
   timestamp: '',
@@ -93,6 +99,8 @@ const stopMonitoring = async () => {
   }
 }
 
+const serialData = ref(null)
+
 onMounted(() => {
   console.log('SerialMonitorScene: Component mounted')
   
@@ -100,10 +108,45 @@ onMounted(() => {
     console.log('SerialMonitorScene: electron object exists')
     
     window.electron.onPythonSerialData((data) => {
-      console.log('SerialMonitorScene: Received data:', data)
-      if (data.type === 'position_update') {
-        latestData.value = data.data
+      console.log('SerialMonitorScene: Received serial data:', data)
+      // Store the serial data
+      serialData.value = data
+      
+      // Extract displacement data
+      const dx = parseFloat(data.x) || 0  // Displacement in x (dxTriangle from Teensy)
+      const dy = parseFloat(data.y) || 0  // Displacement in y (dyTriangle from Teensy)
+      const dtheta = parseFloat(data.theta) || 0  // Change in theta (dTheta from Teensy)
+      
+      // Update the position
+      posX.value += dx
+      posY.value += dy
+      theta.value += dtheta
+      
+      // Keep theta within -π to π
+      if (theta.value > Math.PI) {
+        theta.value -= 2 * Math.PI
+      } else if (theta.value < -Math.PI) {
+        theta.value += 2 * Math.PI
       }
+      
+      // Update latestData for UI
+      latestData.value.position.x = posX.value
+      latestData.value.position.y = posY.value
+      latestData.value.position.theta = theta.value
+      latestData.value.water = data.water
+      latestData.value.timestamp = data.timestamp
+      latestData.value.currentWorld = data.currentWorld || 1
+      
+      // Send computed position back to Python
+      const positionUpdate = {
+        command: 'position_update',
+        data: {
+          x: posX.value,
+          y: posY.value,
+          theta: theta.value
+        }
+      }
+      window.electron.sendToPython(JSON.stringify(positionUpdate))
     })
   } else {
     console.log('SerialMonitorScene: electron object not found')

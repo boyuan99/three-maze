@@ -326,7 +326,12 @@ const startPythonBackend = async (window) => {
         try {
           if (message.trim().startsWith('{')) {
             const parsedData = JSON.parse(message)
-            window.webContents.send('python-serial-data', parsedData)
+            if (parsedData.type === 'serial_data') {
+              window.webContents.send('python-serial-data', parsedData.data)
+            } else {
+              // Handle other message types (e.g., errors, status updates)
+              console.log('Python message:', parsedData)
+            }
           } else {
             console.log('Python output:', message)
           }

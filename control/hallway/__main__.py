@@ -33,7 +33,7 @@ def main():
             # Regular data processing
             data = controller.update()
             if data:
-                ipc.send("position_update", data)
+                ipc.send("serial_data", data)
             time.sleep(1/60)
             
         # Clean up before exiting
