@@ -2,14 +2,6 @@
   <div class="scene-container">
     <div class="monitor-wrapper">
       <div class="monitor-container">
-        <div class="controls">
-          <button @click="startMonitoring" :disabled="isMonitoring">
-            Start Monitoring
-          </button>
-          <button @click="stopMonitoring" :disabled="!isMonitoring">
-            Stop Monitoring
-          </button>
-        </div>
 
         <div class="data-display">
           <div class="data-grid">
@@ -72,20 +64,6 @@ const latestData = ref({
 
 const formatNumber = (num) => {
   return typeof num === 'number' ? num.toFixed(2) : '0.00'
-}
-
-const startMonitoring = async () => {
-  try {
-    if (window.electron) {
-      console.log('Starting Python serial monitoring...')
-      await window.electron.startPythonSerial()
-      isMonitoring.value = true
-      error.value = null
-    }
-  } catch (err) {
-    console.error('Start monitoring error:', err)
-    error.value = `Failed to start monitoring: ${err.message}`
-  }
 }
 
 const stopMonitoring = async () => {
