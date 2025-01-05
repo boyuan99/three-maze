@@ -27,6 +27,9 @@ def main():
                             ipc.send("status", "stopping")
                             running = False
                             break
+                        elif command.get('command') == 'position_update':
+                            result = controller.update_position(command.get('data', {}))
+                            ipc.send("position_update_response", result)
                     except json.JSONDecodeError:
                         ipc.send("error", "Invalid command format")
             
