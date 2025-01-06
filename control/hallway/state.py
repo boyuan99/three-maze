@@ -4,7 +4,7 @@ import numpy as np
 
 @dataclass
 class HallwayState:
-    position: List[float] = field(default_factory=lambda: [0, -50, 2.0, 0])
+    position: List[float] = field(default_factory=lambda: [0, 0, 2.0, 0])
     water: int = 0
     timestamp: str = "101"
     numrewards: int = 0

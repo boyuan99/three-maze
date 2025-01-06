@@ -1,5 +1,6 @@
 import datetime
 import os
+import logging
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -38,11 +39,10 @@ class DataLogger:
             print(f"Failed to open log file: {e}", flush=True)
 
     def log_frame(self, state, serial_data):
-        position = serial_data
 
         data_line = (
-            f"{position['x']}\t{position['y']}\t{position['theta']}\t"
-            f"{state.currentWorld}\t{state.water}\t{state.timestamp}\n"
+            f"{state.position[0]}\t{state.position[1]}\t{state.position[3]}\t"
+            f"{state.currentWorld}\t{serial_data['water']}\t{serial_data['timestamp']}\n"
         )
         if self.file is not None:
             self.file.write(data_line)
