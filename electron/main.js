@@ -359,6 +359,8 @@ const startPythonBackend = async (window) => {
     ipcMain.on('python-data', (event, data) => {
       if (pythonProcess && pythonProcess.stdin.writable) {
         pythonProcess.stdin.write(data + '\n')
+      } else {
+        console.error('Main: Python process not available or stdin not writable')
       }
     })
 
