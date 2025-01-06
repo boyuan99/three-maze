@@ -85,47 +85,66 @@ onMounted(() => {
   if (window.electron) {
     console.log('SerialMonitorScene: electron object exists')
     
-    window.electron.onPythonSerialData((data) => {
-      console.log('SerialMonitorScene: Received serial data:', data)
-      // Store the serial data
-      serialData.value = data
-      
-      // Extract displacement data
-      const dx = parseFloat(data.x) || 0  // Displacement in x (dxTriangle from Teensy)
-      const dy = parseFloat(data.y) || 0  // Displacement in y (dyTriangle from Teensy)
-      const dtheta = parseFloat(data.theta) || 0  // Change in theta (dTheta from Teensy)
-      
-      // Update the position
-      posX.value += dx
-      posY.value += dy
-      theta.value += dtheta
-      
-      // Keep theta within -π to π
-      if (theta.value > Math.PI) {
-        theta.value -= 2 * Math.PI
-      } else if (theta.value < -Math.PI) {
-        theta.value += 2 * Math.PI
+    // Start Python serial monitoring
+    window.electron.startPythonSerial().then((result) => {
+      if (result && result.error) {
+        error.value = `Failed to start Python backend: ${result.error}`;
+        console.error(error.value);
+        return;
       }
-      
-      // Update latestData for UI
-      latestData.value.position.x = posX.value
-      latestData.value.position.y = posY.value
-      latestData.value.position.theta = theta.value
-      latestData.value.water = data.water
-      latestData.value.timestamp = data.timestamp
-      latestData.value.currentWorld = data.currentWorld || 1
-      
-      // Send computed position back to Python
-      const positionUpdate = {
-        command: 'position_update',
-        data: {
-          x: posX.value,
-          y: posY.value,
-          theta: theta.value
+
+      isMonitoring.value = true;
+
+      window.electron.onPythonSerialData((data) => {
+        console.log('SerialMonitorScene: Received serial data:', data)
+        // Store the serial data
+        serialData.value = data
+        
+        // Extract displacement data
+        const dx = parseFloat(data.x) || 0  // Displacement in x (dxTriangle from Teensy)
+        const dy = parseFloat(data.y) || 0  // Displacement in y (dyTriangle from Teensy)
+        const dtheta = parseFloat(data.theta) || 0  // Change in theta (dTheta from Teensy)
+        
+        // Update the position
+        posX.value += dx
+        posY.value += dy
+        theta.value += dtheta
+        
+        // Keep theta within -π to π
+        if (theta.value > Math.PI) {
+          theta.value -= 2 * Math.PI
+        } else if (theta.value < -Math.PI) {
+          theta.value += 2 * Math.PI
         }
-      }
-      window.electron.sendToPython(JSON.stringify(positionUpdate))
-    })
+        
+        // Update latestData for UI
+        latestData.value.position.x = posX.value
+        latestData.value.position.y = posY.value
+        latestData.value.position.theta = theta.value
+        latestData.value.water = data.water
+        latestData.value.timestamp = data.timestamp
+        latestData.value.currentWorld = data.currentWorld || 1
+        
+        // Send computed position back to Python
+        const positionUpdate = {
+          command: 'position_update',
+          data: {
+            x: posX.value,
+            y: posY.value,
+            theta: theta.value
+          }
+        }
+        window.electron.sendToPython(positionUpdate)
+      })
+
+      window.electron.onPythonError((err) => {
+        error.value = `Python error: ${err}`;
+        console.error(error.value);
+      });
+    }).catch((err) => {
+      error.value = `Failed to start Python backend: ${err.message}`;
+      console.error(error.value);
+    });
   } else {
     console.log('SerialMonitorScene: electron object not found')
   }

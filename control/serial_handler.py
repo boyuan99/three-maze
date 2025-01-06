@@ -43,10 +43,17 @@ class SerialHandler:
     def read_data(self):
         """Read and parse serial data"""
         try:
+            if not self.serial or not self.serial.is_open:
+                print("Serial port is not open", flush=True)
+                return None
+            
+            if self.serial.in_waiting == 0:
+                return None
+            
             line = self.serial.readline().decode().strip()
             if not line:
-                print("No data read from serial port.", flush=True)
                 return None
+            
             values = line.split(',')
             if len(values) >= 13:  # Make sure we have all expected values
                 data = {
@@ -70,9 +77,13 @@ class SerialHandler:
                 }
                 return data
             else:
-                print(f"Invalid data length: {len(values)}")
+                print(f"Invalid data length: {len(values)}", flush=True)
+        except serial.SerialException as e:
+            print(f"Serial connection error: {e}", flush=True)
+            self.close()  # Close the connection on error
+            return None
         except Exception as e:
-            print(f"Error reading serial data: {e}")
+            print(f"Error reading serial data: {e}", flush=True)
         return None
         
     def close(self):

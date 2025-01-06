@@ -16,21 +16,21 @@ const getPythonConfig = () => {
         interpreter: join(venvPath, 'Scripts', 'python.exe'),
         pip: join(venvPath, 'Scripts', 'pip.exe'),
         venvCommand: ['python', '-m', 'venv'],
-        requirements: ['pyserial', 'numpy', 'nidaqmx']
+        requirements: ['pyserial', 'numpy', 'nidaqmx', 'websockets']
       }
     case 'darwin':
       return {
         interpreter: join(venvPath, 'bin', 'python3'),
         pip: join(venvPath, 'bin', 'pip3'),
         venvCommand: ['python3', '-m', 'venv'],
-        requirements: ['pyserial', 'numpy', 'nidaqmx']
+        requirements: ['pyserial', 'numpy', 'nidaqmx', 'websockets']
       }
     case 'linux':
       return {
         interpreter: join(venvPath, 'bin', 'python3'),
         pip: join(venvPath, 'bin', 'pip3'),
         venvCommand: ['python3', '-m', 'venv'],
-        requirements: ['pyserial', 'numpy', 'nidaqmx']
+        requirements: ['pyserial', 'numpy', 'nidaqmx', 'websockets']
       }
     default:
       throw new Error(`Unsupported platform: ${platform}`)
@@ -85,7 +85,8 @@ const setupPython = async () => {
       'install',
       'pyserial',
       'numpy',
-      'nidaqmx'
+      'nidaqmx',
+      'websockets'
     ])
     
     install.stdout.on('data', (data) => console.log(data.toString()))

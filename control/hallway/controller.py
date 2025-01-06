@@ -101,3 +101,12 @@ class HallwayController:
         self.reward_circle_small()
         self.state.numrewards += 1
         self.state.velocity = [0, 0, 0, 0]
+
+    def update_position(self, position_data):
+        """Update the internal position state based on data from the Electron app."""
+        if 'x' in position_data:
+            self.state.position[0] = position_data['x']
+        if 'y' in position_data:
+            self.state.position[1] = position_data['y']
+        if 'theta' in position_data:
+            self.state.position[3] = position_data['theta']

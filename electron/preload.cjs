@@ -37,7 +37,9 @@ contextBridge.exposeInMainWorld('electron', {
   onPythonError: (callback) => {
     ipcRenderer.on('python-error', (event, error) => callback(error))
   },
-  sendToPython: (data) => ipcRenderer.send('python-data', data),
+  sendToPython: (data) => {
+    ipcRenderer.send('python-data', data)
+  },
   onWindowClose: (callback) => ipcRenderer.on('window-close', callback),
   onPythonPositionData: (callback) => {ipcRenderer.on('python-position-data', (_, data) => callback(data))}
 })

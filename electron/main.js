@@ -4,6 +4,7 @@ import { dirname, join } from 'path'
 import fs from 'fs'
 import path from 'path'
 import { spawn } from 'child_process'
+import WebSocket from 'ws'
 
 const isDevelopment = process.env.NODE_ENV === 'development'
 const VITE_DEV_SERVER_URL = 'http://localhost:5173'
@@ -17,6 +18,7 @@ let mainWindow = null
 const sceneWindows = new Map()
 const sceneConfigs = new Map()
 let pythonProcess = null
+let pythonWebSocket = null
 
 async function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -120,19 +122,29 @@ async function createSceneWindow(sceneName) {
   sceneWindows.set(sceneName, sceneWindow)
 
   sceneWindow.on('closed', () => {
+    console.log(`Scene window for ${sceneName} has been closed`);
     sceneWindows.delete(sceneName)
     sceneConfigs.delete(sceneName)
   })
 
   sceneWindow.on('close', () => {
-    if (pythonProcess) {
-      pythonProcess.stdin.write(JSON.stringify({ command: 'stop_logging' }) + '\n')
-      
-      setTimeout(() => {
-        pythonProcess.kill()
-        pythonProcess = null
-      }, 1000)
+    console.log(`Scene window for ${sceneName} is closing`);
+
+    // Send 'stop_logging' via WebSocket
+    if (pythonWebSocket && pythonWebSocket.readyState === WebSocket.OPEN) {
+      pythonWebSocket.send(JSON.stringify({ command: 'stop_logging' }));
+      pythonWebSocket.close();
+      pythonWebSocket = null;
     }
+
+    // Kill the Python process if it's still running
+    if (pythonProcess) {
+      pythonProcess.kill();
+      pythonProcess = null;
+    }
+
+    sceneWindows.delete(sceneName);
+    sceneConfigs.delete(sceneName);
   })
 
   return sceneWindow
@@ -280,16 +292,27 @@ const getPythonConfig = () => {
 }
 
 ipcMain.handle('start-python-serial', async (event) => {
-  return startPythonBackend()
-})
+  try {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    await startPythonBackend(window);
+    return true;
+  } catch (error) {
+    return { error: error.message };
+  }
+});
 
 ipcMain.handle('stop-python-serial', async () => {
-  if (pythonProcess) {
-    pythonProcess.kill()
-    pythonProcess = null
+  if (pythonWebSocket && pythonWebSocket.readyState === WebSocket.OPEN) {
+    pythonWebSocket.send(JSON.stringify({ command: 'stop_logging' }));
+    pythonWebSocket.close();
+    pythonWebSocket = null;
   }
-  return true
-})
+  if (pythonProcess) {
+    pythonProcess.kill();
+    pythonProcess = null;
+  }
+  return true;
+});
 
 process.on('uncaughtException', (error) => {
   console.error('Uncaught exception:', error)
@@ -316,57 +339,79 @@ const startPythonBackend = async (window) => {
       pythonProcess.kill()
     }
 
+    // Start the Python backend
     pythonProcess = spawn(config.interpreter, ['-m', 'control.hallway'], {
-      cwd: scriptPath
+      cwd: scriptPath,
+      stdio: ['ignore', 'pipe', 'pipe']
     })
 
-    pythonProcess.stdout.on('data', (data) => {
-      const messages = data.toString().trim().split('\n')
-      messages.forEach(message => {
-        try {
-          if (message.trim().startsWith('{')) {
-            const parsedData = JSON.parse(message)
-            if (parsedData.type === 'serial_data') {
-              window.webContents.send('python-serial-data', parsedData.data)
-            } else {
-              // Handle other message types (e.g., errors, status updates)
-              console.log('Python message:', parsedData)
-            }
-          } else {
-            console.log('Python output:', message)
-          }
-        } catch (err) {
-          console.log('Python debug message:', message)
+    // Wait for the WebSocket server to start
+    await new Promise((resolve, reject) => {
+      let serverStarted = false;
+
+      pythonProcess.stdout.on('data', (data) => {
+        const message = data.toString()
+        console.log('Python output:', message)
+        if (message.includes('WebSocket server started')) {
+          serverStarted = true;
+          resolve()
+        }
+      })
+
+      pythonProcess.stderr.on('data', (data) => {
+        console.error('Python error:', data.toString())
+      })
+
+      pythonProcess.on('exit', (code) => {
+        console.log(`Python process exited with code ${code}`)
+        if (!serverStarted) {
+          reject(new Error('Python backend failed to start'))
         }
       })
     })
 
-    pythonProcess.stderr.on('data', (data) => {
-      const message = data.toString()
-      if (message.startsWith('DEBUG:')) {
-        console.log('Python debug:', message.substring(6).trim())
-      } else {
-        console.error(`Python Error: ${message}`)
+    // Establish WebSocket connection
+    pythonWebSocket = new WebSocket('ws://localhost:8765')
+
+    pythonWebSocket.on('open', () => {
+      console.log('WebSocket connection established with Python backend')
+    })
+
+    pythonWebSocket.on('message', (message) => {
+      try {
+        const parsedData = JSON.parse(message)
+        if (parsedData.type === 'serial_data') {
+          window.webContents.send('python-serial-data', parsedData.data)
+        } else {
+          console.log('Received from Python:', parsedData)
+        }
+      } catch (error) {
+        console.error('Failed to parse message from Python:', message)
       }
     })
 
-    pythonProcess.on('close', (code) => {
-      console.log(`Python process exited with code ${code}`)
-      pythonProcess = null
+    pythonWebSocket.on('close', () => {
+      console.log('WebSocket connection closed')
     })
 
-    // Handle data from renderer to Python
+    pythonWebSocket.on('error', (error) => {
+      console.error('WebSocket error:', error)
+    })
+
+    // Handle data from the renderer process to Python backend
     ipcMain.on('python-data', (event, data) => {
-      if (pythonProcess && pythonProcess.stdin.writable) {
-        pythonProcess.stdin.write(data + '\n')
+      if (pythonWebSocket && pythonWebSocket.readyState === WebSocket.OPEN) {
+        pythonWebSocket.send(JSON.stringify(data));
       } else {
-        console.error('Main: Python process not available or stdin not writable')
+        console.error('WebSocket is not open');
       }
     })
 
     return true
   } catch (error) {
     console.error('Failed to start Python backend:', error)
-    throw error
+
+    pythonProcess = null;
+    throw error;
   }
 }
