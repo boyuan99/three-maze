@@ -77,48 +77,7 @@ const stopMonitoring = async () => {
   }
 }
 
-const handleSerialData = (data) => {
-  console.log('SerialMonitorScene: Received serial data:', data)
-  
-  // Extract serial data
-  const serialData = data.serial
-  const pythonPosition = data.position
-  
-  // Update position based on serial data
-  const dx = parseFloat(serialData.x) || 0
-  const dy = parseFloat(serialData.y) || 0
-  const dtheta = parseFloat(serialData.theta) || 0
-  
-  // Update local position
-  posX.value += dx
-  posY.value += dy
-  theta.value += dtheta
-  
-  // Keep theta within -π to π
-  if (theta.value > Math.PI) {
-    theta.value -= 2 * Math.PI
-  } else if (theta.value < -Math.PI) {
-    theta.value += 2 * Math.PI
-  }
-  
-  // Update UI
-  latestData.value.position.x = posX.value
-  latestData.value.position.y = posY.value
-  latestData.value.position.theta = theta.value
-  latestData.value.water = serialData.water
-  latestData.value.timestamp = serialData.timestamp
-  
-  // Send position back to Python
-  const positionUpdate = {
-    command: 'position_update',
-    data: {
-      x: posX.value,
-      y: posY.value,
-      theta: theta.value
-    }
-  }
-  window.electron.sendToPython(JSON.stringify(positionUpdate))
-}
+const serialData = ref(null)
 
 onMounted(() => {
   console.log('SerialMonitorScene: Component mounted')
@@ -126,7 +85,47 @@ onMounted(() => {
   if (window.electron) {
     console.log('SerialMonitorScene: electron object exists')
     
-    window.electron.onPythonSerialData(handleSerialData)
+    window.electron.onPythonSerialData((data) => {
+      console.log('SerialMonitorScene: Received serial data:', data)
+      // Store the serial data
+      serialData.value = data
+      
+      // Extract displacement data
+      const dx = parseFloat(data.x) || 0  // Displacement in x (dxTriangle from Teensy)
+      const dy = parseFloat(data.y) || 0  // Displacement in y (dyTriangle from Teensy)
+      const dtheta = parseFloat(data.theta) || 0  // Change in theta (dTheta from Teensy)
+      
+      // Update the position
+      posX.value += dx
+      posY.value += dy
+      theta.value += dtheta
+      
+      // Keep theta within -π to π
+      if (theta.value > Math.PI) {
+        theta.value -= 2 * Math.PI
+      } else if (theta.value < -Math.PI) {
+        theta.value += 2 * Math.PI
+      }
+      
+      // Update latestData for UI
+      latestData.value.position.x = posX.value
+      latestData.value.position.y = posY.value
+      latestData.value.position.theta = theta.value
+      latestData.value.water = data.water
+      latestData.value.timestamp = data.timestamp
+      latestData.value.currentWorld = data.currentWorld || 1
+      
+      // Send computed position back to Python
+      const positionUpdate = {
+        command: 'position_update',
+        data: {
+          x: posX.value,
+          y: posY.value,
+          theta: theta.value
+        }
+      }
+      window.electron.sendToPython(JSON.stringify(positionUpdate))
+    })
   } else {
     console.log('SerialMonitorScene: electron object not found')
   }

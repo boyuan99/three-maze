@@ -39,38 +39,11 @@ class HallwayController:
         if not serial_data:
             return None
         
-        # Add timestamp if not present
-        if 'timestamp' not in serial_data:
-            serial_data['timestamp'] = time.strftime("%H:%M:%S", time.localtime())
-        
-        # Log the current state and serial data
+        # Do not process movement here; send the raw serial data instead
         self.logger.log_frame(self.state, serial_data)
         
-        # Check for trial end condition
-        if self._should_end_trial():
-            self._handle_trial_end()
-        
-        # Return combined data
-        return {
-            'serial': serial_data,
-            'position': {
-                'x': self.state.position[0],
-                'y': self.state.position[1],
-                'theta': self.state.position[3]
-            }
-        }
-    
-    def update_position(self, position_data: dict):
-        """Handle position updates from JavaScript"""
-        try:
-            self.state.position[0] = float(position_data['x'])
-            self.state.position[1] = float(position_data['y'])
-            self.state.position[3] = float(position_data['theta'])
-            self.logger.log_position_update(position_data)
-            return {'status': 'success'}
-        except (KeyError, ValueError) as e:
-            self.logger.log_error(f"Position update failed: {e}")
-            return {'status': 'error', 'message': str(e)}
+        # Return the raw serial data
+        return serial_data
     
     def reward_circle_small(self):
         """Implement reward mechanism using NI-DAQmx"""
