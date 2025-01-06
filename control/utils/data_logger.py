@@ -3,24 +3,28 @@ import os
 import logging
 import json
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 class DataLogger:
     def __init__(self):
         self.file = None
         
         # Set up debug logger
-        self.debug_logger = logging.getLogger('debug')
-        self.debug_logger.setLevel(logging.DEBUG)
+        self.log_dir = os.path.join(BASE_DIR, "logs")
+        if not os.path.exists(self.log_dir):
+            os.makedirs(self.log_dir)
         
-        # Create logs directory if it doesn't exist
-        log_dir = os.path.join("D:", "VirmenData", "logs")
-        os.makedirs(log_dir, exist_ok=True)
+        # Create timestamp for this session
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        # Create debug log file with timestamp
-        timestamp = datetime.datetime.now().strftime("%d-%m-%Y-%H-%M-%S-%a")
-        debug_file = os.path.join(log_dir, f"debug_{timestamp}.log")
-        debug_handler = logging.FileHandler(debug_file)
-        debug_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        self.debug_logger.addHandler(debug_handler)
+        # Set up main debug logger
+        debug_file = os.path.join(self.log_dir, f"debug_{timestamp}.log")
+        logging.basicConfig(
+            filename=debug_file,
+            level=logging.DEBUG,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        self.debug_logger = logging.getLogger('hallway')
         
     def start_new_session(self):
         timestamp = datetime.datetime.now().strftime("%d-%m-%Y-%H-%M-%S-%a")

@@ -44,7 +44,7 @@ class HallwayController:
             serial_data['timestamp'] = time.strftime("%H:%M:%S", time.localtime())
         
         # Log the current state and serial data
-        self.logger.log_frame(self.state, serial_data)
+        # self.logger.log_frame(self.state, serial_data)
         
         # Check for trial end condition
         if self._should_end_trial():
