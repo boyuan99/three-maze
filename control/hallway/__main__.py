@@ -38,7 +38,8 @@ async def handle_connection(websocket):
                 if command.get('command') == 'stop_logging':
                     controller.stop_logging()
                     await websocket.send(json.dumps({"type": "status", "data": "stopping"}))
-                    break
+                    await websocket.close()
+                    return
                 elif command.get('command') == 'position_update':
                     controller.update_position(command.get('data', {}))
                     
@@ -68,11 +69,10 @@ async def handle_connection(websocket):
     except Exception as e:
         ipc.debug(f"Exception in handle_connection: {str(e)}")
     finally:
-        try:
-            controller.termination()
-            ipc.debug("Controller terminated")
-        except Exception as e:
-            ipc.debug(f"Error during termination: {str(e)}")
+        controller.termination()
+        ipc.debug("Controller terminated")
+        if not websocket.closed:
+            await websocket.close()
 
 async def main():
     async with websockets.serve(handle_connection, 'localhost', 8765):

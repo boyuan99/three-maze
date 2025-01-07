@@ -308,6 +308,7 @@ ipcMain.handle('stop-python-serial', async () => {
     pythonWebSocket = null;
   }
   if (pythonProcess) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
     pythonProcess.kill();
     pythonProcess = null;
   }
@@ -328,15 +329,16 @@ if (isDevelopment) {
 
 const startPythonBackend = async (window) => {
   try {
+    if (pythonProcess) {
+      pythonProcess.kill();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
     const config = getPythonConfig()
     const scriptPath = path.join(__dirname, '..')
     
     if (!fs.existsSync(config.interpreter)) {
       throw new Error('Python environment not found. Please run setup first.')
-    }
-
-    if (pythonProcess) {
-      pythonProcess.kill()
     }
 
     // Start the Python backend
