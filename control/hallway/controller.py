@@ -38,11 +38,18 @@ class HallwayController:
         serial_data = self.serial.read_data()
         if not serial_data:
             return None
+        
+        trial_reset = self._should_end_trial()
+        if trial_reset:
+            self._handle_trial_end()
 
         # Do not process movement here; send the raw serial data instead
         self.logger.log_frame(self.state, serial_data)
 
-        # Return the raw serial data
+        # Include trial_reset flag in the data sent to the frontend
+        serial_data['trial_reset'] = trial_reset
+
+        # Return the serial data with additional trial reset information
         return serial_data
 
     def reward_circle_small(self):
@@ -98,7 +105,7 @@ class HallwayController:
         self.state.rewarding = True
         self.state.isTrialEnd = True
         self.state.position = [0, 0, 2, 0]
-        self.reward_circle_small()
+        # self.reward_circle_small()
         self.state.numrewards += 1
         self.state.velocity = [0, 0, 0, 0]
 

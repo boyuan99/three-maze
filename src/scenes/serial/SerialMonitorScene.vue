@@ -100,6 +100,17 @@ onMounted(() => {
         // Store the serial data
         serialData.value = data
         
+        // **Check for trial reset**
+        if (data.trial_reset) {
+          // **Handle trial reset logic here**
+          console.log('Trial has been reset.')
+
+          // For example, reset the position to (0,0,0)
+          posX.value = 0
+          posY.value = 0
+          theta.value = 0
+        }
+
         // Extract displacement data
         const dx = parseFloat(data.x) || 0  // Displacement in x (dxTriangle from Teensy)
         const dy = parseFloat(data.y) || 0  // Displacement in y (dyTriangle from Teensy)
