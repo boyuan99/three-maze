@@ -7,4 +7,5 @@ __pycache__/
 /release/
 /dist/
 /control/test/
+/src/test/
 *.log
