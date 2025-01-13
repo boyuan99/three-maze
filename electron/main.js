@@ -597,3 +597,27 @@ ipcMain.handle('close-js-serial', async () => {
     }
   })
 })
+
+ipcMain.handle('deliver-water', () => {
+  return new Promise((resolve, reject) => {
+    const pythonScript = join(__dirname, 'scripts/water_delivery.py')
+    const process = spawn('python', [pythonScript])
+    
+    process.stdout.on('data', (data) => {
+      const output = data.toString().trim()
+      if (output === 'success') {
+        resolve({ success: true })
+      } else if (output.startsWith('error:')) {
+        resolve({ error: output.substring(6) })
+      }
+    })
+
+    process.stderr.on('data', (data) => {
+      resolve({ error: data.toString() })
+    })
+
+    process.on('error', (error) => {
+      resolve({ error: error.message })
+    })
+  })
+})

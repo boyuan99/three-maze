@@ -87,18 +87,31 @@ const initializeSerial = async () => {
       timestamp.value = data.timestamp
       currentWorld.value = data.currentWorld || 1
 
-      // Log data to file in the same format as Python version
-      const logData = `${position.value.x}\t${position.value.y}\t${position.value.theta}\t${currentWorld.value}\t${water.value ? 1 : 0}\t${timestamp.value}\n`
-      window.electron.appendToLog(logData)
-
-      // Check if we should reset the trial (similar to Python version)
+      // Check if we should reset the trial first
       if (Math.abs(position.value.y) >= 50) {
         // Reset position
         position.value.x = 0
         position.value.y = 0
         position.value.theta = 0
         console.log('Trial reset due to Y position limit')
+
+        // Deliver water reward
+        window.electron.deliverWater()
+          .then(result => {
+            if (result.error) {
+              console.error('Water delivery failed:', result.error)
+            } else {
+              console.log('Water delivered successfully')
+            }
+          })
+          .catch(error => {
+            console.error('Error in water delivery:', error)
+          })
       }
+
+      // Log data to file after potential reset, with 3 decimal places
+      const logData = `${position.value.x.toFixed(3)}\t${position.value.y.toFixed(3)}\t${position.value.theta.toFixed(3)}\t${currentWorld.value}\t${water.value ? 1 : 0}\t${timestamp.value}\n`
+      window.electron.appendToLog(logData)
     })
 
   } catch (err) {
