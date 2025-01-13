@@ -88,11 +88,28 @@ export const serialControlScenes = [
   {
     id: 'serial-monitor',
     path: '/scene/serial-monitor',
-    name: 'Serial Monitor',
-    description: 'Monitor serial port data in real-time',
+    name: 'Serial Monitor (Python)',
+    description: 'Monitor serial port data using Python backend',
     component: () => import('@/scenes/serial/SerialMonitorScene.vue'),
     previewGenerator: async () => {
-      // Simple static preview for monitor
+      const canvas = document.createElement('canvas')
+      canvas.width = 300
+      canvas.height = 200
+      const ctx = canvas.getContext('2d')
+      ctx.fillStyle = '#2a2a2a'
+      ctx.fillRect(0, 0, 300, 200)
+      ctx.fillStyle = '#4a4a4a'
+      ctx.fillRect(20, 20, 260, 160)
+      return canvas.toDataURL()
+    }
+  },
+  {
+    id: 'js-serial-monitor',
+    path: '/scene/js-serial-monitor',
+    name: 'Serial Monitor (JavaScript)',
+    description: 'Monitor serial port data using JavaScript',
+    component: () => import('@/scenes/serial/JsSerialMonitorScene.vue'),
+    previewGenerator: async () => {
       const canvas = document.createElement('canvas')
       canvas.width = 300
       canvas.height = 200

@@ -41,7 +41,11 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.send('python-data', data)
   },
   onWindowClose: (callback) => ipcRenderer.on('window-close', callback),
-  onPythonPositionData: (callback) => {ipcRenderer.on('python-position-data', (_, data) => callback(data))}
+  onPythonPositionData: (callback) => {ipcRenderer.on('python-position-data', (_, data) => callback(data))},
+  initializeJsSerial: () => ipcRenderer.invoke('initialize-js-serial'),
+  closeJsSerial: () => ipcRenderer.invoke('close-js-serial'),
+  appendToLog: (data) => ipcRenderer.invoke('append-to-log', data),
+  onSerialData: (callback) => ipcRenderer.on('serial-data', (event, data) => callback(data))
 })
 
 console.log('Preload: Script initialized')
