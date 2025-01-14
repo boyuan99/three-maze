@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
 export class FixedCam {
-    constructor(scene, camera, renderer) {
+    constructor(scene, camera, renderer, options = {}) {
         this.camera = camera;
         this.yaw = new THREE.Object3D();
         this.pitch = new THREE.Object3D();
@@ -11,22 +11,25 @@ export class FixedCam {
 
         scene.add(this.yaw);
 
-        renderer.domElement.addEventListener('mousemove', this.onDocumentMouseMove);
+        // Only add mouse controls if not disabled
+        if (!options.disableMouseControl) {
+            renderer.domElement.addEventListener('mousemove', this.onDocumentMouseMove);
 
-        document.addEventListener('pointerlockchange', () => {
-            if (document.pointerLockElement === renderer.domElement) {
-                console.log("Pointer lock enabled");
-                renderer.domElement.addEventListener('mousemove', this.onDocumentMouseMove);
-            } else {
-                console.log("Pointer lock disabled");
-                renderer.domElement.removeEventListener('mousemove', this.onDocumentMouseMove);
-            }
-        });
+            document.addEventListener('pointerlockchange', () => {
+                if (document.pointerLockElement === renderer.domElement) {
+                    console.log("Pointer lock enabled");
+                    renderer.domElement.addEventListener('mousemove', this.onDocumentMouseMove);
+                } else {
+                    console.log("Pointer lock disabled");
+                    renderer.domElement.removeEventListener('mousemove', this.onDocumentMouseMove);
+                }
+            });
 
-        // Request pointer lock on click
-        renderer.domElement.addEventListener('click', () => {
-            renderer.domElement.requestPointerLock();
-        });
+            // Request pointer lock on click
+            renderer.domElement.addEventListener('click', () => {
+                renderer.domElement.requestPointerLock();
+            });
+        }
     }
 
     onDocumentMouseMove = (event) => {
