@@ -82,11 +82,15 @@ function animate() {
   // Handle any new serial data
   if (serialData.value) {
     try {
-      // Add incremental changes (displacements)
-      position.value.x += (parseFloat(serialData.value.x) || 0) * 0.05
-      position.value.y += (parseFloat(serialData.value.y) || 0) * 0.05
-      position.value.theta += (parseFloat(serialData.value.theta) || 0) * 1.0
+      // Convert displacement to world coordinates based on current orientation
+      const dx = (parseFloat(serialData.value.x) || 0) * 0.05
+      const dy = (parseFloat(serialData.value.y) || 0) * 0.05
       
+      // Calculate world coordinate changes based on current orientation
+      position.value.x +=  dx * Math.cos(position.value.theta) - dy * Math.sin(position.value.theta)
+      position.value.y += -dx * Math.sin(position.value.theta) - dy * Math.cos(position.value.theta)
+      position.value.theta += (parseFloat(serialData.value.theta) || 0) * 1.0
+
       // Keep theta within -π to π
       if (position.value.theta > Math.PI) {
         position.value.theta -= 2 * Math.PI
