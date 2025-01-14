@@ -28,12 +28,17 @@
 import { ref, onMounted, onUnmounted, shallowRef } from 'vue'
 import * as THREE from 'three'
 import { HallwayWorld } from '../../worlds/HallwayWorld.js'
-import { FixedCam } from '@/utils/FixedCam.js'
+import { FixedFollowCam } from '@/utils/FixedFollowCam.js'
 import RAPIER from '@dimforge/rapier3d-compat'
 
 const canvas = ref(null)
 const error = ref(null)
 const isActive = ref(true)
+const HALLWAY_LENGTH = 200
+const HALLWAY_WIDTH = 20
+const WALL_HEIGHT = 10
+const WALL_THICKNESS = 1
+const BLUE_SEGMENT_LENGTH = 30
 const PLAYER_RADIUS = 0.5
 
 // Scene state
@@ -78,9 +83,9 @@ function animate() {
   if (serialData.value) {
     try {
       // Add incremental changes (displacements)
-      position.value.x += parseFloat(serialData.value.x) || 0
-      position.value.y += parseFloat(serialData.value.y) || 0
-      position.value.theta += parseFloat(serialData.value.theta) || 0
+      position.value.x += (parseFloat(serialData.value.x) || 0) * 0.05
+      position.value.y += (parseFloat(serialData.value.y) || 0) * 0.05
+      position.value.theta += (parseFloat(serialData.value.theta) || 0) * 1.0
       
       // Keep theta within -π to π
       if (position.value.theta > Math.PI) {
@@ -92,7 +97,7 @@ function animate() {
       // Update physics body position and rotation
       playerBody.setTranslation({
         x: position.value.x,
-        y: 2,
+        y: 0,
         z: position.value.y  
       }, true)
       
@@ -109,7 +114,8 @@ function animate() {
           bodyPosition.x,
           bodyPosition.y + 2,
           bodyPosition.z
-        )
+        ),
+        rotation: position.value.theta
       })
 
       // Prepare and log data
@@ -120,7 +126,7 @@ function animate() {
       serialData.value = null
 
       // Check if we should reset the trial
-      if (Math.abs(position.value.y) >= 50) {
+      if (Math.abs(position.value.y) >= 70) {
         // Reset position
         position.value.x = 0
         position.value.y = 0
@@ -171,7 +177,11 @@ onMounted(async () => {
   
   if (canvas.value) {
     try {
-      // Initialize world
+      // Initialize physics first
+      console.log('Initializing RAPIER...')
+      await RAPIER.init()
+      
+      // Initialize world (this creates the visual hallway)
       console.log('Initializing HallwayWorld...')
       const world = new HallwayWorld(canvas.value, {
         useOrbitControls: false,
@@ -180,11 +190,74 @@ onMounted(async () => {
       await world.init()
       console.log('HallwayWorld initialized successfully')
 
-      // Initialize physics
-      await RAPIER.init()
+      // Create physics world
       const physicsWorld = new RAPIER.World({ x: 0, y: -9.81, z: 0 })
 
-      // Create player physics body only
+      // Add physics colliders without visual meshes
+      // Floor
+      const floorBody = physicsWorld.createRigidBody(RAPIER.RigidBodyDesc.fixed())
+      physicsWorld.createCollider(
+        RAPIER.ColliderDesc.cuboid(
+          HALLWAY_WIDTH / 2,
+          WALL_THICKNESS / 2,
+          HALLWAY_LENGTH / 2
+        ),
+        floorBody
+      )
+
+      // Left wall
+      const leftWallBody = physicsWorld.createRigidBody(
+        RAPIER.RigidBodyDesc.fixed().setTranslation(-HALLWAY_WIDTH/2, WALL_HEIGHT/2, 0)
+      )
+      physicsWorld.createCollider(
+        RAPIER.ColliderDesc.cuboid(
+          WALL_THICKNESS / 2,
+          WALL_HEIGHT / 2,
+          HALLWAY_LENGTH / 2
+        ),
+        leftWallBody
+      )
+
+      // Right wall
+      const rightWallBody = physicsWorld.createRigidBody(
+        RAPIER.RigidBodyDesc.fixed().setTranslation(HALLWAY_WIDTH/2, WALL_HEIGHT/2, 0)
+      )
+      physicsWorld.createCollider(
+        RAPIER.ColliderDesc.cuboid(
+          WALL_THICKNESS / 2,
+          WALL_HEIGHT / 2,
+          HALLWAY_LENGTH / 2
+        ),
+        rightWallBody
+      )
+
+      // Front wall
+      const frontWallBody = physicsWorld.createRigidBody(
+        RAPIER.RigidBodyDesc.fixed().setTranslation(0, WALL_HEIGHT/2, HALLWAY_LENGTH/2)
+      )
+      physicsWorld.createCollider(
+        RAPIER.ColliderDesc.cuboid(
+          HALLWAY_WIDTH / 2,
+          WALL_HEIGHT / 2,
+          WALL_THICKNESS / 2
+        ),
+        frontWallBody
+      )
+
+      // Back wall
+      const backWallBody = physicsWorld.createRigidBody(
+        RAPIER.RigidBodyDesc.fixed().setTranslation(0, WALL_HEIGHT/2, -HALLWAY_LENGTH/2)
+      )
+      physicsWorld.createCollider(
+        RAPIER.ColliderDesc.cuboid(
+          HALLWAY_WIDTH / 2,
+          WALL_HEIGHT / 2,
+          WALL_THICKNESS / 2
+        ),
+        backWallBody
+      )
+
+      // Create player physics body
       const playerBodyDesc = RAPIER.RigidBodyDesc.dynamic()
         .setTranslation(0, PLAYER_RADIUS, 0)
         .setLinearDamping(0.9)
@@ -197,19 +270,18 @@ onMounted(async () => {
           .setFriction(1),
         playerRigidBody
       )
-      
-      // Store references to world objects
+
+      // Store references
       state.value = {
         scene: world.scene,
         camera: world.camera,
         renderer: world.renderer,
         world: physicsWorld,
         playerBody: playerRigidBody,
-        fixedCam: new FixedCam(world.scene, world.camera, world.renderer, {
+        fixedCam: new FixedFollowCam(world.scene, world.camera, world.renderer, {
           disableMouseControl: true
         })
       }
-      console.log('World state initialized with player:', state.value.playerBody)
 
       // Set initial camera position
       world.camera.position.set(0, 4, 0)
