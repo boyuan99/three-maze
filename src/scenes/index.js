@@ -8,6 +8,7 @@ import HallwayScene from '@/scenes/gallery/HallwayScene.vue'
 import CustomScene from '@/scenes/CustomScene.vue'
 import HallwayControlScene from "@/scenes/hallway/HallwayControlScene.vue"
 import SerialHallwayScene from "@/scenes/serial/SerialHallwayScene.vue"
+import JsSerialHallwayScene from "@/scenes/serial/JsSerialHallwayScene.vue"
 import { createApp } from 'vue'
 import { storageService } from '@/storage.js'
 
@@ -127,6 +128,21 @@ export const serialControlScenes = [
     name: 'Serial Control Hallway',
     description: 'Hallway controlled by serial port input',
     component: SerialHallwayScene,
+    worldClass: HallwayWorld,
+    previewGenerator: async () => {
+      const world = new HallwayWorld(null)
+      await world.init()
+      const preview = world.getPreviewRender()
+      world.dispose()
+      return preview
+    }
+  },
+  {
+    id: 'js-serial-hallway',
+    path: '/scene/js-serial-hallway',
+    name: 'Serial Control Hallway (JavaScript)',
+    description: 'Hallway controlled by serial port input using JavaScript',
+    component: JsSerialHallwayScene,
     worldClass: HallwayWorld,
     previewGenerator: async () => {
       const world = new HallwayWorld(null)

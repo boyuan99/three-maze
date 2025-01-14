@@ -72,9 +72,10 @@ const initializeSerial = async () => {
     // Start receiving data
     window.electron.onSerialData((data) => {
       // Add incremental changes (displacements)
-      position.value.x += parseFloat(data.x) || 0
-      position.value.y += parseFloat(data.y) || 0
-      position.value.theta += parseFloat(data.theta) || 0
+      position.value.x += (parseFloat(data.x) || 0) / 10
+      position.value.y += (parseFloat(data.y) || 0) / 10
+      position.value.theta += (parseFloat(data.theta) || 0) / 10
+
       
       // Keep theta within -π to π
       if (position.value.theta > Math.PI) {
