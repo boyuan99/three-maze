@@ -40,6 +40,8 @@ const WALL_HEIGHT = 10
 const WALL_THICKNESS = 1
 const BLUE_SEGMENT_LENGTH = 30
 const PLAYER_RADIUS = 0.5
+const MAX_LINEAR_VELOCITY = 100 // meters per second
+const DT = 1/20 // 20Hz sampling rate
 
 // Scene state
 const state = shallowRef({
@@ -82,14 +84,29 @@ function animate() {
   // Handle any new serial data
   if (serialData.value) {
     try {
-      // Convert displacement to world coordinates based on current orientation
-      const dx = (parseFloat(serialData.value.x) || 0) * 0.05
-      const dy = (parseFloat(serialData.value.y) || 0) * 0.05
+      // Convert displacement to velocity by dividing by DT
+      const vx = Math.min(Math.max((parseFloat(serialData.value.x) || 0) * 0.01 / DT, -MAX_LINEAR_VELOCITY), MAX_LINEAR_VELOCITY)
+      const vy = Math.min(Math.max((parseFloat(serialData.value.y) || 0) * 0.01 / DT, -MAX_LINEAR_VELOCITY), MAX_LINEAR_VELOCITY)
       
-      // Calculate world coordinate changes based on current orientation
-      position.value.x +=  dx * Math.cos(position.value.theta) - dy * Math.sin(position.value.theta)
-      position.value.y += -dx * Math.sin(position.value.theta) - dy * Math.cos(position.value.theta)
-      position.value.theta += (parseFloat(serialData.value.theta) || 0) * 1.0
+      // Calculate world velocities based on current orientation
+      const worldVx = vx * Math.cos(position.value.theta) - vy * Math.sin(position.value.theta)
+      const worldVz = -vx * Math.sin(position.value.theta) - vy * Math.cos(position.value.theta)
+
+      // Set linear velocity directly on physics body
+      playerBody.setLinvel({
+        x: worldVx,
+        y: 0,
+        z: worldVz
+      }, true)
+
+      // Update position based on physics body
+      const bodyPosition = playerBody.translation()
+      position.value.x = bodyPosition.x
+      position.value.y = bodyPosition.z
+
+      // Handle rotation separately (direct angle control)
+      const deltaTheta = (parseFloat(serialData.value.theta) || 0) * 0.1
+      position.value.theta += deltaTheta
 
       // Keep theta within -π to π
       if (position.value.theta > Math.PI) {
@@ -98,21 +115,14 @@ function animate() {
         position.value.theta += 2 * Math.PI
       }
 
-      // Update physics body position and rotation
-      playerBody.setTranslation({
-        x: position.value.x,
-        y: 0,
-        z: position.value.y  
-      }, true)
-      
+      // Set rotation directly
       playerBody.setRotation({
         x: 0,
         y: position.value.theta,
         z: 0
       }, true)
 
-      // Update camera using FixedCam with physics body position
-      const bodyPosition = playerBody.translation()
+      // Update camera using FixedCam
       fixedCam.update({
         position: new THREE.Vector3(
           bodyPosition.x,
@@ -139,8 +149,9 @@ function animate() {
         // Reset player position
         playerBody.setTranslation({ x: 0, y: 2, z: 0 }, true)
         playerBody.setRotation({ x: 0, y: 0, z: 0 }, true)
+        console.log('Trial reset due to Y position limit')
 
-        // Deliver water reward
+        // Deliver water reward after position reset
         window.electron.deliverWater()
           .then(result => {
             if (result.error) {
@@ -148,6 +159,9 @@ function animate() {
             } else {
               console.log('Water delivered successfully')
             }
+          })
+          .catch(error => {
+            console.error('Error in water delivery:', error)
           })
       }
     } catch (err) {
