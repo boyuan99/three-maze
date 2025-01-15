@@ -8,14 +8,17 @@
     "dev": "vite",
     "build": "vite build",
     "electron:dev": "cross-env NODE_ENV=development concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
-    "electron:build": "electron-builder"
+    "electron:build": "vite build && electron-builder",
+    "postinstall": "node setup/setup-python.js"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.14.0",
     "cross-env": "^7.0.3",
+    "serialport": "^13.0.0",
     "three": "^0.169.0",
     "vue": "^3.5.12",
-    "vue-router": "^4.4.5"
+    "vue-router": "^4.4.5",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.1.4",
@@ -27,13 +30,19 @@
   },
   "build": {
     "appId": "com.example.three-maze",
-    "productName": "",
+    "productName": "three-maze",
     "files": [
       "dist/**/*",
       "electron/**/*"
     ],
     "directories": {
-      "buildResources": "assets"
-    }
+      "output": "release"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    },
+    "asar": false
   }
 }

@@ -25,7 +25,7 @@
 
 <script>
 import { onMounted, onBeforeUnmount, ref, shallowRef } from 'vue'
-import { HallwayWorld } from '../worlds/HallwayWorld.js'
+import { HallwayWorld } from '../../worlds/HallwayWorld.js'
 
 export default {
   name: 'HallwayScene',

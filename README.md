@@ -1,30 +1,142 @@
-# three-maze
-A VR environment designed for animal behavior research.
+# Three-Maze
 
-## Install
-1. Install [Node.js](https://nodejs.org/en)
-2. Run ```npm install``` in the root directory of the project to install all dependencies.
+A VR environment designed for animal behavior research, built with Three.js, Vue.js, and Electron.
 
-## Run
-1. Run ```npm run dev``` in the root directory of the project to start the server.
+## Features
 
-## Trouble Shooting
-### Access Denied
-1. Under Chrome, go to [chrome://net-internals/#sockets](chrome://net-internals/#sockets)
+- Multiple demo scenes with physics interactions
+- Customizable 3D hallway environments
+- Scene preview and management system
+- Support for custom scene configurations via JSON
+- Physics engine integration using Rapier3D
+- VR-ready rendering capabilities
 
-2. Hit the button [Flush socket pools]()
+## Prerequisites
 
-### Port in Use
-By default, you need to clean up port `5000` and `5173` for the app.
+- [Node.js](https://nodejs.org/en) (Latest LTS version recommended)
+- A modern web browser with WebGL support
+- Graphics card with up-to-date drivers
 
-Run:
+## Installation
 
-``` bash
-sudo lsof -i:port # replace 'port' with the port you want to use 
-```
-
-To get the PID that is occupying necessary port, and run:
+1. Clone the repository:
 
 ```bash
-kill PID
+git clone https://github.com/boyuan99/three-maze.git
+cd three-maze
 ```
+
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+## Development
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+For Electron development:
+
+```bash
+npm run electron:dev
+```
+
+## Building
+
+Build for web:
+
+```bash
+npm run build
+```
+
+Build Electron application:
+
+```bash
+npm run electron:build
+```
+
+## Scene Configuration
+
+The application supports custom scene configurations through JSON files. Example structure:
+
+```json
+{
+  "name": "Custom Scene",
+  "description": "Scene description",
+  "camera": {
+    "position": {"x": 0, "y": 5, "z": 30},
+    "fov": 75
+  },
+  "objects": [
+    {
+      "name": "floor",
+      "geometry": {
+        "type": "box",
+        "width": 10,
+        "height": 0.1,
+        "depth": 10
+      },
+      "material": {
+        "color": 8421504,
+        "metalness": 0.1,
+        "roughness": 0.7
+      }
+    }
+  ]
+}
+```
+
+## Controls
+
+- **Orbit Controls:**
+  - Left-click drag: Rotate camera
+  - Right-click drag: Pan camera
+  - Scroll: Zoom in/out
+
+## Troubleshooting
+
+### Port Already in Use
+
+The application requires ports 5000 and 5173. To free these ports:
+
+1. Find the process using the port:
+
+```bash
+sudo lsof -i:5000
+sudo lsof -i:5173
+```
+
+2. Kill the process:
+
+```bash
+kill <PID>
+```
+
+### Chrome Socket Issues
+
+1. Navigate to `chrome://net-internals/#sockets`
+2. Click "Flush socket pools"
+3. Restart the application
+
+## Project Structure
+
+- `/src` - Source code
+  - `/worlds` - 3D world implementations
+  - `/scenes` - Vue scene components
+  - `/components` - Reusable Vue components
+- `/mazes` - Maze configuration files
+- `/electron` - Electron-specific code
+- `/public` - Static assets
+
+## Technical Stack
+
+- Three.js - 3D graphics
+- Vue 3 - UI framework
+- Rapier3D - Physics engine
+- Electron - Desktop application framework
+- Vite - Build tool and development server

@@ -2,3 +2,10 @@
 .DS_Store
 __pycache__/
 /node_modules/
+/.venv/
+/tmp/
+/release/
+/dist/
+/control/test/
+/src/test/
+*.log

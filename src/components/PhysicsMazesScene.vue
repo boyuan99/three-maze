@@ -1,178 +1,78 @@
 <script setup>
-import {ref, onMounted} from 'vue'
-import {useRouter} from 'vue-router'
-import {scenes, generatePreviews, loadCustomScene, removeCustomScene, loadStoredScenes} from '@/scenes'
+import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { 
+  galleryScenes, 
+  mazeScenes, 
+  serialControlScenes,
+  generatePreviews, 
+  loadCustomScene, 
+  removeCustomScene, 
+  loadStoredScenes 
+} from '@/scenes'
+import { mazeScenes as mazeScenesList } from '@/scenes'
+import NavigationBar from '@/components/NavigationBar.vue'
 
 const router = useRouter()
 const previews = ref({})
 const previewsLoaded = ref(false)
-const loadingScene = ref(false)
-const error = ref(null)
-const fileInput = ref(null)
 
-// Load previews when component mounts
+const availableMazeScenes = computed(() => {
+  return mazeScenesList
+})
+
 onMounted(async () => {
   try {
-    // First load stored scenes
-    await loadStoredScenes()
-
-    // Then generate previews
     const result = await generatePreviews()
     previews.value = result
     previewsLoaded.value = true
   } catch (error) {
-    console.error('Error loading scenes and previews:', error)
+    console.error('Error generating previews:', error)
     previewsLoaded.value = true
   }
 })
 
-
-const handleLoadScene = () => {
-  fileInput.value.click()
-}
-
 const handleSceneSelect = (sceneId) => {
-  console.log('EntranceScene: Selecting scene:', sceneId)
-  const scene = scenes.find(s => s.id === sceneId)
-
+  const scene = [...galleryScenes, ...mazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
+  
   if (window.electron) {
-    console.log('EntranceScene: Opening in Electron:', sceneId)
-    // Pass both scene ID and config to electron
     window.electron.openScene(sceneId, scene?.config)
   } else {
-    const path = sceneId.startsWith('custom_')
-        ? `/scene/custom/${sceneId}`
-        : `/scene/${sceneId}`
-    console.log('EntranceScene: Opening in browser:', path)
-    router.push(path)
-  }
-}
-
-const handleFileSelect = async (event) => {
-  const file = event.target.files[0]
-  if (!file) return
-
-  loadingScene.value = true
-  error.value = null
-
-  try {
-    console.log('EntranceScene: Loading custom scene file:', file.name)
-    const customScene = await loadCustomScene(file)
-    console.log('EntranceScene: Custom scene loaded:', customScene)
-
-    // Generate preview
-    previews.value[customScene.id] = await customScene.previewGenerator()
-
-    // Clear file input
-    event.target.value = null
-
-    // Ensure scene is registered before opening
-    await new Promise(resolve => setTimeout(resolve, 100))
-
-    // Open the scene
-    handleSceneSelect(customScene.id)
-  } catch (err) {
-    console.error('EntranceScene: Error loading custom scene:', err)
-    error.value = err.message
-  } finally {
-    loadingScene.value = false
-  }
-}
-
-
-const handleDeleteScene = async (sceneId) => {
-  if (confirm('Are you sure you want to delete this custom scene?')) {
-    const removed = removeCustomScene(sceneId)
-    if (removed) {
-      delete previews.value[sceneId]
-    }
+    router.push(`/scene/${sceneId}`)
   }
 }
 </script>
 
 <template>
   <div class="entrance-wrapper">
+    <NavigationBar />
     <div class="entrance-container">
       <div class="entrance-content">
-        <h1 class="title">Three.js Maze Scenes</h1>
-
-        <!-- Scene loading error modal -->
-        <div v-if="error" class="error-modal">
-          <div class="error-content">
-            <h3>Error Loading Scene</h3>
-            <p>{{ error }}</p>
-            <button @click="error = null">Close</button>
-          </div>
-        </div>
-
+        <h1 class="title">Physics Mazes</h1>
         <div class="scene-grid">
-          <!-- Load Scene Card -->
-          <div
-              class="scene-card load-scene-card"
-              @click="handleLoadScene"
-              :class="{ 'is-loading': loadingScene }"
-          >
-            <div class="scene-preview load-scene-preview">
-              <div class="load-scene-icon">
-                <div v-if="loadingScene" class="loading-spinner"></div>
-                <span v-else class="plus-icon">+</span>
-              </div>
-            </div>
-            <div class="scene-info">
-              <h2 class="scene-title">Load Custom Scene</h2>
-              <p class="scene-description">
-                Import a custom JSON scene configuration
-              </p>
-            </div>
-            <input
-                ref="fileInput"
-                type="file"
-                accept=".json"
-                class="hidden-input"
-                @change="handleFileSelect"
-            >
-          </div>
-
-          <!-- Scene Cards -->
-          <div
-              v-for="scene in scenes"
-              :key="scene.id"
-              class="scene-card"
-              @click="handleSceneSelect(scene.id)"
+          <div 
+            v-for="scene in availableMazeScenes" 
+            :key="scene.id"
+            class="scene-card"
+            @click="handleSceneSelect(scene.id)"
           >
             <div class="scene-preview">
               <div v-if="!previewsLoaded || !previews[scene.id]" class="preview-loading">
                 Loading preview...
               </div>
               <img
-                  v-else
-                  :src="previews[scene.id]"
-                  :alt="scene.name"
-                  class="preview-image"
-              >
+                v-else
+                :src="previews[scene.id]"
+                :alt="scene.name"
+                class="preview-image"
+              />
             </div>
             <div class="scene-info">
               <div class="scene-header">
                 <h2 class="scene-title">{{ scene.name }}</h2>
-                <button
-                    v-if="scene.id.startsWith('custom_')"
-                    class="delete-button"
-                    @click.stop="handleDeleteScene(scene.id)"
-                    title="Delete custom scene"
-                >
-                  ×
-                </button>
               </div>
               <p class="scene-description">{{ scene.description }}</p>
             </div>
-          </div>
-        </div>
-
-        <!-- Loading overlay -->
-        <div v-if="loadingScene" class="loading-overlay">
-          <div class="loading-content">
-            <div class="loading-spinner"></div>
-            <p>Loading scene...</p>
           </div>
         </div>
       </div>
@@ -193,6 +93,7 @@ const handleDeleteScene = async (sceneId) => {
   display: flex;
   justify-content: center;
   padding: 2rem;
+  padding-top: 80px;
 }
 
 .entrance-content {
@@ -215,9 +116,13 @@ const handleDeleteScene = async (sceneId) => {
   gap: 2rem;
   padding: 1rem;
   margin-bottom: 2rem;
+  justify-items: start;
 }
 
 .scene-card {
+  width: 100%;
+  min-width: 300px;
+  max-width: 400px;
   background-color: #2a2a2a;
   border-radius: 12px;
   overflow: hidden;

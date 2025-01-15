@@ -387,7 +387,10 @@ export class BaseWorld {
     if (this.physics) this.physics.free()
     if (this.renderer) {
       window.removeEventListener('resize', this.onWindowResize)
-      this.controls?.dispose()
+      if (this.controls) {
+        this.controls.dispose()
+        this.controls = null
+      }
     }
 
     this.objects.forEach(object => {

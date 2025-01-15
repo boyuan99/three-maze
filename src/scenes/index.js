@@ -2,16 +2,18 @@ import { DemoWorld01 } from '@/worlds/DemoWorld01.js'
 import { DemoWorld02 } from '@/worlds/DemoWorld02.js'
 import { HallwayWorld } from '@/worlds/HallwayWorld.js'
 import { CustomWorld } from '@/worlds/CustomWorld.js'
-import Scene1 from '@/scenes/DemoScene1.vue'
-import Scene2 from '@/scenes/DemoScene2.vue'
-import HallwayScene from '@/scenes/HallwayScene.vue'
+import Scene1 from '@/scenes/gallery/DemoScene1.vue'
+import Scene2 from '@/scenes/gallery/DemoScene2.vue'
+import HallwayScene from '@/scenes/gallery/HallwayScene.vue'
 import CustomScene from '@/scenes/CustomScene.vue'
-import HallwayControlScene from "@/scenes/HallwayControlScene.vue"
+import HallwayControlScene from "@/scenes/hallway/HallwayControlScene.vue"
+import SerialHallwayScene from "@/scenes/serial/SerialHallwayScene.vue"
+import JsSerialHallwayScene from "@/scenes/serial/JsSerialHallwayScene.vue"
 import { createApp } from 'vue'
 import { storageService } from '@/storage.js'
 
-// Central scene configuration
-export const scenes = [
+// Gallery scenes (Observe Gallery tab)
+export const galleryScenes = [
   {
     id: 'scene1',
     path: '/scene/scene1',
@@ -57,6 +59,10 @@ export const scenes = [
       return preview
     }
   },
+]
+
+// Interactive Mazes tab
+export const mazeScenes = [
   {
     id: 'maze',
     path: '/scene/maze',
@@ -64,30 +70,111 @@ export const scenes = [
     description: 'First-person maze exploration with textured walls and physics',
     component: HallwayControlScene,
     previewGenerator: async () => {
-    const div = document.createElement('div')
-    const app = createApp(HallwayControlScene)
-    const instance = app.mount(div)
-
-    try {
-      const preview = await instance.generatePreview()
-      return preview
-    } finally {
-      app.unmount()
-      div.remove()
+      const div = document.createElement('div')
+      const app = createApp(HallwayControlScene)
+      const instance = app.mount(div)
+      try {
+        const preview = await instance.generatePreview()
+        return preview
+      } finally {
+        app.unmount()
+        div.remove()
+      }
     }
-  }
   }
 ]
 
-// Generate routes automatically from scenes
+// Serial Control tab
+export const serialControlScenes = [
+  {
+    id: 'serial-monitor',
+    path: '/scene/serial-monitor',
+    name: 'Serial Monitor (Python)',
+    description: 'Monitor serial port data using Python backend',
+    component: () => import('@/scenes/serial/SerialMonitorScene.vue'),
+    previewGenerator: async () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 300
+      canvas.height = 200
+      const ctx = canvas.getContext('2d')
+      ctx.fillStyle = '#2a2a2a'
+      ctx.fillRect(0, 0, 300, 200)
+      ctx.fillStyle = '#4a4a4a'
+      ctx.fillRect(20, 20, 260, 160)
+      return canvas.toDataURL()
+    }
+  },
+  {
+    id: 'js-serial-monitor',
+    path: '/scene/js-serial-monitor',
+    name: 'Serial Monitor (JavaScript)',
+    description: 'Monitor serial port data using JavaScript',
+    component: () => import('@/scenes/serial/JsSerialMonitorScene.vue'),
+    previewGenerator: async () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 300
+      canvas.height = 200
+      const ctx = canvas.getContext('2d')
+      ctx.fillStyle = '#2a2a2a'
+      ctx.fillRect(0, 0, 300, 200)
+      ctx.fillStyle = '#4a4a4a'
+      ctx.fillRect(20, 20, 260, 160)
+      return canvas.toDataURL()
+    }
+  },
+  {
+    id: 'serial-hallway',
+    path: '/scene/serial-hallway',
+    name: 'Serial Control Hallway',
+    description: 'Hallway controlled by serial port input',
+    component: SerialHallwayScene,
+    worldClass: HallwayWorld,
+    previewGenerator: async () => {
+      const world = new HallwayWorld(null)
+      await world.init()
+      const preview = world.getPreviewRender()
+      world.dispose()
+      return preview
+    }
+  },
+  {
+    id: 'js-serial-hallway',
+    path: '/scene/js-serial-hallway',
+    name: 'Serial Control Hallway (JavaScript)',
+    description: 'Hallway controlled by serial port input using JavaScript',
+    component: JsSerialHallwayScene,
+    worldClass: HallwayWorld,
+    previewGenerator: async () => {
+      const world = new HallwayWorld(null)
+      await world.init()
+      const preview = world.getPreviewRender()
+      world.dispose()
+      return preview
+    }
+  }
+]
+
+// Combine all scenes for general use
+export const scenes = [...galleryScenes, ...mazeScenes, ...serialControlScenes]
+
+// Generate routes with tab structure
 export const generateRoutes = () => {
   const routes = [
     {
       path: '/',
       name: 'entrance',
-      component: () => import('@/scenes/EntranceScene.vue')
+      component: () => import('@/components/EntranceScene.vue')
     },
-    // Generic route for custom scenes should come first
+    {
+      path: '/physics-mazes',
+      name: 'physics-mazes',
+      component: () => import('@/components/PhysicsMazesScene.vue')
+    },
+    {
+      path: '/serial-control',
+      name: 'serial-control',
+      component: () => import('@/components/SerialControlScene.vue')
+    },
     {
       path: '/scene/custom/:id',
       name: 'custom-scene',
