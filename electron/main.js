@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, screen } from 'electron'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import fs from 'fs'
@@ -11,6 +11,7 @@ const isDevelopment = process.env.NODE_ENV === 'development'
 const VITE_DEV_SERVER_URL = 'http://localhost:5173'
 const userDataPath = app.getPath('userData')
 const customScenesPath = path.join(userDataPath, 'customScenes.json')
+const displayPreferencePath = path.join(userDataPath, 'displayPreference.json')
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -22,6 +23,7 @@ let pythonProcess = null
 let pythonWebSocket = null
 let serialPort = null
 let logStream = null
+let preferredDisplayId = null
 
 async function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -70,7 +72,6 @@ async function createMainWindow() {
 }
 
 async function createSceneWindow(sceneName) {
-
   console.log('Main: Creating window for scene:', sceneName)
   const hasConfig = sceneConfigs.has(sceneName)
   console.log('Main: Has config:', hasConfig)
@@ -83,7 +84,19 @@ async function createSceneWindow(sceneName) {
     }
   }
 
-  const sceneWindow = new BrowserWindow({
+  // Get all displays
+  const displays = screen.getAllDisplays()
+  const primaryDisplay = screen.getPrimaryDisplay()
+  
+  let targetDisplay
+  if (preferredDisplayId !== null) {
+    targetDisplay = displays.find(display => display.id === preferredDisplayId)
+  }
+  if (!targetDisplay) {
+    targetDisplay = displays.find(display => display.id !== primaryDisplay.id) || primaryDisplay
+  }
+
+  const windowOptions = {
     width: 1024,
     height: 768,
     frame: false,
@@ -96,7 +109,15 @@ async function createSceneWindow(sceneName) {
     },
     backgroundColor: '#1a1a1a',
     titleBarStyle: 'hiddenInset'
-  })
+  }
+
+  // Set window position and size for target display
+  windowOptions.x = targetDisplay.bounds.x
+  windowOptions.y = targetDisplay.bounds.y
+  windowOptions.width = targetDisplay.bounds.width
+  windowOptions.height = targetDisplay.bounds.height
+
+  const sceneWindow = new BrowserWindow(windowOptions)
 
   sceneWindow.setMenuBarVisibility(false)
 
@@ -173,9 +194,31 @@ function saveStoredScenes(scenes) {
   }
 }
 
+function loadDisplayPreference() {
+  try {
+    if (fs.existsSync(displayPreferencePath)) {
+      const data = fs.readFileSync(displayPreferencePath, 'utf8')
+      const preference = JSON.parse(data)
+      preferredDisplayId = Number(preference.displayId)
+    }
+  } catch (error) {
+    console.error('Error loading display preference:', error)
+  }
+}
+
+function saveDisplayPreference(displayId) {
+  try {
+    const data = JSON.stringify({ displayId: Number(displayId) }, null, 2)
+    fs.writeFileSync(displayPreferencePath, data)
+  } catch (error) {
+    console.error('Error saving display preference:', error)
+  }
+}
+
 // App initialization
 app.whenReady().then(async () => {
   try {
+    loadDisplayPreference()
     await createMainWindow()
   } catch (e) {
     console.error('Failed to create main window:', e)
@@ -620,4 +663,26 @@ ipcMain.handle('deliver-water', () => {
       resolve({ error: error.message })
     })
   })
+})
+
+ipcMain.handle('get-displays', () => {
+  const displays = screen.getAllDisplays()
+  return displays.map(display => ({
+    id: display.id,
+    isPrimary: display.bounds.x === 0 && display.bounds.y === 0,
+    bounds: display.bounds
+  }))
+})
+
+ipcMain.on('set-preferred-display', (event, displayId) => {
+  preferredDisplayId = Number(displayId)
+  saveDisplayPreference(preferredDisplayId)
+  
+  BrowserWindow.getAllWindows().forEach(window => {
+    window.webContents.send('display-changed', preferredDisplayId)
+  })
+})
+
+ipcMain.handle('get-preferred-display', () => {
+  return preferredDisplayId
 })

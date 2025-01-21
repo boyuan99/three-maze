@@ -47,6 +47,12 @@ contextBridge.exposeInMainWorld('electron', {
   appendToLog: (data) => ipcRenderer.invoke('append-to-log', data),
   onSerialData: (callback) => ipcRenderer.on('serial-data', (event, data) => callback(data)),
   deliverWater: () => ipcRenderer.invoke('deliver-water'),
+  getDisplays: () => ipcRenderer.invoke('get-displays'),
+  setPreferredDisplay: (displayId) => ipcRenderer.send('set-preferred-display', displayId),
+  getPreferredDisplay: () => ipcRenderer.invoke('get-preferred-display'),
+  onDisplayChanged: (callback) => {
+    ipcRenderer.on('display-changed', (_, displayId) => callback(displayId))
+  }
 })
 
 console.log('Preload: Script initialized')
