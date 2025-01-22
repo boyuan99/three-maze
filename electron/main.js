@@ -24,6 +24,8 @@ let pythonWebSocket = null
 let serialPort = null
 let logStream = null
 let preferredDisplayId = null
+let rewardCount = new Map()
+let trialStartTime = new Map()
 
 async function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -143,6 +145,10 @@ async function createSceneWindow(sceneName) {
     return null
   }
 
+  // Initialize counters for this window
+  rewardCount.set(sceneWindow.id, 0)
+  trialStartTime.set(sceneWindow.id, Date.now())
+
   sceneWindows.set(sceneName, sceneWindow)
 
   sceneWindow.on('closed', () => {
@@ -152,7 +158,12 @@ async function createSceneWindow(sceneName) {
   })
 
   sceneWindow.on('close', () => {
-    console.log(`Scene window for ${sceneName} is closing`);
+    console.log(`Scene window for ${sceneName} is closing`)
+    console.log(`Total rewards earned: ${rewardCount.get(sceneWindow.id)}`)
+    
+    // Clean up counters
+    rewardCount.delete(sceneWindow.id)
+    trialStartTime.delete(sceneWindow.id)
 
     // Send 'stop_logging' via WebSocket
     if (pythonWebSocket && pythonWebSocket.readyState === WebSocket.OPEN) {
@@ -685,4 +696,17 @@ ipcMain.on('set-preferred-display', (event, displayId) => {
 
 ipcMain.handle('get-preferred-display', () => {
   return preferredDisplayId
+})
+
+ipcMain.on('reward-delivered', (event) => {
+  const windowId = BrowserWindow.fromWebContents(event.sender).id
+  const currentCount = rewardCount.get(windowId) || 0
+  const currentTime = Date.now()
+  const trialTime = (currentTime - trialStartTime.get(windowId)) / 1000 // Convert to seconds
+
+  rewardCount.set(windowId, currentCount + 1)
+  console.log(`Reward #${currentCount + 1} delivered! Trial time: ${trialTime.toFixed(2)} seconds`)
+  
+  // Reset trial timer for next trial
+  trialStartTime.set(windowId, currentTime)
 })

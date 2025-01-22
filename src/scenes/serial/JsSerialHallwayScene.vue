@@ -85,8 +85,8 @@ function animate() {
   if (serialData.value) {
     try {
       // Convert displacement to velocity by dividing by DT
-      const vx = Math.min(Math.max((parseFloat(serialData.value.x) || 0) * 0.01 / DT, -MAX_LINEAR_VELOCITY), MAX_LINEAR_VELOCITY)
-      const vy = Math.min(Math.max((parseFloat(serialData.value.y) || 0) * 0.01 / DT, -MAX_LINEAR_VELOCITY), MAX_LINEAR_VELOCITY)
+      const vx = Math.min(Math.max((parseFloat(serialData.value.x) || 0) * 0.0492 / DT, -MAX_LINEAR_VELOCITY), MAX_LINEAR_VELOCITY)
+      const vy = Math.min(Math.max((parseFloat(serialData.value.y) || 0) * 0.0492 / DT, -MAX_LINEAR_VELOCITY), MAX_LINEAR_VELOCITY)
       
       // Calculate world velocities based on current orientation
       const worldVx = vx * Math.cos(position.value.theta) - vy * Math.sin(position.value.theta)
@@ -105,15 +105,15 @@ function animate() {
       position.value.y = bodyPosition.z
 
       // Handle rotation separately (direct angle control)
-      const deltaTheta = (parseFloat(serialData.value.theta) || 0) * 0.1
+      const deltaTheta = (parseFloat(serialData.value.theta) || 0) * 0.05
       position.value.theta += deltaTheta
 
-      // Keep theta within -π to π
-      if (position.value.theta > Math.PI) {
-        position.value.theta -= 2 * Math.PI
-      } else if (position.value.theta < -Math.PI) {
-        position.value.theta += 2 * Math.PI
-      }
+      // // Keep theta within -π to π
+      // if (position.value.theta > Math.PI) {
+      //   position.value.theta -= 2 * Math.PI
+      // } else if (position.value.theta < -Math.PI) {
+      //   position.value.theta += 2 * Math.PI
+      // }
 
       // Set rotation directly
       playerBody.setRotation({
@@ -133,7 +133,7 @@ function animate() {
       })
 
       // Prepare and log data
-      const logData = `${position.value.x.toFixed(3)}\t${position.value.y.toFixed(3)}\t${position.value.theta.toFixed(3)}\t${serialData.value.x || 0}\t${serialData.value.y || 0}\t${serialData.value.water ? 1 : 0}\t${serialData.value.timestamp}\n`
+      const logData = `${position.value.x.toFixed(3)}\t${-position.value.y.toFixed(3)}\t${position.value.theta.toFixed(3)}\t${serialData.value.x || 0}\t${serialData.value.y || 0}\t${serialData.value.water ? 1 : 0}\t${serialData.value.timestamp}\n`
       window.electron.appendToLog(logData)
 
       // Clear the processed serial data
@@ -158,6 +158,8 @@ function animate() {
               console.error('Water delivery failed:', result.error)
             } else {
               console.log('Water delivered successfully')
+              // Notify main process about reward delivery
+              window.electron.sendMessage('reward-delivered')
             }
           })
           .catch(error => {
