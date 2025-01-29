@@ -3,14 +3,14 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
   galleryScenes, 
-  mazeScenes, 
+  physicsMazeScenes,
   serialControlScenes,
   generatePreviews, 
   loadCustomScene, 
   removeCustomScene, 
   loadStoredScenes 
 } from '@/scenes'
-import { mazeScenes as mazeScenesList } from '@/scenes'
+import { physicsMazeScenes as mazeScenesList } from '@/scenes'
 import NavigationBar from '@/components/NavigationBar.vue'
 
 const router = useRouter()
@@ -33,7 +33,7 @@ onMounted(async () => {
 })
 
 const handleSceneSelect = (sceneId) => {
-  const scene = [...galleryScenes, ...mazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
+  const scene = [...galleryScenes, ...physicsMazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
   
   if (window.electron) {
     window.electron.openScene(sceneId, scene?.config)

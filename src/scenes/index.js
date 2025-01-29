@@ -6,9 +6,10 @@ import Scene1 from '@/scenes/gallery/DemoScene1.vue'
 import Scene2 from '@/scenes/gallery/DemoScene2.vue'
 import HallwayScene from '@/scenes/gallery/HallwayScene.vue'
 import CustomScene from '@/scenes/CustomScene.vue'
-import HallwayControlScene from "@/scenes/hallway/HallwayControlScene.vue"
+import HallwayControlScene from "@/scenes/physics/HallwayControlScene.vue"
 import SerialHallwayScene from "@/scenes/serial/SerialHallwayScene.vue"
 import JsSerialHallwayScene from "@/scenes/serial/JsSerialHallwayScene.vue"
+import CustomPhysicsScene from "@/scenes/physics/CustomPhysicsScene.vue"
 import { createApp } from 'vue'
 import { storageService } from '@/storage.js'
 
@@ -62,10 +63,10 @@ export const galleryScenes = [
 ]
 
 // Interactive Mazes tab
-export const mazeScenes = [
+export const physicsMazeScenes = [
   {
-    id: 'maze',
-    path: '/scene/maze',
+    id: 'physics-maze',
+    path: '/scene/physics-maze',
     name: 'Physics Maze',
     description: 'First-person maze exploration with textured walls and physics',
     component: HallwayControlScene,
@@ -155,7 +156,7 @@ export const serialControlScenes = [
 ]
 
 // Combine all scenes for general use
-export const scenes = [...galleryScenes, ...mazeScenes, ...serialControlScenes]
+export const scenes = [...galleryScenes, ...physicsMazeScenes, ...serialControlScenes]
 
 // Generate routes with tab structure
 export const generateRoutes = () => {

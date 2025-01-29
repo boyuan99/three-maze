@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { 
   galleryScenes, 
-  mazeScenes, 
+  physicsMazeScenes, 
   serialControlScenes,
   generatePreviews, 
   loadCustomScene, 
