@@ -91,6 +91,31 @@ The application supports custom scene configurations through JSON files. Example
 }
 ```
 
+### Custom Scenes Storage Locations
+
+Custom scenes and display preferences are automatically saved in your system's application data directory:
+
+#### Windows
+```
+User Data: C:\Users\{username}\AppData\Roaming\maze-app\
+Custom Scenes: C:\Users\{username}\AppData\Roaming\maze-app\customScenes.json
+Display Preferences: C:\Users\{username}\AppData\Roaming\maze-app\displayPreference.json
+```
+
+#### macOS
+```
+User Data: ~/Library/Application Support/maze-app/
+Custom Scenes: ~/Library/Application Support/maze-app/customScenes.json
+Display Preferences: ~/Library/Application Support/maze-app/displayPreference.json
+```
+
+#### Linux
+```
+User Data: ~/.config/maze-app/
+Custom Scenes: ~/.config/maze-app/customScenes.json
+Display Preferences: ~/.config/maze-app/displayPreference.json
+```
+
 ## Controls
 
 - **Orbit Controls:**
