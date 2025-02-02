@@ -9,7 +9,6 @@ import CustomScene from '@/scenes/CustomScene.vue'
 import HallwayControlScene from "@/scenes/physics/HallwayControlScene.vue"
 import SerialHallwayScene from "@/scenes/serial/SerialHallwayScene.vue"
 import JsSerialHallwayScene from "@/scenes/serial/JsSerialHallwayScene.vue"
-import CustomPhysicsScene from "@/scenes/physics/CustomPhysicsScene.vue"
 import { createApp } from 'vue'
 import { storageService } from '@/storage.js'
 
