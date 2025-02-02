@@ -33,7 +33,7 @@ onMounted(async () => {
 
 const handleSceneSelect = (sceneId) => {
   // Look in all scene collections to ensure we find the right config
-  const scene = [...galleryScenes, ...mazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
+  const scene = [...galleryScenes, ...physicsMazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
   
   if (window.electron) {
     window.electron.openScene(sceneId, scene?.config)
