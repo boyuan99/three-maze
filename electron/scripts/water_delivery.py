@@ -2,7 +2,7 @@ import nidaqmx
 import time
 import sys
 
-def deliver_water(voltage=5.0, duration_ms=25):
+def deliver_water(voltage=5.0, duration_ms=17):
     try:
         duration_s = duration_ms / 1000.0  # Convert to seconds
         print(f"Opening NI-DAQmx task (Voltage: {voltage}V, Duration: {duration_ms}ms)...", flush=True)
