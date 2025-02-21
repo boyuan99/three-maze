@@ -26,6 +26,7 @@ let logStream = null
 let preferredDisplayId = null
 let rewardCount = new Map()
 let trialStartTime = new Map()
+let waterDeliveryProcess = null
 
 async function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -652,29 +653,58 @@ ipcMain.handle('close-js-serial', async () => {
   })
 })
 
-ipcMain.handle('deliver-water', () => {
-  return new Promise((resolve, reject) => {
-    const pythonScript = join(__dirname, 'scripts/water_delivery.py')
-    const process = spawn('python', [pythonScript])
+// Function to start the water delivery service if not already running
+async function startWaterDeliveryService() {
+  if (!waterDeliveryProcess) {
+    const pythonScript = join(__dirname, 'scripts/water_delivery.py');
+    waterDeliveryProcess = spawn('python', [pythonScript]);
     
-    process.stdout.on('data', (data) => {
-      const output = data.toString().trim()
-      if (output === 'success') {
-        resolve({ success: true })
-      } else if (output.startsWith('error:')) {
-        resolve({ error: output.substring(6) })
-      }
-    })
+    waterDeliveryProcess.stdout.on('data', (data) => {
+      const output = data.toString().trim();
+    });
 
-    process.stderr.on('data', (data) => {
-      resolve({ error: data.toString() })
-    })
+    waterDeliveryProcess.stderr.on('data', (data) => {
+      console.error('Water delivery service error:', data.toString());
+    });
 
-    process.on('error', (error) => {
-      resolve({ error: error.message })
-    })
-  })
-})
+    waterDeliveryProcess.on('exit', () => {
+      waterDeliveryProcess = null;
+    });
+  }
+}
+
+// Updated deliver-water handler using the persistent process
+ipcMain.handle('deliver-water', async () => {
+  try {
+    await startWaterDeliveryService();
+    
+    return new Promise((resolve, reject) => {
+      // Send the "deliver" command via stdin to the persistent process
+      waterDeliveryProcess.stdin.write("deliver\n", "utf-8", (err) => {
+        if (err) {
+          console.error('Error sending deliver command:', err);
+          return reject({ error: err.message });
+        }
+      });
+
+      // Listen for the response once (you might want to add more robust handling)
+      const onData = (data) => {
+        const output = data.toString().trim();
+        if (output === 'success') {
+          resolve({ success: true });
+          waterDeliveryProcess.stdout.off('data', onData);
+        } else if (output.startsWith('error:')) {
+          resolve({ error: output.substring(6) });
+          waterDeliveryProcess.stdout.off('data', onData);
+        }
+      };
+      waterDeliveryProcess.stdout.on('data', onData);
+    });
+  } catch (error) {
+    console.error('Failed in deliver-water:', error);
+    return { error: error.message };
+  }
+});
 
 ipcMain.handle('get-displays', () => {
   const displays = screen.getAllDisplays()
