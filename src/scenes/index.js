@@ -10,6 +10,7 @@ import HallwayControlScene from "@/scenes/physics/HallwayControlScene.vue"
 import SerialHallwayScene from "@/scenes/serial/SerialHallwayScene.vue"
 import JsSerialHallwayScene from "@/scenes/serial/JsSerialHallwayScene.vue"
 import JsSerialHallwaySceneV2 from "@/scenes/serial/JsSerialHallwaySceneV2.vue"
+import NewSerialHallwayScene from "@/scenes/serial/NewSerialHallwayScene.vue"
 import { createApp } from 'vue'
 import { storageService } from '@/storage.js'
 
@@ -167,7 +168,22 @@ export const serialControlScenes = [
       world.dispose()
       return preview
     }
-  }
+    },
+  {
+    id: 'new-serial-hallway',
+    path: '/scene/new-serial-hallway',
+    name: 'Serial Control Hallway (JavaScript) V3',
+    description: 'Test Scene for new logic',
+    component: NewSerialHallwayScene,
+    worldClass: HallwayWorld,
+    previewGenerator: async () => {
+      const world = new HallwayWorld(null)
+      await world.init()
+      const preview = world.getPreviewRender()
+      world.dispose()
+      return preview
+    }
+    }
 ]
 
 // Combine all scenes for general use
