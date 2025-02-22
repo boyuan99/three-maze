@@ -32,7 +32,7 @@ async function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1024,
     height: 768,
-    titleBarStyle: 'hiddenInset',
+    titleBarStyle: 'default',
     show: false,
     webPreferences: {
       nodeIntegration: false,
@@ -102,7 +102,7 @@ async function createSceneWindow(sceneName) {
   const windowOptions = {
     width: 1024,
     height: 768,
-    frame: false,
+    frame: true,
     show: false,
     fullscreen: true,
     webPreferences: {
@@ -111,7 +111,7 @@ async function createSceneWindow(sceneName) {
       preload: join(__dirname, 'preload.cjs')
     },
     backgroundColor: '#1a1a1a',
-    titleBarStyle: 'hiddenInset'
+    titleBarStyle: 'default'
   }
 
   // Set window position and size for target display
