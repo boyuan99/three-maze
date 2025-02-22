@@ -7,6 +7,7 @@ import Scene2 from '@/scenes/gallery/DemoScene2.vue'
 import HallwayScene from '@/scenes/gallery/HallwayScene.vue'
 import CustomScene from '@/scenes/CustomScene.vue'
 import HallwayControlScene from "@/scenes/physics/HallwayControlScene.vue"
+import HallwayControlScene02 from "@/scenes/physics/HallwayControlScene02.vue"
 import SerialHallwayScene from "@/scenes/serial/SerialHallwayScene.vue"
 import JsSerialHallwayScene from "@/scenes/serial/JsSerialHallwayScene.vue"
 import JsSerialHallwaySceneV2 from "@/scenes/serial/JsSerialHallwaySceneV2.vue"
@@ -83,7 +84,26 @@ export const physicsMazeScenes = [
         div.remove()
       }
     }
-  }
+  },
+  {
+    id: 'physics-maze-02',
+    path: '/scene/physics-maze-02',
+    name: 'Physics Maze 02',
+    description: 'First-person maze exploration with physics',
+    component: HallwayControlScene02,
+    previewGenerator: async () => {
+      const div = document.createElement('div')
+      const app = createApp(HallwayControlScene02)
+      const instance = app.mount(div)
+      try {
+        const preview = await instance.generatePreview()
+        return preview
+      } finally {
+        app.unmount()
+        div.remove()
+      }
+    } 
+  } 
 ]
 
 // Serial Control tab
