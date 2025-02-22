@@ -22,91 +22,6 @@ const WALL_THICKNESS = 1
 const BLUE_SEGMENT_LENGTH = 30
 const PLAYER_RADIUS = 0.5
 
-// Preview generator (exported for use in index.js)
-const generatePreview = async (width = 300, height = 200) => {
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-
-  const previewScene = new THREE.Scene()
-  const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000)
-  camera.position.set(50, 30, 50)
-  camera.lookAt(0, 0, 0)
-
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
-  renderer.setSize(width, height)
-
-  try {
-    // Add basic lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
-    previewScene.add(ambientLight)
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
-    directionalLight.position.set(50, 200, 100)
-    previewScene.add(directionalLight)
-
-    // Create a simplified version of the hallway for preview
-    const hallwayGroup = new THREE.Group()
-
-    // Basic materials for preview
-    const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x808080 })
-    const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x505050 })
-    const blueMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff })
-
-    // Add floor
-    const floor = new THREE.Mesh(
-      new THREE.BoxGeometry(HALLWAY_WIDTH, WALL_THICKNESS, HALLWAY_LENGTH),
-      floorMaterial
-    )
-    hallwayGroup.add(floor)
-
-    // Add walls
-    const wallGeometry = new THREE.BoxGeometry(WALL_THICKNESS, WALL_HEIGHT, HALLWAY_LENGTH)
-    const leftWall = new THREE.Mesh(wallGeometry, wallMaterial)
-    leftWall.position.set(-HALLWAY_WIDTH/2, WALL_HEIGHT/2, 0)
-    hallwayGroup.add(leftWall)
-
-    const rightWall = new THREE.Mesh(wallGeometry, wallMaterial)
-    rightWall.position.set(HALLWAY_WIDTH/2, WALL_HEIGHT/2, 0)
-    hallwayGroup.add(rightWall)
-
-    // Add blue ends
-    const endWallGeometry = new THREE.BoxGeometry(HALLWAY_WIDTH, WALL_HEIGHT, WALL_THICKNESS)
-    const frontWall = new THREE.Mesh(endWallGeometry, blueMaterial)
-    frontWall.position.set(0, WALL_HEIGHT/2, HALLWAY_LENGTH/2)
-    hallwayGroup.add(frontWall)
-
-    const backWall = new THREE.Mesh(endWallGeometry, blueMaterial)
-    backWall.position.set(0, WALL_HEIGHT/2, -HALLWAY_LENGTH/2)
-    hallwayGroup.add(backWall)
-
-    previewScene.add(hallwayGroup)
-
-    // Render and return preview
-    renderer.render(previewScene, camera)
-    const preview = canvas.toDataURL('image/png')
-
-    // Cleanup
-    hallwayGroup.traverse(object => {
-      if (object.geometry) object.geometry.dispose()
-      if (object.material) {
-        if (Array.isArray(object.material)) {
-          object.material.forEach(mat => mat.dispose())
-        } else {
-          object.material.dispose()
-        }
-      }
-    })
-
-    return preview
-  } finally {
-    renderer.dispose()
-    previewScene.clear()
-  }
-}
-
-// Make generatePreview available for external use
-defineExpose({ generatePreview })
-
 // Component state
 const canvas = ref(null)
 const isActive = ref(true)
@@ -122,6 +37,68 @@ const state = shallowRef({
   keyboard: null,
   debugRenderer: null,
 })
+
+// Preview generator (exported for use in index.js)
+const generatePreview = async (width = 300, height = 200) => {
+  const tempCanvas = document.createElement('canvas')
+  tempCanvas.width = width
+  tempCanvas.height = height
+  canvas.value = tempCanvas
+
+  await init()
+  const { scene, camera, renderer, world } = state.value
+  
+  // Adjust camera for preview
+  camera.position.set(50, 30, 50)
+  camera.lookAt(0, 0, 0)
+  camera.aspect = width / height
+  camera.updateProjectionMatrix()
+  
+  renderer.setSize(width, height)
+  renderer.render(scene, camera)
+  
+  const preview = tempCanvas.toDataURL('image/png')
+  
+  // Cleanup
+  if (scene) {
+    scene.traverse(object => {
+      if (object.geometry) object.geometry.dispose()
+      if (object.material) {
+        if (Array.isArray(object.material)) {
+          object.material.forEach(mat => mat.dispose())
+        } else {
+          object.material.dispose()
+        }
+      }
+    })
+  }
+
+  if (renderer) {
+    renderer.dispose()
+  }
+
+  if (world) {
+    world.free()
+  }
+  
+  // Reset state and canvas
+  state.value = {
+    scene: null,
+    camera: null,
+    renderer: null,
+    world: null,
+    playerBody: null,
+    fixedCam: null,
+    keyboard: null,
+    debugRenderer: null,
+  }
+  canvas.value = null
+
+  return preview
+}
+
+// Make generatePreview available for external use
+defineExpose({ generatePreview })
 
 async function createHallwaySegment(position, rotation = 0) {
   const { scene, world } = state.value
