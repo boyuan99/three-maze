@@ -262,8 +262,8 @@ async function init() {
   // Create player
   const playerBodyDesc = RAPIER.RigidBodyDesc.dynamic()
     .setTranslation(0, PLAYER_RADIUS, 0)
-    .setLinearDamping(0.9)
-    .setAngularDamping(0.9)
+    .setLinearDamping(5)
+    .setAngularDamping(5)
 
   const playerBody = world.createRigidBody(playerBodyDesc)
   world.createCollider(
@@ -313,32 +313,26 @@ function animate() {
 
   requestAnimationFrame(animate)
 
-  const moveForce = new THREE.Vector3(0, 0, 0)
-  const maxSpeed = 50
-  const rawSpeed = 5
+  const moveDirection = new THREE.Vector3(0, 0, 0)
+  const speed = 35 // Adjust this value to control movement speed
 
-  if (keyboard.keyMap['KeyW']) moveForce.z -= rawSpeed
-  if (keyboard.keyMap['KeyS']) moveForce.z += rawSpeed
-  if (keyboard.keyMap['KeyA']) moveForce.x -= rawSpeed
-  if (keyboard.keyMap['KeyD']) moveForce.x += rawSpeed
+  if (keyboard.keyMap['KeyW']) moveDirection.z -= 1
+  if (keyboard.keyMap['KeyS']) moveDirection.z += 1
+  if (keyboard.keyMap['KeyA']) moveDirection.x -= 1
+  if (keyboard.keyMap['KeyD']) moveDirection.x += 1
 
-  moveForce.applyEuler(new THREE.Euler(0, fixedCam.yaw.rotation.y, 0))
+  moveDirection.normalize().multiplyScalar(speed)
+  moveDirection.applyEuler(new THREE.Euler(0, fixedCam.yaw.rotation.y, 0))
 
-  if (moveForce.length() > 0) {
-    playerBody.applyImpulse(moveForce, true)
-  }
-
-  // Limit speed
-  const velocity = playerBody.linvel()
-  const speed = Math.sqrt(velocity.x ** 2 + velocity.z ** 2)
-  if (speed > maxSpeed) {
-    const scaleFactor = maxSpeed / speed
-    playerBody.setLinvel({
-      x: velocity.x * scaleFactor,
-      y: velocity.y,
-      z: velocity.z * scaleFactor
-    }, true)
-  }
+  // Directly set velocity instead of applying force
+  playerBody.setLinvel(
+    {
+      x: moveDirection.x,
+      y: playerBody.linvel().y, // Preserve vertical velocity for gravity
+      z: moveDirection.z
+    },
+    true
+  )
 
   world.step()
   debugRenderer.update()
