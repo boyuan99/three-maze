@@ -1,5 +1,6 @@
 import { BaseWorld } from './BaseWorld'
 import * as THREE from 'three'
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js'
 
 export class CustomWorld extends BaseWorld {
   constructor(canvas, sceneConfig) {
@@ -50,7 +51,67 @@ export class CustomWorld extends BaseWorld {
     return texture.clone()
   }
 
+  async loadSkybox(path) {
+    if (!path) return
+
+    try {
+      const fileName = path.split('/').pop()
+      const assetUrl = `/src/assets/${fileName}`
+      
+      const exrLoader = new EXRLoader()
+      const texture = await new Promise((resolve) => 
+        exrLoader.load(assetUrl, resolve)
+      )
+      
+      texture.mapping = THREE.EquirectangularReflectionMapping
+      this.scene.background = texture
+      this.scene.environment = texture
+    } catch (error) {
+      console.warn(`Failed to load skybox: ${path}`, error)
+    }
+  }
+
   async setupScene() {
+    // Load skybox if specified
+    if (this.sceneConfig.skybox) {
+      await this.loadSkybox(this.sceneConfig.skybox)
+    }
+
+    if (this.sceneConfig.lights) {
+      for (const lightConfig of this.sceneConfig.lights) {
+        let light
+        switch (lightConfig.type) {
+          case 'point':
+            light = new THREE.PointLight(
+              lightConfig.color,
+              lightConfig.intensity,
+              lightConfig.distance,
+              lightConfig.decay
+            )
+            light.position.copy(new THREE.Vector3(
+              lightConfig.position.x,
+              lightConfig.position.y,
+              lightConfig.position.z
+            ))
+            light.castShadow = lightConfig.castShadow
+            this.scene.add(light)
+            break
+          case 'ambient':
+            const ambientLight = new THREE.AmbientLight(lightConfig.color, lightConfig.intensity)
+            this.scene.add(ambientLight)
+            break
+          case 'directional':
+            const directionalLight = new THREE.DirectionalLight(lightConfig.color, lightConfig.intensity)
+            directionalLight.position.copy(lightConfig.position)
+            directionalLight.castShadow = lightConfig.castShadow
+            this.scene.add(directionalLight)
+            break
+          default:
+            console.warn(`Unsupported light type: ${lightConfig.type}`)
+        }
+      }
+    }
+
     if (this.sceneConfig.objects) {
       for (const objConfig of this.sceneConfig.objects) {
         let geometry
