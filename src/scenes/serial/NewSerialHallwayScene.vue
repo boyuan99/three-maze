@@ -68,6 +68,10 @@ const serialData = ref(null)
 // Add new constants for scene setup
 const FAR = 1000
 
+// Add fall detection state
+const fallStartTime = ref(null)
+const FALL_RESET_TIME = 5000
+
 // Animation loop
 function animate() {
   if (!isActive.value) return
@@ -97,35 +101,46 @@ function animate() {
       const worldVx = vx * Math.cos(position.value.theta) - vy * Math.sin(position.value.theta)
       const worldVz = -vx * Math.sin(position.value.theta) - vy * Math.cos(position.value.theta)
 
-      // Set linear velocity directly on physics body
-      playerBody.setLinvel({
-        x: worldVx,
-        y: 0,
-        z: worldVz
-      }, true)
+      // Only allow movement if not falling
+      if (fallStartTime.value) {
+        // If falling, only preserve vertical velocity and stop rotation
+        playerBody.setLinvel({
+          x: 0,
+          y: playerBody.linvel().y,
+          z: 0
+        }, true)
+        
+        // Keep the current rotation frozen while falling
+        playerBody.setRotation({
+          x: 0,
+          y: position.value.theta,
+          z: 0
+        }, true)
+        
+      } else {
+        // Normal movement when not falling
+        playerBody.setLinvel({
+          x: worldVx,
+          y: playerBody.linvel().y,
+          z: worldVz
+        }, true)
+        
+        // Handle rotation separately (direct angle control)
+        const deltaTheta = (parseFloat(serialData.value.theta) || 0) * 0.05
+        position.value.theta += deltaTheta
+        
+        // Set rotation directly
+        playerBody.setRotation({
+          x: 0,
+          y: position.value.theta,
+          z: 0
+        }, true)
+      }
 
       // Update position based on physics body
       const bodyPosition = playerBody.translation()
       position.value.x = bodyPosition.x
       position.value.y = bodyPosition.z
-
-      // Handle rotation separately (direct angle control)
-      const deltaTheta = (parseFloat(serialData.value.theta) || 0) * 0.05
-      position.value.theta += deltaTheta
-
-      // // Keep theta within -π to π
-      // if (position.value.theta > Math.PI) {
-      //   position.value.theta -= 2 * Math.PI
-      // } else if (position.value.theta < -Math.PI) {
-      //   position.value.theta += 2 * Math.PI
-      // }
-
-      // Set rotation directly
-      playerBody.setRotation({
-        x: 0,
-        y: position.value.theta,
-        z: 0
-      }, true)
 
       // Update camera using FixedCam
       fixedCam.update({
@@ -144,8 +159,33 @@ function animate() {
       // Clear the processed serial data
       serialData.value = null
 
+      // Add fall detection and reset logic
+      const currentY = playerBody.translation().y
+      
+      if (currentY < PLAYER_RADIUS && !fallStartTime.value) {
+        // Start tracking fall time
+        fallStartTime.value = Date.now()
+      } else if (currentY >= PLAYER_RADIUS) {
+        // Reset fall timer when not falling
+        fallStartTime.value = null
+      }
+
+      // Check if we've been falling for too long
+      if (fallStartTime.value && (Date.now() - fallStartTime.value > FALL_RESET_TIME)) {
+        // Reset position
+        playerBody.setTranslation({ x: 0, y: PLAYER_RADIUS, z: 0 }, true)
+        playerBody.setLinvel({ x: 0, y: 0, z: 0 }, true)
+        
+        // Reset rotation and theta
+        position.value.theta = 0
+        playerBody.setRotation({ x: 0, y: 0, z: 0 }, true)
+        
+        fallStartTime.value = null
+        console.log('Reset position due to fall timeout')
+      }
+
       // Check if we should reset the trial
-      if (Math.abs(position.value.y) >= HALLWAY_LENGTH / 2) {
+      if (Math.abs(position.value.y) >= 70) {
         // Reset position
         position.value.x = 0
         position.value.y = 0
@@ -154,7 +194,7 @@ function animate() {
         // Reset player position - start slightly above ground
         playerBody.setTranslation({ x: 0, y: PLAYER_RADIUS, z: 0 }, true)
         playerBody.setRotation({ x: 0, y: 0, z: 0 }, true)
-        playerBody.setLinvel({ x: 0, y: 0, z: 0 }, true)  // Reset velocity
+        playerBody.setLinvel({ x: 0, y: 0, z: 0 }, true) 
         console.log('Trial reset due to position limit or fall')
 
         // Deliver water reward after position reset
@@ -274,7 +314,7 @@ onMounted(async () => {
 
       // Setup camera
       const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, FAR)
-      camera.position.set(0, 5, 30)
+      camera.position.set(0, 4, 0)
 
       // Setup renderer with HDR
       const renderer = new THREE.WebGLRenderer({ 
@@ -308,16 +348,17 @@ onMounted(async () => {
       await createHallway(scene)
 
       // Create physics world
-      const physicsWorld = new RAPIER.World({ x: 0, y: -9.81, z: 0 })
+      const world = new RAPIER.World({ x: 0, y: -500, z: 0 })
 
-      // Add physics colliders without visual meshes
-      // Floor
-      const floorBody = physicsWorld.createRigidBody(RAPIER.RigidBodyDesc.fixed())
-      physicsWorld.createCollider(
+      // Create physics floor that matches the visual segments
+      const floorBody = world.createRigidBody(RAPIER.RigidBodyDesc.fixed())
+
+      // Main floor segment
+      world.createCollider(
         RAPIER.ColliderDesc.cuboid(
           HALLWAY_WIDTH / 2,
           WALL_THICKNESS / 2,
-          HALLWAY_LENGTH / 2 + BLUE_SEGMENT_LENGTH
+          HALLWAY_LENGTH/2
         ),
         floorBody
       )
@@ -325,14 +366,14 @@ onMounted(async () => {
       // Create player physics body
       const playerBodyDesc = RAPIER.RigidBodyDesc.dynamic()
         .setTranslation(0, PLAYER_RADIUS, 0)
-        .setLinearDamping(0.9)
-        .setAngularDamping(0.9)
+        .setLinearDamping(0)
+        .setAngularDamping(0)
 
-      const playerRigidBody = physicsWorld.createRigidBody(playerBodyDesc)
-      physicsWorld.createCollider(
+      const playerRigidBody = world.createRigidBody(playerBodyDesc)
+      world.createCollider(
         RAPIER.ColliderDesc.ball(PLAYER_RADIUS)
           .setRestitution(0)
-          .setFriction(1),
+          .setFriction(0),
         playerRigidBody
       )
 
@@ -341,7 +382,7 @@ onMounted(async () => {
         scene,
         camera,
         renderer,
-        world: physicsWorld,
+        world,
         playerBody: playerRigidBody,
         fixedCam: new FixedFollowCam(scene, camera, renderer, {
           disableMouseControl: true
