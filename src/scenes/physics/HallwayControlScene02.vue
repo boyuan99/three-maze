@@ -17,6 +17,7 @@
         <ul>
           <li>X: {{ position.x.toFixed(2) }}</li>
           <li>Y: {{ position.y.toFixed(2) }}</li>
+          <li>Z: {{ position.z.toFixed(2) }}</li>
           <li>θ: {{ position.theta.toFixed(2) }}</li>
         </ul>
         <p>Controls:</p>
@@ -123,7 +124,7 @@ const canvas = ref(null)
 const isActive = ref(true)
 const showInfo = ref(true)
 const isPointerLocked = ref(false)
-const position = ref({ x: 0, y: 0, theta: 0 })
+const position = ref({ x: 0, y: 0, z: 0, theta: 0 })
 const error = ref(null)
 
 // Scene state
@@ -140,7 +141,8 @@ const state = shallowRef({
 
 // Add new state variables
 const fallStartTime = ref(null)
-const FALL_RESET_TIME = 5000
+const FALL_RESET_TIME = 3000
+const FALL_TOLERANCE = 0.05;
 
 async function createHallwaySegment(position, rotation = 0) {
   const { scene, world } = state.value
@@ -383,19 +385,47 @@ function animate() {
     true
   )
 
-  // Update position tracking
-  const bodyPosition = playerBody.translation()
-  position.value.x = bodyPosition.x
-  position.value.y = bodyPosition.z
-  position.value.theta = fixedCam.yaw.rotation.y
+  // Retrieve the current physics position
+  const bodyPosition = playerBody.translation();
 
-  // Check for falling
+  // Update the tracked horizontal position only when not falling
+  if (!fallStartTime.value) {
+    // Store the stable x (physics x) and stable z (stored in position.y)
+    position.value.x = bodyPosition.x;
+    position.value.y = bodyPosition.z;
+  }
+
+  // Always update the view direction (theta)
+  position.value.theta = fixedCam.yaw.rotation.y;
+
+  // Update the camera position differently based on whether the player is falling or not
+  if (!fallStartTime.value) {
+    // Normal update uses the live physics position
+    fixedCam.update({
+        position: new THREE.Vector3(
+            bodyPosition.x,
+            bodyPosition.y + 2,
+            bodyPosition.z
+        )
+    });
+  } else {
+    // Falling: freeze x and z using the last stable position, update y from the physics body
+    fixedCam.update({
+        position: new THREE.Vector3(
+            position.value.x, // frozen x
+            bodyPosition.y + 2, // live y (if you want the vertical fall to be reflected)
+            position.value.y  // frozen z (note: position.value.y is storing the physics z)
+        )
+    });
+  }
+
+  // Check for falling with tolerance
   const currentY = playerBody.translation().y
-  
-  if (currentY < PLAYER_RADIUS && !fallStartTime.value) {
+
+  if (currentY < PLAYER_RADIUS - FALL_TOLERANCE && !fallStartTime.value) {
     // Start tracking fall time
     fallStartTime.value = Date.now()
-  } else if (currentY >= PLAYER_RADIUS) {
+  } else if (currentY >= PLAYER_RADIUS - FALL_TOLERANCE) {
     // Reset fall timer when not falling
     fallStartTime.value = null
   }
@@ -406,33 +436,35 @@ function animate() {
     playerBody.setTranslation({ x: 0, y: PLAYER_RADIUS, z: 0 }, true)
     playerBody.setLinvel({ x: 0, y: 0, z: 0 }, true)
     playerBody.setAngvel({ x: 0, y: 0, z: 0 }, true)
+    playerBody.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true)
+    
+    // Reset the tracked theta
+    position.value.theta = 0
+    
+    // Also reset the camera's orientation (if fixedCam exists)
+    if (state.value.fixedCam) {
+      state.value.fixedCam.yaw.rotation.y = 0
+      state.value.fixedCam.pitch.rotation.x = 0
+    }
+    
     fallStartTime.value = null
     console.log('Reset position due to fall timeout')
   }
 
   // Check if we should reset the trial
-  if (Math.abs(position.value.y) >= HALLWAY_LENGTH / 2) {
+  if (Math.abs(bodyPosition.z) >= HALLWAY_LENGTH / 2) {
     // Reset position
     position.value.x = 0
     position.value.y = 0
+    position.value.z = 0
     position.value.theta = 0
-
     // Reset player position
     playerBody.setTranslation({ x: 0, y: PLAYER_RADIUS, z: 0 }, true)
-    playerBody.setRotation({ x: 0, y: 0, z: 0 }, true)
+    playerBody.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true)
     playerBody.setLinvel({ x: 0, y: 0, z: 0 }, true)
+    playerBody.setAngvel({ x: 0, y: 0, z: 0 }, true)
     console.log('Trial reset due to position limit')
   }
-
-  // Update camera
-  const playerPosition = playerBody.translation()
-  fixedCam.update({
-    position: new THREE.Vector3(
-      playerPosition.x,
-      playerPosition.y + 2,
-      playerPosition.z
-    )
-  })
 
   // Step physics and render
   world.step()
