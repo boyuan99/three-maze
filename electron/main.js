@@ -130,7 +130,7 @@ async function createSceneWindow(sceneName) {
   })
 
   try {
-    const scenePath = sceneName.startsWith('gallery_custom_')
+    const scenePath = sceneName.startsWith('gallery_custom_') || sceneName.startsWith('physics_custom_')
       ? `scene/custom/${sceneName}`
       : `scene/${sceneName}`
 
@@ -261,7 +261,7 @@ ipcMain.on('open-scene', async (event, sceneName, sceneConfig) => {
     sceneConfigs.set(sceneName, sceneConfig)
 
     // Store custom scenes persistently
-    if (sceneName.startsWith('gallery_custom_')) {
+    if (sceneName.startsWith('gallery_custom_') || sceneName.startsWith('physics_custom_')) {
       const storedScenes = loadStoredScenes()
       storedScenes[sceneName] = {
         id: sceneName,

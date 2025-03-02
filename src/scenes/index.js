@@ -237,7 +237,7 @@ export const generateRoutes = () => {
 
   // Add routes for predefined scenes
   scenes.forEach(scene => {
-    if (!scene.id.startsWith('gallery_custom_')) {
+    if (!scene.id.startsWith('gallery_custom_') && !scene.id.startsWith('physics_custom_')) {
       routes.push({
         path: scene.path,
         name: scene.id,
@@ -249,7 +249,7 @@ export const generateRoutes = () => {
   return routes
 }
 
-export const loadCustomScene = async (file) => {
+export const loadCustomScene = async (file, prefix = 'gallery_custom_') => {
   try {
     const content = await file.text()
     const sceneConfig = JSON.parse(content)
@@ -257,7 +257,7 @@ export const loadCustomScene = async (file) => {
     validateSceneConfig(sceneConfig)
 
     const timestamp = Date.now()
-    const sceneId = `gallery_custom_${timestamp}`
+    const sceneId = `${prefix}${timestamp}`
 
     const customScene = {
       id: sceneId,
@@ -276,6 +276,12 @@ export const loadCustomScene = async (file) => {
       }
     }
 
+    // Add to appropriate scene list
+    if (prefix === 'physics_custom_') {
+      physicsMazeScenes.push(customScene)
+    }
+    
+    // Always add to main scenes array
     scenes.push(customScene)
 
     // Store using storage service
@@ -354,8 +360,17 @@ export const validateCustomScene = validateSceneConfig
 
 export const removeCustomScene = async (sceneId) => {
   const index = scenes.findIndex(scene => scene.id === sceneId)
-  if (index !== -1 && sceneId.startsWith('gallery_custom_')) {
+  if (index !== -1 && (sceneId.startsWith('gallery_custom_') || sceneId.startsWith('physics_custom_'))) {
     scenes.splice(index, 1)
+    
+    // Also remove from specific scene list
+    if (sceneId.startsWith('physics_custom_')) {
+      const mazeIndex = physicsMazeScenes.findIndex(s => s.id === sceneId)
+      if (mazeIndex !== -1) {
+        physicsMazeScenes.splice(mazeIndex, 1)
+      }
+    }
+    
     await storageService.deleteScene(sceneId)
     return true
   }
