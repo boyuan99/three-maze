@@ -48,7 +48,7 @@ const handleSceneSelect = (sceneId) => {
     console.log('EntranceScene: Opening in Electron:', sceneId)
     window.electron.openScene(sceneId, scene?.config)
   } else {
-    const path = sceneId.startsWith('custom_')
+    const path = sceneId.startsWith('gallery_custom_')
         ? `/scene/custom/${sceneId}`
         : `/scene/${sceneId}`
     console.log('EntranceScene: Opening in browser:', path)
@@ -103,7 +103,7 @@ const handleDeleteScene = async (sceneId) => {
     <NavigationBar />
     <div class="entrance-container">
       <div class="entrance-content">
-        <h1 class="title">Three.js Maze Scenes</h1>
+        <h1 class="title">Three-Maze Scenes</h1>
 
         <!-- Scene loading error modal -->
         <div v-if="error" class="error-modal">
@@ -168,7 +168,7 @@ const handleDeleteScene = async (sceneId) => {
 
           <!-- Custom Scenes -->
           <div
-              v-for="scene in scenes.filter(s => s.id.startsWith('custom_'))"
+              v-for="scene in scenes.filter(s => s.id.startsWith('gallery_custom_'))"
               :key="scene.id"
               class="scene-card"
               @click="handleSceneSelect(scene.id)"

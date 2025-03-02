@@ -237,7 +237,7 @@ export const generateRoutes = () => {
 
   // Add routes for predefined scenes
   scenes.forEach(scene => {
-    if (!scene.id.startsWith('custom_')) {
+    if (!scene.id.startsWith('gallery_custom_')) {
       routes.push({
         path: scene.path,
         name: scene.id,
@@ -257,7 +257,7 @@ export const loadCustomScene = async (file) => {
     validateSceneConfig(sceneConfig)
 
     const timestamp = Date.now()
-    const sceneId = `custom_${timestamp}`
+    const sceneId = `gallery_custom_${timestamp}`
 
     const customScene = {
       id: sceneId,
@@ -354,7 +354,7 @@ export const validateCustomScene = validateSceneConfig
 
 export const removeCustomScene = async (sceneId) => {
   const index = scenes.findIndex(scene => scene.id === sceneId)
-  if (index !== -1 && sceneId.startsWith('custom_')) {
+  if (index !== -1 && sceneId.startsWith('gallery_custom_')) {
     scenes.splice(index, 1)
     await storageService.deleteScene(sceneId)
     return true
