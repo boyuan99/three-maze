@@ -2,7 +2,7 @@
   "name": "3D Hallway Scene",
   "description": "A long hallway with textured walls and blue ends",
   "camera": {
-    "position": {"x": 0, "y": 5, "z": 30},
+    "position": {"x": 0, "y": 2.0, "z": 0},
     "fov": 75,
     "near": 0.1,
     "far": 1000
@@ -61,7 +61,11 @@
         "roughness": 1
       },
       "position": {"x": 0, "y": -0.5, "z": 0},
-      "receiveShadow": true
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      }
     },
     {
       "name": "frontBlueFloor",
@@ -77,7 +81,11 @@
         "roughness": 0.7
       },
       "position": {"x": 0, "y": -0.5, "z": 85},
-      "receiveShadow": true
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      }
     },
     {
       "name": "backBlueFloor",
@@ -93,7 +101,11 @@
         "roughness": 0.7
       },
       "position": {"x": 0, "y": -0.5, "z": -85},
-      "receiveShadow": true
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      }
     },
     {
       "name": "leftWall",
@@ -111,7 +123,11 @@
       },
       "position": {"x": -10.5, "y": 5, "z": 0},
       "castShadow": true,
-      "receiveShadow": true
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      }
     },
     {
       "name": "rightWall",
@@ -129,7 +145,11 @@
       },
       "position": {"x": 10.5, "y": 5, "z": 0},
       "castShadow": true,
-      "receiveShadow": true
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      }
     },
     {
       "name": "leftFrontBlueWall",
@@ -146,7 +166,11 @@
       },
       "position": {"x": -10.5, "y": 5, "z": 85},
       "castShadow": true,
-      "receiveShadow": true
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      }
     },
     {
       "name": "rightFrontBlueWall",
@@ -163,7 +187,11 @@
       },
       "position": {"x": 10.5, "y": 5, "z": 85},
       "castShadow": true,
-      "receiveShadow": true
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      }
     },
     {
       "name": "leftBackBlueWall",
@@ -180,7 +208,11 @@
       },
       "position": {"x": -10.5, "y": 5, "z": -85},
       "castShadow": true,
-      "receiveShadow": true
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      }
     },
     {
       "name": "rightBackBlueWall",
@@ -197,7 +229,11 @@
       },
       "position": {"x": 10.5, "y": 5, "z": -85},
       "castShadow": true,
-      "receiveShadow": true
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      }
     },
     {
       "name": "frontWall",
@@ -214,7 +250,11 @@
       },
       "position": {"x": 0, "y": 5, "z": 100.5},
       "castShadow": true,
-      "receiveShadow": true
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      }
     },
     {
       "name": "backWall",
@@ -231,7 +271,31 @@
       },
       "position": {"x": 0, "y": 5, "z": -100.5},
       "castShadow": true,
-      "receiveShadow": true
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      }
     }
-  ]
+  ],
+  "player": {
+    "type": "sphere",
+    "radius": 0.5,
+    "position": {"x": 0, "y": 0.5, "z": 0},
+    "physics": {
+      "enabled": true,
+      "type": "dynamic",
+      "mass": 1,
+      "linearDamping": 0.9,
+      "angularDamping": 0.9,
+      "restitution": 0,
+      "friction": 1
+    }
+  },
+  "controls": {
+    "type": "firstPerson",
+    "speed": 35,
+    "jumpForce": 10,
+    "mouseSensitivity": 0.002
+  }
 } 

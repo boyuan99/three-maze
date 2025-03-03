@@ -16,13 +16,24 @@ import NavigationBar from '@/components/NavigationBar.vue'
 const router = useRouter()
 const previews = ref({})
 const previewsLoaded = ref(false)
+const loadingScene = ref(false)
+const error = ref(null)
+const fileInput = ref(null)
 
 const availableMazeScenes = computed(() => {
-  return mazeScenesList
+  return [...mazeScenesList, ...physicsMazeCustomScenes.value]
+})
+
+const physicsMazeCustomScenes = computed(() => {
+  return mazeScenesList.filter(scene => scene.id.startsWith('physics_custom_'))
 })
 
 onMounted(async () => {
   try {
+    // First load stored scenes
+    await loadStoredScenes()
+    
+    // Then generate previews
     const result = await generatePreviews()
     previews.value = result
     previewsLoaded.value = true
@@ -32,13 +43,62 @@ onMounted(async () => {
   }
 })
 
+const handleLoadScene = () => {
+  fileInput.value.click()
+}
+
+const handleFileSelect = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+
+  loadingScene.value = true
+  error.value = null
+
+  try {
+    console.log('PhysicsMazesScene: Loading custom scene file:', file.name)
+    // Override the ID prefix to use physics_custom_
+    const customScene = await loadCustomScene(file, 'physics_custom_')
+    console.log('PhysicsMazesScene: Custom scene loaded:', customScene)
+
+    // Generate preview
+    previews.value[customScene.id] = await customScene.previewGenerator()
+
+    // Clear file input
+    event.target.value = null
+
+    // Ensure scene is registered before opening
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    // Open the scene
+    handleSceneSelect(customScene.id)
+  } catch (err) {
+    console.error('PhysicsMazesScene: Error loading custom scene:', err)
+    error.value = err.message
+  } finally {
+    loadingScene.value = false
+  }
+}
+
+const handleDeleteScene = async (sceneId, event) => {
+  event.stopPropagation()
+  if (confirm('Are you sure you want to delete this custom scene?')) {
+    const removed = await removeCustomScene(sceneId)
+    if (removed) {
+      delete previews.value[sceneId]
+    }
+  }
+}
+
 const handleSceneSelect = (sceneId) => {
   const scene = [...galleryScenes, ...physicsMazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
   
   if (window.electron) {
     window.electron.openScene(sceneId, scene?.config)
   } else {
-    router.push(`/scene/${sceneId}`)
+    const path = sceneId.startsWith('physics_custom_')
+        ? `/scene/custom/${sceneId}`
+        : `/scene/${sceneId}`
+    router.push(path)
   }
 }
 </script>
@@ -49,9 +109,47 @@ const handleSceneSelect = (sceneId) => {
     <div class="entrance-container">
       <div class="entrance-content">
         <h1 class="title">Physics Mazes</h1>
+        
+        <!-- Scene loading error modal -->
+        <div v-if="error" class="error-modal">
+          <div class="error-content">
+            <h3>Error Loading Scene</h3>
+            <p>{{ error }}</p>
+            <button @click="error = null">Close</button>
+          </div>
+        </div>
+        
         <div class="scene-grid">
+          <!-- Load Scene Card -->
+          <div
+            class="scene-card load-scene-card"
+            @click="handleLoadScene"
+            :class="{ 'is-loading': loadingScene }"
+          >
+            <div class="scene-preview load-scene-preview">
+              <div class="load-scene-icon">
+                <div v-if="loadingScene" class="loading-spinner"></div>
+                <span v-else class="plus-icon">+</span>
+              </div>
+            </div>
+            <div class="scene-info">
+              <h2 class="scene-title">Load Custom Scene</h2>
+              <p class="scene-description">
+                Import a custom JSON scene configuration
+              </p>
+            </div>
+            <input
+              ref="fileInput"
+              type="file"
+              accept=".json"
+              class="hidden-input"
+              @change="handleFileSelect"
+            >
+          </div>
+          
+          <!-- Regular maze scenes -->
           <div 
-            v-for="scene in availableMazeScenes" 
+            v-for="scene in mazeScenesList.filter(s => !s.id.startsWith('physics_custom_'))" 
             :key="scene.id"
             class="scene-card"
             @click="handleSceneSelect(scene.id)"
@@ -73,6 +171,47 @@ const handleSceneSelect = (sceneId) => {
               </div>
               <p class="scene-description">{{ scene.description }}</p>
             </div>
+          </div>
+          
+          <!-- Custom maze scenes -->
+          <div 
+            v-for="scene in mazeScenesList.filter(s => s.id.startsWith('physics_custom_'))" 
+            :key="scene.id"
+            class="scene-card"
+            @click="handleSceneSelect(scene.id)"
+          >
+            <div class="scene-preview">
+              <div v-if="!previewsLoaded || !previews[scene.id]" class="preview-loading">
+                Loading preview...
+              </div>
+              <img
+                v-else
+                :src="previews[scene.id]"
+                :alt="scene.name"
+                class="preview-image"
+              />
+            </div>
+            <div class="scene-info">
+              <div class="scene-header">
+                <h2 class="scene-title">{{ scene.name }}</h2>
+                <button
+                  class="delete-button"
+                  @click="(event) => handleDeleteScene(scene.id, event)"
+                  title="Delete custom scene"
+                >
+                  ×
+                </button>
+              </div>
+              <p class="scene-description">{{ scene.description }}</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Loading overlay -->
+        <div v-if="loadingScene" class="loading-overlay">
+          <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p>Loading scene...</p>
           </div>
         </div>
       </div>
