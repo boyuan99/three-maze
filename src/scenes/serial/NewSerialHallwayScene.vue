@@ -72,6 +72,9 @@ const FAR = 1000
 const fallStartTime = ref(null)
 const FALL_RESET_TIME = 5000
 
+// Add a ref to track fall count
+const fallCount = ref(0)
+
 // Animation loop
 function animate() {
   if (!isActive.value) return
@@ -153,7 +156,7 @@ function animate() {
       })
 
       // Prepare and log data
-      const logData = `${position.value.x.toFixed(3)}\t${-position.value.y.toFixed(3)}\t${position.value.theta.toFixed(3)}\t${serialData.value.x || 0}\t${serialData.value.y || 0}\t${serialData.value.water ? 1 : 0}\t${serialData.value.timestamp}\n`
+      const logData = `${position.value.x.toFixed(3)}\t${-position.value.y.toFixed(3)}\t${position.value.theta.toFixed(3)}\t${serialData.value.x || 0}\t${serialData.value.y || 0}\t${serialData.value.water ? 1 : 0}\t${serialData.value.timestamp}\tstraight70v3\n`
       window.electron.appendToLog(logData)
 
       // Clear the processed serial data
@@ -165,6 +168,10 @@ function animate() {
       if (currentY < PLAYER_RADIUS && !fallStartTime.value) {
         // Start tracking fall time
         fallStartTime.value = Date.now()
+        // Increment fall count
+        fallCount.value++
+        // Log to terminal via main process
+        window.electron.sendMessage('log-to-terminal', `Fall detected! Total falls: ${fallCount.value}`)
       } else if (currentY >= PLAYER_RADIUS) {
         // Reset fall timer when not falling
         fallStartTime.value = null

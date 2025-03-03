@@ -740,3 +740,7 @@ ipcMain.on('reward-delivered', (event) => {
   // Reset trial timer for next trial
   trialStartTime.set(windowId, currentTime)
 })
+
+ipcMain.on('log-to-terminal', (event, message) => {
+  console.log(message)
+})
