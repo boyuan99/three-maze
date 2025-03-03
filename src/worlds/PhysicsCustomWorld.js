@@ -61,7 +61,7 @@ export class PhysicsCustomWorld extends CustomWorld {
 
     // Set mouse sensitivity to match HallwayControlScene
     this.fixedCam.mouseSensitivity = this.controlsConfig.mouseSensitivity || 0.002
-    
+
     // FIXED: Reset the camera's actual rotation
     this.camera.rotation.set(0, 0, 0)
 
@@ -156,23 +156,20 @@ export class PhysicsCustomWorld extends CustomWorld {
       )
     }
 
-    if (moveDirection.length() > 0) {
-      moveDirection.normalize().multiplyScalar(speed)
+    // Always apply direction - even if zero
+    // This ensures the player stops when no keys are pressed
+    moveDirection.normalize().multiplyScalar(speed)
+    moveDirection.applyEuler(new THREE.Euler(0, this.fixedCam.yaw.rotation.y, 0))
 
-      // Key: Apply camera's rotation to movement direction
-      // Ensure movement direction is always consistent with view
-      moveDirection.applyEuler(new THREE.Euler(0, this.fixedCam.yaw.rotation.y, 0))
-
-      // Set velocity directly
-      this.playerBody.setLinvel(
-        {
-          x: moveDirection.x,
-          y: this.playerBody.linvel().y, // Preserve vertical velocity for gravity
-          z: moveDirection.z
-        },
-        true
-      )
-    }
+    // Set velocity directly
+    this.playerBody.setLinvel(
+      {
+        x: moveDirection.x,
+        y: this.playerBody.linvel().y, // Preserve vertical velocity for gravity
+        z: moveDirection.z
+      },
+      true
+    )
 
     // Update camera position based on player position
     const playerPosition = this.playerBody.translation()
@@ -242,43 +239,43 @@ export class PhysicsCustomWorld extends CustomWorld {
     const previewCanvas = document.createElement('canvas')
     previewCanvas.width = width
     previewCanvas.height = height
-    
+
     // Create a temporary renderer
     const previewRenderer = new THREE.WebGLRenderer({
       canvas: previewCanvas,
       antialias: true
     })
     previewRenderer.setSize(width, height)
-    
+
     // Save current camera state
     const originalCameraPosition = this.camera ? this.camera.position.clone() : null
     const originalCameraRotation = this.camera ? this.camera.rotation.clone() : null
-    
+
     // Position camera for a good preview angle
     if (this.camera) {
       this.camera.position.set(50, 30, 50)
       this.camera.lookAt(0, 0, 0)
       this.camera.updateProjectionMatrix()
     }
-    
+
     // Render scene
     if (this.scene && this.camera) {
       previewRenderer.render(this.scene, this.camera)
     }
-    
+
     // Capture image
     const dataURL = previewCanvas.toDataURL('image/png')
-    
+
     // Restore camera state if needed
     if (this.camera && originalCameraPosition && originalCameraRotation) {
       this.camera.position.copy(originalCameraPosition)
       this.camera.rotation.copy(originalCameraRotation)
       this.camera.updateProjectionMatrix()
     }
-    
+
     // Cleanup
     previewRenderer.dispose()
-    
+
     return dataURL
   }
 
@@ -288,7 +285,7 @@ export class PhysicsCustomWorld extends CustomWorld {
     if (this.scene && this.camera) {
       return this.generateBetterPreview(width, height)
     }
-    
+
     // Otherwise fall back to the parent implementation
     return super.getPreviewRender(width, height)
   }
