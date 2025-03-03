@@ -26,7 +26,7 @@ export class BaseWorld {
       // Physics settings
       usePhysics: true,
       physicsConfig: {
-        gravity: {x: 0, y: -9.81, z: 0},
+        gravity: {x: 0, y: -300, z: 0},
       },
 
       // Controls settings
