@@ -236,4 +236,60 @@ export class PhysicsCustomWorld extends CustomWorld {
     // Call parent dispose method
     super.dispose()
   }
+
+  async generateBetterPreview(width = 300, height = 200) {
+    // Create a temporary canvas if needed
+    const previewCanvas = document.createElement('canvas')
+    previewCanvas.width = width
+    previewCanvas.height = height
+    
+    // Create a temporary renderer
+    const previewRenderer = new THREE.WebGLRenderer({
+      canvas: previewCanvas,
+      antialias: true
+    })
+    previewRenderer.setSize(width, height)
+    
+    // Save current camera state
+    const originalCameraPosition = this.camera ? this.camera.position.clone() : null
+    const originalCameraRotation = this.camera ? this.camera.rotation.clone() : null
+    
+    // Position camera for a good preview angle
+    if (this.camera) {
+      this.camera.position.set(50, 30, 50)
+      this.camera.lookAt(0, 0, 0)
+      this.camera.updateProjectionMatrix()
+    }
+    
+    // Render scene
+    if (this.scene && this.camera) {
+      previewRenderer.render(this.scene, this.camera)
+    }
+    
+    // Capture image
+    const dataURL = previewCanvas.toDataURL('image/png')
+    
+    // Restore camera state if needed
+    if (this.camera && originalCameraPosition && originalCameraRotation) {
+      this.camera.position.copy(originalCameraPosition)
+      this.camera.rotation.copy(originalCameraRotation)
+      this.camera.updateProjectionMatrix()
+    }
+    
+    // Cleanup
+    previewRenderer.dispose()
+    
+    return dataURL
+  }
+
+  // Override the getPreviewRender method from BaseWorld
+  getPreviewRender(width = 300, height = 200) {
+    // If we're already initialized, use the enhanced method
+    if (this.scene && this.camera) {
+      return this.generateBetterPreview(width, height)
+    }
+    
+    // Otherwise fall back to the parent implementation
+    return super.getPreviewRender(width, height)
+  }
 } 
