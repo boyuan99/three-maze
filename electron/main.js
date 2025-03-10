@@ -90,7 +90,7 @@ async function createSceneWindow(sceneName) {
   // Get all displays
   const displays = screen.getAllDisplays()
   const primaryDisplay = screen.getPrimaryDisplay()
-  
+
   let targetDisplay
   if (preferredDisplayId !== null) {
     targetDisplay = displays.find(display => display.id === preferredDisplayId)
@@ -130,7 +130,9 @@ async function createSceneWindow(sceneName) {
   })
 
   try {
-    const scenePath = sceneName.startsWith('gallery_custom_') || sceneName.startsWith('physics_custom_')
+    const scenePath = sceneName.startsWith('gallery_custom_') ||
+      sceneName.startsWith('physics_custom_') ||
+      sceneName.startsWith('serial_custom_')
       ? `scene/custom/${sceneName}`
       : `scene/${sceneName}`
 
@@ -161,7 +163,7 @@ async function createSceneWindow(sceneName) {
   sceneWindow.on('close', () => {
     console.log(`Scene window for ${sceneName} is closing`)
     console.log(`Total rewards earned: ${rewardCount.get(sceneWindow.id)}`)
-    
+
     // Clean up counters
     rewardCount.delete(sceneWindow.id)
     trialStartTime.delete(sceneWindow.id)
@@ -272,7 +274,7 @@ ipcMain.on('open-scene', async (event, sceneName, sceneConfig) => {
   }
 
   const sceneWindow = await createSceneWindow(sceneName)
-  
+
   // Auto-start Python backend for serial scenes
   if (sceneName.startsWith('serial-')) {
     try {
@@ -292,7 +294,7 @@ ipcMain.handle('get-scene-config', async (event) => {
       const config = sceneConfigs.get(sceneName)
       console.log('Main: Found config for scene:', sceneName)
       // console.log('Main: Returning config:', config)
-      return {sceneName, config}
+      return { sceneName, config }
     }
   }
 
@@ -321,7 +323,7 @@ ipcMain.handle('delete-stored-scene', async (event, sceneId) => {
 const getPythonConfig = () => {
   const platform = process.platform
   const venvPath = path.join(__dirname, '../.venv')
-  
+
   switch (platform) {
     case 'win32':
       return {
@@ -394,7 +396,7 @@ const startPythonBackend = async (window) => {
 
     const config = getPythonConfig()
     const scriptPath = path.join(__dirname, '..')
-    
+
     if (!fs.existsSync(config.interpreter)) {
       throw new Error('Python environment not found. Please run setup first.')
     }
@@ -479,7 +481,7 @@ const startPythonBackend = async (window) => {
 ipcMain.handle('initialize-js-serial', async () => {
   try {
     console.log('Initializing serial port...')
-    
+
     // If port is still open, close it first
     if (serialPort && serialPort.isOpen) {
       console.log('Closing existing port connection...')
@@ -519,10 +521,10 @@ ipcMain.handle('initialize-js-serial', async () => {
 
     // Initialize with the same parameters as Python version
     await new Promise((resolve) => setTimeout(resolve, 2000))
-    
+
     const initString = "10000,50,10,1\n"
     await serialPort.write(initString)
-    
+
     // Create VirmenData directory if it doesn't exist
     const virmenDataPath = path.join('D:', 'VirmenData')
     try {
@@ -533,7 +535,7 @@ ipcMain.handle('initialize-js-serial', async () => {
       console.error('Failed to create directory:', dirError)
       return { error: `Cannot create directory D:\\VirmenData. Access denied or drive not available. Error: ${dirError.message}` }
     }
-    
+
     // Create log file with timestamp
     const timestamp = new Date().toISOString().replace(/:/g, '-')
     const logPath = path.join(virmenDataPath, `${timestamp}-timedata-js.txt`)
@@ -550,7 +552,7 @@ ipcMain.handle('initialize-js-serial', async () => {
       try {
         const line = data.toString().trim()
         const values = line.split(',')
-        
+
         if (values.length >= 13) {
           const serialData = {
             timestamp: values[0],
@@ -571,7 +573,7 @@ ipcMain.handle('initialize-js-serial', async () => {
             direction: parseFloat(values[11]),
             frameCount: parseInt(values[12])
           }
-          
+
           // Send to renderer
           BrowserWindow.getAllWindows().forEach(window => {
             window.webContents.send('serial-data', serialData)
@@ -658,7 +660,7 @@ async function startWaterDeliveryService() {
   if (!waterDeliveryProcess) {
     const pythonScript = join(__dirname, 'scripts/water_delivery.py');
     waterDeliveryProcess = spawn('python', [pythonScript]);
-    
+
     waterDeliveryProcess.stdout.on('data', (data) => {
       const output = data.toString().trim();
     });
@@ -677,7 +679,7 @@ async function startWaterDeliveryService() {
 ipcMain.handle('deliver-water', async () => {
   try {
     await startWaterDeliveryService();
-    
+
     return new Promise((resolve, reject) => {
       // Send the "deliver" command via stdin to the persistent process
       waterDeliveryProcess.stdin.write("deliver\n", "utf-8", (err) => {
@@ -718,7 +720,7 @@ ipcMain.handle('get-displays', () => {
 ipcMain.on('set-preferred-display', (event, displayId) => {
   preferredDisplayId = Number(displayId)
   saveDisplayPreference(preferredDisplayId)
-  
+
   BrowserWindow.getAllWindows().forEach(window => {
     window.webContents.send('display-changed', preferredDisplayId)
   })
@@ -736,7 +738,7 @@ ipcMain.on('reward-delivered', (event) => {
 
   rewardCount.set(windowId, currentCount + 1)
   console.log(`Reward #${currentCount + 1} delivered! Trial time: ${trialTime.toFixed(2)} seconds`)
-  
+
   // Reset trial timer for next trial
   trialStartTime.set(windowId, currentTime)
 })

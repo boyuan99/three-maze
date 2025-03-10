@@ -15,6 +15,7 @@ import NewSerialHallwayScene from "@/scenes/serial/NewSerialHallwayScene.vue"
 import { createApp } from 'vue'
 import { storageService } from '@/storage.js'
 import { PhysicsCustomWorld } from '@/worlds/PhysicsCustomWorld.js'
+import { SerialCustomWorld } from '@/worlds/SerialCustomWorld'
 
 // Gallery scenes (Observe Gallery tab)
 export const galleryScenes = [
@@ -233,12 +234,15 @@ export const generateRoutes = () => {
       name: 'custom-scene',
       components: {
         default: CustomScene,
-        physics: () => import('@/scenes/PhysicsCustomScene.vue')
+        physics: () => import('@/scenes/PhysicsCustomScene.vue'),
+        serial: () => import('@/scenes/SerialCustomScene.vue')
       },
       beforeEnter: (to, from, next) => {
         const id = to.params.id;
         if (id && id.startsWith('physics_custom_')) {
           to.matched[0].components.default = to.matched[0].components.physics;
+        } else if (id && id.startsWith('serial_custom_')) {
+          to.matched[0].components.default = to.matched[0].components.serial;
         }
         next();
       },
@@ -248,11 +252,12 @@ export const generateRoutes = () => {
 
   // Add routes for predefined scenes
   scenes.forEach(scene => {
-    if (!scene.id.startsWith('gallery_custom_') && !scene.id.startsWith('physics_custom_')) {
+    if (!scene.path.includes('/scene/custom/')) {
       routes.push({
         path: scene.path,
         name: scene.id,
-        component: scene.component
+        component: scene.component,
+        props: true
       })
     }
   })
@@ -271,14 +276,19 @@ export const loadCustomScene = async (file, prefix = 'gallery_custom_') => {
     const sceneId = `${prefix}${timestamp}`
 
     // Choose component based on the scene type
-    const componentPath = prefix === 'physics_custom_'
-      ? () => import('@/scenes/PhysicsCustomScene.vue')
-      : () => import('@/scenes/CustomScene.vue')
+    let componentPath;
+    let worldClass;
 
-    // Choose world class based on the scene type
-    const worldClass = prefix === 'physics_custom_'
-      ? PhysicsCustomWorld
-      : CustomWorld
+    if (prefix === 'physics_custom_') {
+      componentPath = () => import('@/scenes/PhysicsCustomScene.vue');
+      worldClass = PhysicsCustomWorld;
+    } else if (prefix === 'serial_custom_') {
+      componentPath = () => import('@/scenes/SerialCustomScene.vue');
+      worldClass = SerialCustomWorld;
+    } else {
+      componentPath = () => import('@/scenes/CustomScene.vue');
+      worldClass = CustomWorld;
+    }
 
     const customScene = {
       id: sceneId,
@@ -300,6 +310,8 @@ export const loadCustomScene = async (file, prefix = 'gallery_custom_') => {
     // Add to appropriate scene list
     if (prefix === 'physics_custom_') {
       physicsMazeScenes.push(customScene)
+    } else if (prefix === 'serial_custom_') {
+      serialControlScenes.push(customScene)
     }
 
     // Always add to main scenes array
@@ -381,7 +393,11 @@ export const validateCustomScene = validateSceneConfig
 
 export const removeCustomScene = async (sceneId) => {
   const index = scenes.findIndex(scene => scene.id === sceneId)
-  if (index !== -1 && (sceneId.startsWith('gallery_custom_') || sceneId.startsWith('physics_custom_'))) {
+  if (index !== -1 && (
+    sceneId.startsWith('gallery_custom_') ||
+    sceneId.startsWith('physics_custom_') ||
+    sceneId.startsWith('serial_custom_')
+  )) {
     scenes.splice(index, 1)
 
     // Also remove from specific scene list
@@ -389,6 +405,11 @@ export const removeCustomScene = async (sceneId) => {
       const mazeIndex = physicsMazeScenes.findIndex(s => s.id === sceneId)
       if (mazeIndex !== -1) {
         physicsMazeScenes.splice(mazeIndex, 1)
+      }
+    } else if (sceneId.startsWith('serial_custom_')) {
+      const serialIndex = serialControlScenes.findIndex(s => s.id === sceneId)
+      if (serialIndex !== -1) {
+        serialControlScenes.splice(serialIndex, 1)
       }
     }
 
