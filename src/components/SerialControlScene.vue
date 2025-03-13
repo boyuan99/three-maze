@@ -18,6 +18,9 @@ const previewsLoaded = ref(false)
 const loadingScene = ref(false)
 const error = ref(null)
 const fileInput = ref(null)
+const codeFileInput = ref(null)
+const selectedSceneForCode = ref(null)
+const sceneControlFiles = ref({})
 
 const availableSerialScenes = computed(() => {
   return [...serialControlScenes.filter(s => !s.id.startsWith('serial_custom_')), 
@@ -78,7 +81,9 @@ const handleDeleteScene = async (sceneId, event) => {
   }
 }
 
-const handleSceneSelect = (sceneId) => {
+const handleSceneSelect = (sceneId, shouldOpen = false) => {
+  if (!shouldOpen) return
+  
   const scene = [...galleryScenes, ...physicsMazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
   
   if (window.electron) {
@@ -88,6 +93,33 @@ const handleSceneSelect = (sceneId) => {
         ? `/scene/custom/${sceneId}`
         : `/scene/${sceneId}`
     router.push(path)
+  }
+}
+
+const handleOpenScene = (sceneId) => {
+  handleSceneSelect(sceneId, true)
+}
+
+const selectControlCodeFile = (sceneId) => {
+  selectedSceneForCode.value = sceneId
+  codeFileInput.value.click()
+}
+
+const handleCodeFileSelect = async (event) => {
+  const file = event.target.files[0]
+  if (!file || !selectedSceneForCode.value) return
+  
+  try {
+    sceneControlFiles.value[selectedSceneForCode.value] = {
+      name: file.name,
+      path: file.path || URL.createObjectURL(file)
+    }
+    
+    event.target.value = null
+    selectedSceneForCode.value = null
+  } catch (err) {
+    console.error('Error selecting control code file:', err)
+    error.value = err.message
   }
 }
 </script>
@@ -138,7 +170,6 @@ const handleSceneSelect = (sceneId) => {
             v-for="scene in serialControlScenes.filter(s => !s.id.startsWith('serial_custom_'))" 
             :key="scene.id"
             class="scene-card"
-            @click="handleSceneSelect(scene.id)"
           >
             <div class="scene-preview">
               <div v-if="!previewsLoaded || !previews[scene.id]" class="preview-loading">
@@ -156,6 +187,12 @@ const handleSceneSelect = (sceneId) => {
                 <h2 class="scene-title">{{ scene.name }}</h2>
               </div>
               <p class="scene-description">{{ scene.description }}</p>
+              
+              <div class="scene-actions">
+                <button class="action-button open-button" @click="handleOpenScene(scene.id)">
+                  Open Scene
+                </button>
+              </div>
             </div>
           </div>
           
@@ -163,7 +200,6 @@ const handleSceneSelect = (sceneId) => {
             v-for="scene in serialControlScenes.filter(s => s.id.startsWith('serial_custom_'))" 
             :key="scene.id"
             class="scene-card"
-            @click="handleSceneSelect(scene.id)"
           >
             <div class="scene-preview">
               <div v-if="!previewsLoaded || !previews[scene.id]" class="preview-loading">
@@ -188,9 +224,30 @@ const handleSceneSelect = (sceneId) => {
                 </button>
               </div>
               <p class="scene-description">{{ scene.description }}</p>
+              
+              <div v-if="sceneControlFiles[scene.id]" class="control-file-info">
+                <p>Control File: {{ sceneControlFiles[scene.id].name }}</p>
+              </div>
+              
+              <div class="scene-actions">
+                <button class="action-button open-button" @click="handleOpenScene(scene.id)">
+                  Open Scene
+                </button>
+                <button class="action-button code-button" @click="selectControlCodeFile(scene.id)">
+                  Select Control File
+                </button>
+              </div>
             </div>
           </div>
         </div>
+        
+        <input
+          ref="codeFileInput"
+          type="file"
+          accept=".js,.py,.json"
+          class="hidden-input"
+          @change="handleCodeFileSelect"
+        >
         
         <div v-if="loadingScene" class="loading-overlay">
           <div class="loading-content">
@@ -466,5 +523,52 @@ const handleSceneSelect = (sceneId) => {
   transform: none !important;
   background-color: #2a2a2a !important;
   box-shadow: none !important;
+}
+
+.scene-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.action-button {
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  flex: 1;
+}
+
+.open-button {
+  background-color: #4a4a9a;
+  color: white;
+}
+
+.open-button:hover {
+  background-color: #5a5aaa;
+}
+
+.code-button {
+  background-color: #3a3a3a;
+  color: white;
+}
+
+.code-button:hover {
+  background-color: #4a4a4a;
+}
+
+.control-file-info {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: #333;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.control-file-info p {
+  margin: 0;
+  color: #ccc;
 }
 </style>
