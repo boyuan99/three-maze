@@ -236,8 +236,19 @@ app.whenReady().then(async () => {
     // Initialize IPC manager
     ipcManager.initialize()
 
-    // Load custom controllers from user directory
-    await controllerLoader.loadUserControllers(userControllerDir)
+    // In development, load controllers from the project directory
+    if (isDevelopment) {
+      // Get the controllers directory in the project
+      const projectControllersDir = path.join(__dirname, 'scripts', 'controllers')
+      console.log(`Development mode: Using project controllers from ${projectControllersDir}`)
+
+      // Only load from user directory if not in development
+      console.log('Skipping user controller loading in development mode')
+    } else {
+      // In production, load from user directory
+      console.log(`Production mode: Loading user controllers from ${userControllerDir}`)
+      await controllerLoader.loadUserControllers(userControllerDir)
+    }
 
     loadDisplayPreference()
     await createMainWindow()
