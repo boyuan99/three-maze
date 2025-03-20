@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen } from 'electron'
+import { app, BrowserWindow, ipcMain, screen, dialog } from 'electron'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import fs from 'fs'
@@ -14,6 +14,7 @@ const VITE_DEV_SERVER_URL = 'http://localhost:5173'
 const userDataPath = app.getPath('userData')
 const customScenesPath = path.join(userDataPath, 'customScenes.json')
 const displayPreferencePath = path.join(userDataPath, 'displayPreference.json')
+const controllerFilesPath = path.join(userDataPath, 'controllerFiles.json')
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -75,9 +76,6 @@ async function createMainWindow() {
 }
 
 async function createSceneWindow(sceneName, sceneConfig, displayId = null) {
-  console.log(`Main: Creating scene window for ${sceneName}`)
-  console.log('Main: Scene config:', sceneConfig)
-
   // Store scene config for later reference
   sceneConfigs.set(sceneName, sceneConfig)
 
@@ -141,7 +139,6 @@ async function createSceneWindow(sceneName, sceneConfig, displayId = null) {
       ? `${VITE_DEV_SERVER_URL}/#/${scenePath}`
       : `file://${join(__dirname, '../dist/index.html')}#/${scenePath}`
 
-    console.log('Main: Loading scene URL:', url)
     await sceneWindow.loadURL(url)
   } catch (e) {
     console.error('Main: Failed to load scene:', e)
@@ -153,7 +150,6 @@ async function createSceneWindow(sceneName, sceneConfig, displayId = null) {
   const controllerType = controllerLoader.getControllerTypeForScene(sceneConfig)
 
   if (controllerType) {
-    console.log(`Creating controller of type ${controllerType} for scene ${sceneName}`)
     const controller = controllerLoader.createController(controllerType, sceneConfig)
 
     if (controller) {
@@ -165,7 +161,6 @@ async function createSceneWindow(sceneName, sceneConfig, displayId = null) {
 
       // Set up window close event
       sceneWindow.on('close', async () => {
-        console.log(`Scene window for ${sceneName} is closing, disposing controller...`)
         await controller.dispose()
         ipcManager.unregisterController(sceneName)
       })
@@ -175,7 +170,6 @@ async function createSceneWindow(sceneName, sceneConfig, displayId = null) {
   sceneWindows.set(sceneName, sceneWindow)
 
   sceneWindow.on('closed', () => {
-    console.log(`Scene window for ${sceneName} has been closed`);
     sceneWindows.delete(sceneName)
     sceneConfigs.delete(sceneName)
   })
@@ -187,10 +181,11 @@ function loadStoredScenes() {
   try {
     if (fs.existsSync(customScenesPath)) {
       const data = fs.readFileSync(customScenesPath, 'utf8')
-      return JSON.parse(data)
+      const scenes = JSON.parse(data)
+      return scenes
     }
   } catch (error) {
-    console.error('Error loading stored scenes:', error)
+    console.error('Main: Error loading stored scenes:', error)
   }
   return {}
 }
@@ -224,9 +219,136 @@ function saveDisplayPreference(displayId) {
   }
 }
 
+// load controller files
+function loadControllerFiles() {
+  try {
+    // Ensure the directory exists first
+    const dirPath = path.dirname(controllerFilesPath);
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+      console.log('Main: Created directory for controller files:', dirPath);
+    }
+
+    if (fs.existsSync(controllerFilesPath)) {
+      const data = fs.readFileSync(controllerFilesPath, 'utf8');
+
+      if (!data || data.trim() === '') {
+        fs.writeFileSync(controllerFilesPath, '{}');
+        return {};
+      }
+
+      try {
+        const files = JSON.parse(data);
+
+        // Validate paths on load
+        const validatedFiles = {};
+        for (const [sceneId, fileInfo] of Object.entries(files)) {
+          if (!fileInfo || !fileInfo.path) {
+            continue;
+          }
+
+          // Ensure path is absolute
+          const filePath = path.isAbsolute(fileInfo.path)
+            ? fileInfo.path
+            : path.resolve(__dirname, fileInfo.path);
+
+          // Check if file exists
+          if (!fs.existsSync(filePath)) {
+            console.warn(`Main: Controller file does not exist: ${filePath}`);
+            continue;
+          }
+
+          // Include validated file
+          validatedFiles[sceneId] = {
+            name: fileInfo.name,
+            path: filePath
+          };
+        }
+
+        // If validation removed files, update storage
+        if (Object.keys(validatedFiles).length !== Object.keys(files).length) {
+          saveControllerFiles(validatedFiles);
+        }
+
+        return validatedFiles;
+      } catch (parseError) {
+        console.error('Main: Error parsing controller files data:', parseError);
+        return {};
+      }
+    } else {
+      fs.writeFileSync(controllerFilesPath, '{}');
+      return {};
+    }
+  } catch (error) {
+    console.error('Main: Error loading controller files:', error);
+    // Try to create an empty file to fix possible permission issues
+    try {
+      // Ensure the directory exists
+      const dirPath = path.dirname(controllerFilesPath);
+      if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+      }
+
+      fs.writeFileSync(controllerFilesPath, '{}');
+    } catch (writeError) {
+      console.error('Main: Failed to create controller files file:', writeError);
+    }
+  }
+  return {};
+}
+
+// save controller files
+function saveControllerFiles(files) {
+  try {
+    // First, validate all paths and normalize them
+    const validatedFiles = {};
+    for (const [sceneId, fileInfo] of Object.entries(files)) {
+      if (!fileInfo || !fileInfo.path) {
+        continue;
+      }
+
+      // Ensure path is absolute
+      const filePath = path.isAbsolute(fileInfo.path)
+        ? fileInfo.path
+        : path.resolve(__dirname, fileInfo.path);
+
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        console.warn(`Main: Controller file does not exist: ${filePath}`);
+        continue;
+      }
+
+      // Include validated file
+      validatedFiles[sceneId] = {
+        name: fileInfo.name,
+        path: filePath
+      };
+    }
+
+    // Save only validated files
+    const data = JSON.stringify(validatedFiles, null, 2);
+
+    // Ensure the directory exists
+    const dirPath = path.dirname(controllerFilesPath);
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
+    }
+
+    fs.writeFileSync(controllerFilesPath, data);
+
+    return true;
+  } catch (error) {
+    console.error('Main: Error saving controller files:', error);
+    return false;
+  }
+}
+
 // App initialization
 app.whenReady().then(async () => {
   try {
+    // initialize IPC handlers
+    setupIpcHandlers();
+
     // Create user controller directory (if it doesn't exist)
     const userControllerDir = path.join(app.getPath('userData'), 'controllers')
     if (!fs.existsSync(userControllerDir)) {
@@ -257,6 +379,175 @@ app.whenReady().then(async () => {
   }
 })
 
+function setupIpcHandlers() {
+
+  ipcMain.on('open-scene', async (event, sceneName, sceneConfig, controllerFile) => {
+    console.log('Main: Received open-scene request for:', sceneName)
+
+    if (sceneConfig) {
+      sceneConfigs.set(sceneName, sceneConfig)
+
+      // Store custom scenes persistently
+      if (sceneName.startsWith('gallery_custom_') ||
+        sceneName.startsWith('physics_custom_') ||
+        sceneName.startsWith('serial_custom_')) {
+        const storedScenes = loadStoredScenes()
+        storedScenes[sceneName] = {
+          id: sceneName,
+          config: sceneConfig
+        }
+        saveStoredScenes(storedScenes)
+      }
+    }
+
+    // create scene window
+    const sceneWindow = await createSceneWindow(sceneName, sceneConfig)
+
+    // if there is a controller file, auto load
+    if (controllerFile && sceneName.startsWith('serial_custom_')) {
+      // if controller-loader is initialized, notify it to load the controller file
+      if (sceneWindow && controllerFile.path) {
+        // ensure path exists
+        if (!fs.existsSync(controllerFile.path)) {
+          console.error('Main: Controller file path does not exist:', controllerFile.path)
+        } else {
+          // wait for some time to ensure the window is fully initialized
+          setTimeout(() => {
+            sceneWindow.webContents.send('load-controller-file', {
+              sceneName: sceneName,
+              controllerPath: controllerFile.path
+            })
+          }, 1000)
+        }
+      }
+    }
+  })
+
+  ipcMain.handle('get-scene-config', async (event) => {
+    const windowId = event.sender.id
+
+    for (const [sceneName, window] of sceneWindows.entries()) {
+      if (window.webContents.id === windowId) {
+        const config = sceneConfigs.get(sceneName)
+        return { sceneName, config }
+      }
+    }
+
+    return null
+  })
+
+  // store custom scene
+  ipcMain.handle('store-custom-scene', async (event, sceneData) => {
+    const storedScenes = loadStoredScenes()
+    storedScenes[sceneData.id] = sceneData
+    saveStoredScenes(storedScenes)
+    return true
+  })
+
+  // get stored scenes
+  ipcMain.handle('get-stored-scenes', async () => {
+    return loadStoredScenes()
+  })
+
+  // delete stored scene
+  ipcMain.handle('delete-stored-scene', async (event, sceneId) => {
+    const storedScenes = loadStoredScenes()
+    delete storedScenes[sceneId]
+    saveStoredScenes(storedScenes)
+    return true
+  })
+
+  ipcMain.handle('get-displays', () => {
+    const displays = screen.getAllDisplays()
+    return displays.map(display => ({
+      id: display.id,
+      isPrimary: display.bounds.x === 0 && display.bounds.y === 0,
+      bounds: display.bounds
+    }))
+  })
+
+  ipcMain.on('set-preferred-display', (event, displayId) => {
+    preferredDisplayId = Number(displayId)
+    saveDisplayPreference(preferredDisplayId)
+
+    BrowserWindow.getAllWindows().forEach(window => {
+      window.webContents.send('display-changed', preferredDisplayId)
+    })
+  })
+
+  ipcMain.handle('get-preferred-display', () => {
+    return preferredDisplayId
+  })
+
+  ipcMain.handle('store-controller-files', async (event, controllerFiles) => {
+    const success = saveControllerFiles(controllerFiles)
+    return success
+  })
+
+  ipcMain.handle('get-controller-files', async () => {
+    const files = loadControllerFiles()
+    return files
+  })
+
+  // check if file exists
+  ipcMain.handle('check-file-exists', async (event, filePath) => {
+    try {
+      const exists = fs.existsSync(filePath)
+      return exists
+    } catch (error) {
+      console.error('Main: Error checking if file exists:', error)
+      return false
+    }
+  })
+
+  // Select controller file using dialog
+  ipcMain.handle('select-controller-file', async (event) => {
+    try {
+      const result = await dialog.showOpenDialog({
+        properties: ['openFile'],
+        filters: [
+          { name: 'JavaScript Files', extensions: ['js'] },
+          { name: 'All Files', extensions: ['*'] }
+        ],
+        title: 'Select Controller File'
+      })
+
+      if (result.canceled) {
+        return null;
+      }
+
+      const filePath = result.filePaths[0];
+
+      // Get file name from path
+      const fileName = path.basename(filePath);
+
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        console.warn('Main: Selected file does not exist:', filePath);
+        return null;
+      }
+
+      // Return only serializable primitive data
+      return {
+        name: fileName,
+        path: filePath
+      };
+    } catch (error) {
+      console.error('Main: Error selecting controller file:', error);
+      return null;
+    }
+  })
+
+  // stop serial connection
+  ipcMain.handle('stop-serial-connection', () => {
+    console.log('Main: Stopping serial connection')
+    // implement stop serial connection logic
+    return true
+  })
+
+  console.log('IPC handlers setup complete')
+}
+
 app.on('window-all-closed', () => {
   // Clean up IPC manager
   ipcManager.cleanup()
@@ -270,83 +561,6 @@ app.on('activate', async () => {
   if (mainWindow === null) {
     await createMainWindow()
   }
-})
-
-ipcMain.on('open-scene', async (event, sceneName, sceneConfig) => {
-  console.log('Main: Received open-scene request for:', sceneName)
-
-  if (sceneConfig) {
-    console.log('Main: Storing config for scene:', sceneName)
-    sceneConfigs.set(sceneName, sceneConfig)
-
-    // Store custom scenes persistently
-    if (sceneName.startsWith('gallery_custom_') || sceneName.startsWith('physics_custom_')) {
-      const storedScenes = loadStoredScenes()
-      storedScenes[sceneName] = {
-        id: sceneName,
-        config: sceneConfig
-      }
-      saveStoredScenes(storedScenes)
-    }
-  }
-
-  const sceneWindow = await createSceneWindow(sceneName, sceneConfig)
-})
-
-ipcMain.handle('get-scene-config', async (event) => {
-  const windowId = event.sender.id
-  console.log('Main: Received config request from window:', windowId)
-
-  for (const [sceneName, window] of sceneWindows.entries()) {
-    if (window.webContents.id === windowId) {
-      const config = sceneConfigs.get(sceneName)
-      console.log('Main: Found config for scene:', sceneName)
-      return { sceneName, config }
-    }
-  }
-
-  console.log('Main: No config found for window:', windowId)
-  return null
-})
-
-ipcMain.handle('store-custom-scene', async (event, sceneData) => {
-  const storedScenes = loadStoredScenes()
-  storedScenes[sceneData.id] = sceneData
-  saveStoredScenes(storedScenes)
-  return true
-})
-
-ipcMain.handle('get-stored-scenes', async () => {
-  return loadStoredScenes()
-})
-
-ipcMain.handle('delete-stored-scene', async (event, sceneId) => {
-  const storedScenes = loadStoredScenes()
-  delete storedScenes[sceneId]
-  saveStoredScenes(storedScenes)
-  return true
-})
-
-ipcMain.handle('get-displays', () => {
-  const displays = screen.getAllDisplays()
-  return displays.map(display => ({
-    id: display.id,
-    isPrimary: display.bounds.x === 0 && display.bounds.y === 0,
-    bounds: display.bounds
-  }))
-})
-
-ipcMain.on('set-preferred-display', (event, displayId) => {
-  preferredDisplayId = Number(displayId)
-  saveDisplayPreference(preferredDisplayId)
-
-  BrowserWindow.getAllWindows().forEach(window => {
-    window.webContents.send('display-changed', preferredDisplayId)
-  })
-})
-
-ipcMain.handle('get-preferred-display', () => {
-  return preferredDisplayId
 })
 
 process.on('uncaughtException', (error) => {

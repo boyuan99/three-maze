@@ -11,6 +11,7 @@ import {
   loadStoredScenes 
 } from '@/scenes'
 import NavigationBar from '@/components/NavigationBar.vue'
+import { storageService } from '@/storage.js'
 
 const router = useRouter()
 const previews = ref({})
@@ -34,6 +35,34 @@ onMounted(async () => {
     const result = await generatePreviews()
     previews.value = result
     previewsLoaded.value = true
+    
+    // load controller files
+    try {
+      const savedControllerFiles = await storageService.getControllerFiles()
+      
+      if (savedControllerFiles && Object.keys(savedControllerFiles).length > 0) {
+        // check if each path is valid
+        const validFiles = {};
+        for (const [sceneId, fileInfo] of Object.entries(savedControllerFiles)) {
+          if (window.electron && fileInfo.path) {
+            const fileExists = await window.electron.checkFileExists(fileInfo.path);
+            
+            if (fileExists) {
+              validFiles[sceneId] = fileInfo;
+            } else {
+              console.warn(`File path does not exist: ${fileInfo.path}`);
+            }
+          } else {
+            validFiles[sceneId] = fileInfo;
+          }
+        }
+        
+        sceneControlFiles.value = validFiles;
+      }
+    } catch (controllerError) {
+      console.error('Error loading controller files:', controllerError)
+      // continue execution, do not block page load
+    }
   } catch (error) {
     console.error('Error generating previews:', error)
     previewsLoaded.value = true
@@ -77,6 +106,13 @@ const handleDeleteScene = async (sceneId, event) => {
     const removed = await removeCustomScene(sceneId)
     if (removed) {
       delete previews.value[sceneId]
+      
+      // delete controller file info
+      if (sceneControlFiles.value[sceneId]) {
+        delete sceneControlFiles.value[sceneId]
+        await storageService.storeControllerFiles(sceneControlFiles.value)
+        console.log('Removed controller file info for scene:', sceneId)
+      }
     }
   }
 }
@@ -87,7 +123,31 @@ const handleSceneSelect = (sceneId, shouldOpen = false) => {
   const scene = [...galleryScenes, ...physicsMazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
   
   if (window.electron) {
-    window.electron.openScene(sceneId, scene?.config)
+    // Get controller file info for this scene
+    const controllerFile = sceneControlFiles.value[sceneId]
+    
+    if (controllerFile) {
+      // Check if file path exists before passing it
+      if (controllerFile.path) {
+        window.electron.checkFileExists(controllerFile.path)
+          .then(exists => {
+            if (exists) {
+              window.electron.openScene(sceneId, scene?.config, controllerFile);
+            } else {
+              console.warn(`Controller file doesn't exist: ${controllerFile.path}`);
+              window.electron.openScene(sceneId, scene?.config);
+            }
+          })
+          .catch(err => {
+            console.error('Error checking controller file existence:', err);
+            window.electron.openScene(sceneId, scene?.config);
+          });
+      } else {
+        window.electron.openScene(sceneId, scene?.config);
+      }
+    } else {
+      window.electron.openScene(sceneId, scene?.config);
+    }
   } else {
     const path = sceneId.startsWith('serial_custom_')
         ? `/scene/custom/${sceneId}`
@@ -100,26 +160,109 @@ const handleOpenScene = (sceneId) => {
   handleSceneSelect(sceneId, true)
 }
 
-const selectControlCodeFile = (sceneId) => {
+const selectControlCodeFile = async (sceneId) => {
   selectedSceneForCode.value = sceneId
-  codeFileInput.value.click()
+  
+  if (window.electron && window.electron.selectControllerFile) {
+    try {
+      // Use Electron's native dialog
+      const fileInfo = await window.electron.selectControllerFile()
+      
+      if (!fileInfo) {
+        selectedSceneForCode.value = null
+        return
+      }
+      
+      // Handle the selected file
+      await handleSelectedControllerFile(sceneId, fileInfo)
+    } catch (err) {
+      console.error('Error selecting controller file via dialog:', err)
+      error.value = err.message
+      selectedSceneForCode.value = null
+    }
+  } else {
+    // Fallback to browser file input for non-Electron environments
+    codeFileInput.value.click()
+  }
 }
 
+// Handle file selection from browser input (fallback for non-Electron)
 const handleCodeFileSelect = async (event) => {
   const file = event.target.files[0]
   if (!file || !selectedSceneForCode.value) return
   
   try {
-    sceneControlFiles.value[selectedSceneForCode.value] = {
+    // In browser environment, use object URL
+    const filePath = URL.createObjectURL(file);
+    
+    // Create file info object
+    const fileInfo = {
       name: file.name,
-      path: file.path || URL.createObjectURL(file)
+      path: filePath
     }
     
+    // Handle the selected file
+    await handleSelectedControllerFile(selectedSceneForCode.value, fileInfo)
+    
+    // Reset input
     event.target.value = null
     selectedSceneForCode.value = null
   } catch (err) {
-    console.error('Error selecting control code file:', err)
+    console.error('Error handling file from browser input:', err)
     error.value = err.message
+  }
+}
+
+// Shared logic for handling selected controller file
+const handleSelectedControllerFile = async (sceneId, fileInfo) => {
+  try {
+    // Create a simplified object with only the data we need
+    const simplifiedFileInfo = {
+      name: fileInfo.name,
+      path: fileInfo.path
+    };
+    
+    // Store controller file info
+    sceneControlFiles.value[sceneId] = simplifiedFileInfo;
+    
+    // Create a new simplified object for all files
+    const simplifiedFiles = {};
+    for (const [scene, file] of Object.entries(sceneControlFiles.value)) {
+      simplifiedFiles[scene] = {
+        name: file.name,
+        path: file.path
+      };
+    }
+    
+    // Save to storage with simplified objects
+    const result = await storageService.storeControllerFiles(simplifiedFiles);
+    
+    if (result) {
+      console.log(`Controller file saved for scene: ${sceneId}`);
+      
+      // Verify saved successfully
+      const savedFiles = await storageService.getControllerFiles();
+      
+      if (savedFiles[sceneId]) {
+        const savedPath = savedFiles[sceneId].path;
+        
+        if (window.electron && window.electron.checkFileExists) {
+          const pathExists = await window.electron.checkFileExists(savedPath);
+          if (!pathExists) {
+            console.warn(`Controller file path doesn't exist: ${savedPath}`);
+          }
+        }
+      } else {
+        console.warn(`Controller file not found in saved data for scene: ${sceneId}`);
+      }
+    } else {
+      console.warn('Failed to save controller file info');
+    }
+    
+    return true;
+  } catch (err) {
+    console.error('Error processing controller file:', err);
+    throw err;
   }
 }
 </script>

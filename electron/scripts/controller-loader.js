@@ -3,7 +3,7 @@
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { SerialHallwayController } from './controllers/serial-hallway-controller.js'
+import { SerialCustomController } from './controllers/serial-custom-controller.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -12,6 +12,7 @@ class ControllerLoader {
   constructor() {
     this.controllers = new Map()
     this.controllerClasses = new Map()
+    this.customControllers = new Map()
 
     // Register built-in controller classes
     this.registerBuiltinControllers()
@@ -19,13 +20,56 @@ class ControllerLoader {
 
   // Register built-in controller classes
   registerBuiltinControllers() {
-    this.registerControllerClass('serial-hallway', SerialHallwayController)
+    this.registerControllerClass('serial-custom', SerialCustomController)
   }
 
   // Register controller classes
   registerControllerClass(type, controllerClass) {
     this.controllerClasses.set(type, controllerClass)
     console.log(`Registered controller class: ${type}`)
+  }
+
+  // Get custom controller info
+  getCustomController(sceneId) {
+    return this.customControllers.get(sceneId)
+  }
+
+  // Load custom controller file
+  async loadCustomControllerFile(sceneId, filePath) {
+    try {
+      console.log(`Loading custom controller file for scene ${sceneId}: ${filePath}`)
+
+      if (!filePath || !fs.existsSync(filePath)) {
+        return { success: false, error: 'Controller file not found' }
+      }
+
+      // Read controller file
+      const content = fs.readFileSync(filePath, 'utf8')
+      if (!content) {
+        return { success: false, error: 'Controller file is empty' }
+      }
+
+      // Check if required functions exist
+      if (!content.includes('function init') ||
+        !content.includes('function update')) {
+        return { success: false, error: 'Controller must contain init and update functions' }
+      }
+
+      // Store controller info
+      const controllerInfo = {
+        filePath,
+        content,
+        timestamp: Date.now()
+      }
+
+      this.customControllers.set(sceneId, controllerInfo)
+      console.log(`Registered custom controller for scene: ${sceneId}`)
+
+      return { success: true }
+    } catch (error) {
+      console.error(`Failed to load custom controller for scene ${sceneId}:`, error)
+      return { success: false, error: error.message }
+    }
   }
 
   // Load controller classes from external files
@@ -120,6 +164,11 @@ class ControllerLoader {
 
     if (sceneId.includes('serial_hallway') || sceneId.includes('serialhallway')) {
       return 'serial-hallway'
+    }
+
+    // Return serial-custom for custom serial scenes
+    if (sceneId.includes('serial_custom_')) {
+      return 'serial-custom'
     }
 
     // Default to null, indicating no applicable controller

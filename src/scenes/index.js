@@ -15,7 +15,7 @@ import NewSerialHallwayScene from "@/scenes/serial/NewSerialHallwayScene.vue"
 import { createApp } from 'vue'
 import { storageService } from '@/storage.js'
 import { PhysicsCustomWorld } from '@/worlds/PhysicsCustomWorld.js'
-import { SerialCustomWorld } from '@/worlds/SerialCustomWorld'
+import { SerialCustomWorld } from '@/worlds/SerialCustomWorld.js'
 
 // Gallery scenes (Observe Gallery tab)
 export const galleryScenes = [
@@ -333,20 +333,38 @@ export const loadCustomScene = async (file, prefix = 'gallery_custom_') => {
 export const loadStoredScenes = async () => {
   try {
     const storedScenes = await storageService.getStoredScenes()
+    console.log('Loading stored scenes:', Object.keys(storedScenes));
 
     // Convert stored scenes back to scene objects and add them to scenes array
     Object.values(storedScenes).forEach(storedScene => {
       const existingIndex = scenes.findIndex(s => s.id === storedScene.id)
+
+      // Determine correct component and world class based on scene ID prefix
+      let componentPath;
+      let worldClass;
+
+      if (storedScene.id.startsWith('physics_custom_')) {
+        componentPath = () => import('@/scenes/PhysicsCustomScene.vue')
+        worldClass = PhysicsCustomWorld
+      } else if (storedScene.id.startsWith('serial_custom_')) {
+        componentPath = () => import('@/scenes/SerialCustomScene.vue')
+        worldClass = SerialCustomWorld
+      } else {
+        // Default for gallery_custom_ and any others
+        componentPath = () => import('@/scenes/CustomScene.vue')
+        worldClass = CustomWorld
+      }
+
       const customScene = {
         id: storedScene.id,
         path: `/scene/custom/${storedScene.id}`,
         name: storedScene.config.name,
         description: storedScene.config.description || 'Custom loaded scene',
-        component: () => import('@/scenes/CustomScene.vue'),
-        worldClass: CustomWorld,
+        component: componentPath,
+        worldClass: worldClass,
         config: storedScene.config,
         previewGenerator: async () => {
-          const world = new CustomWorld(null, storedScene.config)
+          const world = new worldClass(null, storedScene.config)
           await world.init()
           const preview = world.getPreviewRender()
           world.dispose()
@@ -358,6 +376,13 @@ export const loadStoredScenes = async () => {
         scenes[existingIndex] = customScene
       } else {
         scenes.push(customScene)
+
+        // Also add to specific scene list based on prefix
+        if (storedScene.id.startsWith('physics_custom_')) {
+          physicsMazeScenes.push(customScene)
+        } else if (storedScene.id.startsWith('serial_custom_')) {
+          serialControlScenes.push(customScene)
+        }
       }
     })
   } catch (error) {

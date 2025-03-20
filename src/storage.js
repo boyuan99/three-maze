@@ -50,6 +50,83 @@ class StorageService {
       }
     }
   }
+
+  // save controller files
+  async storeControllerFiles(controllerFiles) {
+    if (window.electron) {
+      try {
+        // check if electron object has storeControllerFiles method
+        if (typeof window.electron.storeControllerFiles === 'function') {
+          // Sanitize data - ensure we only send serializable objects
+          const sanitizedFiles = {};
+          for (const [sceneId, fileInfo] of Object.entries(controllerFiles)) {
+            if (fileInfo && typeof fileInfo === 'object') {
+              sanitizedFiles[sceneId] = {
+                name: fileInfo.name || '',
+                path: fileInfo.path || ''
+              };
+            }
+          }
+
+          const result = await window.electron.storeControllerFiles(sanitizedFiles);
+          return result;
+        } else {
+          console.warn('StorageService: electron.storeControllerFiles is not available');
+          return false;
+        }
+      } catch (error) {
+        console.error('StorageService: Error calling electron.storeControllerFiles:', error);
+        return false;
+      }
+    } else {
+      try {
+        // Sanitize data for localStorage too
+        const sanitizedFiles = {};
+        for (const [sceneId, fileInfo] of Object.entries(controllerFiles)) {
+          if (fileInfo && typeof fileInfo === 'object') {
+            sanitizedFiles[sceneId] = {
+              name: fileInfo.name || '',
+              path: fileInfo.path || ''
+            };
+          }
+        }
+
+        localStorage.setItem('controllerFiles', JSON.stringify(sanitizedFiles));
+        return true;
+      } catch (error) {
+        console.error('StorageService: Error storing controller files in localStorage:', error);
+        return false;
+      }
+    }
+  }
+
+  // get controller files
+  async getControllerFiles() {
+    if (window.electron) {
+      try {
+        // check if electron object has getControllerFiles method
+        if (typeof window.electron.getControllerFiles === 'function') {
+          const files = await window.electron.getControllerFiles();
+          return files;
+        } else {
+          console.warn('StorageService: electron.getControllerFiles is not available');
+          return {};
+        }
+      } catch (error) {
+        console.error('StorageService: Error calling electron.getControllerFiles:', error);
+        return {};
+      }
+    } else {
+      try {
+        const controllerFiles = localStorage.getItem('controllerFiles');
+        const files = controllerFiles ? JSON.parse(controllerFiles) : {};
+        return files;
+      } catch (error) {
+        console.error('StorageService: Error reading controller files from localStorage:', error);
+        return {};
+      }
+    }
+  }
 }
 
 export const storageService = new StorageService()

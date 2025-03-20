@@ -11,6 +11,7 @@ const showInfo = ref(true)
 const sceneName = ref('Serial Custom Scene')
 const sceneDescription = ref('A custom scene for serial control')
 const error = ref(null)
+const position = ref({ x: 0, y: 0, theta: 0 })
 
 onMounted(async () => {
   console.log('SerialCustomScene: Mounting component')
@@ -38,6 +39,18 @@ onMounted(async () => {
       if (data && data.config) {
         sceneConfig = data.config
         console.log('SerialCustomScene: Got config from electron:', sceneConfig)
+        
+        // 设置控制器文件自动加载的处理
+        window.electron.onLoadControllerFile((controllerData) => {
+          console.log('SerialCustomScene: Received controller file:', controllerData)
+          if (controllerData && controllerData.controllerPath) {
+            console.log('SerialCustomScene: Auto-loading controller file:', controllerData.controllerPath)
+            // 调用加载控制器文件的逻辑
+            window.electron.sendMessage('load-controller', {
+              controllerPath: controllerData.controllerPath
+            })
+          }
+        })
       } else {
         console.error('SerialCustomScene: No config in electron data')
       }
@@ -70,8 +83,32 @@ onMounted(async () => {
     await world.value.init()
     console.log('SerialCustomScene: World initialized successfully')
     
-    // add specific initialization related to serial port
-    // for example, connect to serial port, set event listeners, etc.
+    // Seting serial data processing  
+    if (window.electron) {
+      // Add serial data listener
+      window.electron.onSerialData((data) => {
+        if (world.value) {
+          // Update position information
+          if (world.value.playerBody) {
+            const playerPos = world.value.playerBody.translation()
+            position.value.x = playerPos.x
+            position.value.y = playerPos.z
+            
+            // Get rotation angle
+            const rotation = world.value.playerBody.rotation()
+            position.value.theta = rotation.y
+          }
+          
+          // Pass data to world object
+          world.value.updateFromSerialData(data)
+        }
+      })
+      
+      // Add error listener
+      window.electron.onSerialError((errorMsg) => {
+        error.value = errorMsg
+      })
+    }
   } catch (err) {
     console.error('SerialCustomScene: Error initializing world:', err)
     error.value = 'Error initializing world: ' + err.message
@@ -85,7 +122,10 @@ onBeforeUnmount(() => {
     world.value = null
   }
   
-  // cleanup serial port connections or event listeners
+  // Clean up serial connection
+  if (window.electron) {
+    window.electron.stopSerialConnection && window.electron.stopSerialConnection()
+  }
 })
 </script>
 
@@ -111,6 +151,13 @@ onBeforeUnmount(() => {
           <li>Connect your device to a serial port</li>
           <li>Use the serial monitor to view data</li>
           <li>Send commands to control the scene</li>
+        </ul>
+        <!-- Display position information -->
+        <p>Position:</p>
+        <ul>
+          <li>X: {{ position.x.toFixed(2) }}</li>
+          <li>Y: {{ position.y.toFixed(2) }}</li>
+          <li>θ: {{ position.theta.toFixed(2) }}</li>
         </ul>
       </div>
       <button class="toggle-info" @click="showInfo = false">Hide Info</button>

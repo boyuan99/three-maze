@@ -3,10 +3,10 @@ const { contextBridge, ipcRenderer } = require('electron')
 console.log('Preload: Script starting')
 
 contextBridge.exposeInMainWorld('electron', {
-  openScene: (sceneName, sceneConfig) => {
+  openScene: (sceneName, sceneConfig, controllerFile) => {
     console.log('Preload: Opening scene:', sceneName)
     console.log('Preload: With config:', sceneConfig)
-    ipcRenderer.send('open-scene', sceneName, sceneConfig)
+    ipcRenderer.send('open-scene', sceneName, sceneConfig, controllerFile)
   },
   sendMessage: (channel, data) => {
     console.log('Preload: Sending message on channel:', channel)
@@ -51,7 +51,7 @@ contextBridge.exposeInMainWorld('electron', {
     closeSerial: () => ipcRenderer.invoke('close-js-serial'),
     onSerialData: (callback) => ipcRenderer.on('serial-data', (_, data) => callback(data)),
     onSerialRawData: (callback) => ipcRenderer.on('serial-raw-data', (_, data) => callback(data)),
-    onSerialError: (callback) => ipcRenderer.on('serial-error', (_, data) => callback(data)),
+    onSerialError: (callback) => ipcRenderer.on('serial-error', (_, errorMsg) => callback(errorMsg)),
 
     startPythonSerial: () => ipcRenderer.invoke('start-python-serial'),
     stopPythonSerial: () => ipcRenderer.invoke('stop-python-serial'),
@@ -74,6 +74,8 @@ contextBridge.exposeInMainWorld('electron', {
   closeJsSerial: function () { return this.controller.closeSerial() },
   appendToLog: function (data) { return this.controller.appendToLog(data) },
   onSerialData: function (callback) { this.controller.onSerialData(callback) },
+  onSerialRawData: function (callback) { this.controller.onSerialRawData(callback) },
+  onSerialError: function (callback) { this.controller.onSerialError(callback) },
   startPythonSerial: function () { return this.controller.startPythonSerial() },
   stopPythonSerial: function () { return this.controller.stopPythonSerial() },
   onPythonSerialData: function (callback) { this.controller.onPythonSerialData(callback) },
@@ -81,7 +83,17 @@ contextBridge.exposeInMainWorld('electron', {
   sendToPython: function (data) { this.controller.sendToPython(data) },
   onWindowClose: (callback) => ipcRenderer.on('window-close', callback),
   onPythonPositionData: (callback) => { ipcRenderer.on('python-position-data', (_, data) => callback(data)) },
-  isSerialScene: (scenePath) => ipcRenderer.invoke('is-serial-scene', scenePath)
+  isSerialScene: (scenePath) => ipcRenderer.invoke('is-serial-scene', scenePath),
+  stopSerialConnection: () => ipcRenderer.invoke('stop-serial-connection'),
+  storeControllerFiles: (controllerFiles) => ipcRenderer.invoke('store-controller-files', controllerFiles),
+  getControllerFiles: () => ipcRenderer.invoke('get-controller-files'),
+  checkFileExists: (filePath) => ipcRenderer.invoke('check-file-exists', filePath),
+  onLoadControllerFile: (callback) => {
+    ipcRenderer.on('load-controller-file', (_, data) => {
+      callback(data)
+    })
+  },
+  selectControllerFile: () => ipcRenderer.invoke('select-controller-file')
 })
 
 console.log('Preload: Script initialized')

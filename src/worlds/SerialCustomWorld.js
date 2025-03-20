@@ -1,6 +1,8 @@
 import { BaseWorld } from './BaseWorld'
 import * as THREE from 'three'
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js'
+import { FixedCam } from '@/utils/FixedCam'
+import RAPIER from '@dimforge/rapier3d-compat'
 
 export class SerialCustomWorld extends BaseWorld {
   constructor(canvas, sceneConfig) {
@@ -12,7 +14,7 @@ export class SerialCustomWorld extends BaseWorld {
       rendererConfig: sceneConfig.renderer || {
         shadows: true
       },
-      useOrbitControls: true,
+      useOrbitControls: false,
       lights: sceneConfig.lights || [
         {
           type: 'ambient',
@@ -30,6 +32,24 @@ export class SerialCustomWorld extends BaseWorld {
     })
     this.sceneConfig = sceneConfig
     this.textureCache = new Map()
+
+
+    this.fixedCam = null
+    this.playerBody = null
+    this.playerConfig = sceneConfig.player || {
+      type: 'sphere',
+      radius: 0.5,
+      position: { x: 0, y: 1, z: 0 },
+      physics: {
+        enabled: true,
+        type: 'dynamic',
+        mass: 1,
+        linearDamping: 0.9,
+        angularDamping: 0.9,
+        restitution: 0,
+        friction: 1
+      }
+    }
   }
 
   async loadTexture(path) {
@@ -187,6 +207,100 @@ export class SerialCustomWorld extends BaseWorld {
           name: objConfig.name || `object_${this.objects.size}`
         })
       }
+    }
+
+    // Setup first person controls
+    await this.setupFirstPersonControls()
+  }
+
+  async setupFirstPersonControls() {
+    if (!this.canvas) return
+
+    // Initialize fixed camera
+    this.fixedCam = new FixedCam(this.scene, this.camera, this.renderer)
+    this.fixedCam.mouseSensitivity = 0.002
+
+    // Reset camera rotation
+    this.camera.rotation.set(0, 0, 0)
+
+    // Create player physics object
+    await this.createPlayer()
+
+    // Initialize camera position to player position
+    const playerPos = this.playerBody.translation()
+    this.camera.position.set(playerPos.x, playerPos.y + 1.5, playerPos.z)
+  }
+
+  async createPlayer() {
+    if (!this.physics) return
+
+    const playerPos = this.playerConfig.position
+
+    // Create player rigid body
+    const playerBodyDesc = RAPIER.RigidBodyDesc.dynamic()
+      .setTranslation(playerPos.x, playerPos.y, playerPos.z)
+      .setLinearDamping(this.playerConfig.physics.linearDamping)
+      .setAngularDamping(this.playerConfig.physics.angularDamping)
+
+    this.playerBody = this.physics.createRigidBody(playerBodyDesc)
+
+    // Create collider
+    let colliderDesc
+    if (this.playerConfig.type === 'sphere') {
+      colliderDesc = RAPIER.ColliderDesc.ball(this.playerConfig.radius)
+    } else {
+      // Default to capsule
+      colliderDesc = RAPIER.ColliderDesc.capsule(0.5, this.playerConfig.radius)
+    }
+
+    colliderDesc
+      .setRestitution(this.playerConfig.physics.restitution)
+      .setFriction(this.playerConfig.physics.friction)
+
+    this.physics.createCollider(colliderDesc, this.playerBody)
+
+    return this.playerBody
+  }
+
+  // Method for responding to serial control
+  updateFromSerialData(data) {
+    if (!this.playerBody || !this.fixedCam) return
+
+    try {
+      // Extract x, y, theta values from serial data
+      const vx = parseFloat(data.x) || 0
+      const vz = parseFloat(data.y) || 0
+      const deltaTheta = parseFloat(data.theta) || 0
+
+      // Update player position
+      this.playerBody.setLinvel({
+        x: vx,
+        y: this.playerBody.linvel().y, // Keep vertical velocity
+        z: vz
+      }, true)
+
+      // Update player rotation
+      const currentRotation = this.playerBody.rotation()
+      const newRotationY = currentRotation.y + deltaTheta * 0.05
+
+      this.playerBody.setRotation({
+        x: 0,
+        y: newRotationY,
+        z: 0
+      }, true)
+
+      // Update camera position and direction
+      const playerPos = this.playerBody.translation()
+      this.fixedCam.update({
+        position: new THREE.Vector3(
+          playerPos.x,
+          playerPos.y + 1.5,
+          playerPos.z
+        ),
+        rotation: new THREE.Euler(0, newRotationY, 0)
+      })
+    } catch (error) {
+      console.error('Error updating from serial data:', error)
     }
   }
 }
