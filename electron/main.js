@@ -11,6 +11,7 @@ const isDevelopment = process.env.NODE_ENV === 'development'
 const VITE_DEV_SERVER_URL = 'http://localhost:5173'
 const userDataPath = app.getPath('userData')
 const customScenesPath = path.join(userDataPath, 'customScenes.json')
+const controlFilesPath = path.join(userDataPath, 'controlFiles.json')
 const displayPreferencePath = path.join(userDataPath, 'displayPreference.json')
 
 const __filename = fileURLToPath(import.meta.url)
@@ -208,6 +209,26 @@ function saveStoredScenes(scenes) {
   }
 }
 
+function loadStoredControlFiles() {
+  try {
+    if (fs.existsSync(controlFilesPath)) {
+      const data = fs.readFileSync(controlFilesPath, 'utf8')
+      return JSON.parse(data)
+    }
+  } catch (error) {
+    console.error('Error loading stored control files:', error)
+  }
+  return {}
+}
+
+function saveStoredControlFiles(controlFiles) {
+  try {
+    fs.writeFileSync(controlFilesPath, JSON.stringify(controlFiles, null, 2))
+  } catch (error) {
+    console.error('Error saving stored control files:', error)
+  }
+}
+
 function loadDisplayPreference() {
   try {
     if (fs.existsSync(displayPreferencePath)) {
@@ -255,19 +276,27 @@ app.on('activate', async () => {
   }
 })
 
-ipcMain.on('open-scene', async (event, sceneName, sceneConfig) => {
+ipcMain.on('open-scene', async (event, sceneName, sceneData) => {
   console.log('Main: Received open-scene request for:', sceneName)
 
-  if (sceneConfig) {
-    console.log('Main: Storing config for scene:', sceneName)
-    sceneConfigs.set(sceneName, sceneConfig)
+  if (sceneData) {
+    console.log('Main: Storing data for scene:', sceneName)
 
-    // Store custom scenes persistently
-    if (sceneName.startsWith('gallery_custom_') || sceneName.startsWith('physics_custom_')) {
+    // Handle both old format (just config) and new format (config + controlFile)
+    if (sceneData.config || sceneData.controlFile) {
+      // New format with config and controlFile
+      sceneConfigs.set(sceneName, sceneData)
+    } else {
+      // Old format - just config
+      sceneConfigs.set(sceneName, { config: sceneData })
+    }
+
+    // Store custom scenes persistently (only the scene config, not control files)
+    if (sceneName.startsWith('gallery_custom_') || sceneName.startsWith('physics_custom_') || sceneName.startsWith('serial_custom_')) {
       const storedScenes = loadStoredScenes()
       storedScenes[sceneName] = {
         id: sceneName,
-        config: sceneConfig
+        config: sceneData.config || sceneData
       }
       saveStoredScenes(storedScenes)
     }
@@ -291,10 +320,25 @@ ipcMain.handle('get-scene-config', async (event) => {
 
   for (const [sceneName, window] of sceneWindows.entries()) {
     if (window.webContents.id === windowId) {
-      const config = sceneConfigs.get(sceneName)
-      console.log('Main: Found config for scene:', sceneName)
-      // console.log('Main: Returning config:', config)
-      return { sceneName, config }
+      const sceneData = sceneConfigs.get(sceneName)
+      console.log('Main: Found data for scene:', sceneName)
+
+      // Return the full scene data (config + controlFile if available)
+      if (sceneData && sceneData.config) {
+        // New format
+        return {
+          sceneName,
+          config: sceneData.config,
+          controlFile: sceneData.controlFile || null
+        }
+      } else if (sceneData) {
+        // Old format - just config
+        return {
+          sceneName,
+          config: sceneData,
+          controlFile: null
+        }
+      }
     }
   }
 
@@ -318,6 +362,34 @@ ipcMain.handle('delete-stored-scene', async (event, sceneId) => {
   delete storedScenes[sceneId]
   saveStoredScenes(storedScenes)
   return true
+})
+
+ipcMain.handle('store-control-file', async (event, sceneId, controlFileData) => {
+  try {
+    const storedControlFiles = loadStoredControlFiles()
+    storedControlFiles[sceneId] = controlFileData
+    saveStoredControlFiles(storedControlFiles)
+    return true
+  } catch (error) {
+    console.error('Error storing control file:', error)
+    return false
+  }
+})
+
+ipcMain.handle('get-stored-control-files', async () => {
+  return loadStoredControlFiles()
+})
+
+ipcMain.handle('delete-control-file', async (event, sceneId) => {
+  try {
+    const storedControlFiles = loadStoredControlFiles()
+    delete storedControlFiles[sceneId]
+    saveStoredControlFiles(storedControlFiles)
+    return true
+  } catch (error) {
+    console.error('Error deleting control file:', error)
+    return false
+  }
 })
 
 const getPythonConfig = () => {

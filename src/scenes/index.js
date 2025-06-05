@@ -337,16 +337,35 @@ export const loadStoredScenes = async () => {
     // Convert stored scenes back to scene objects and add them to scenes array
     Object.values(storedScenes).forEach(storedScene => {
       const existingIndex = scenes.findIndex(s => s.id === storedScene.id)
+
+      // Determine the appropriate component and world class based on scene ID prefix
+      let componentPath, worldClass, targetArray
+
+      if (storedScene.id.startsWith('physics_custom_')) {
+        componentPath = () => import('@/scenes/PhysicsCustomScene.vue')
+        worldClass = PhysicsCustomWorld
+        targetArray = physicsMazeScenes
+      } else if (storedScene.id.startsWith('serial_custom_')) {
+        componentPath = () => import('@/scenes/SerialCustomScene.vue')
+        worldClass = SerialCustomWorld
+        targetArray = serialControlScenes
+      } else {
+        // Default to gallery custom scene
+        componentPath = () => import('@/scenes/CustomScene.vue')
+        worldClass = CustomWorld
+        targetArray = null // Will only be added to main scenes array
+      }
+
       const customScene = {
         id: storedScene.id,
         path: `/scene/custom/${storedScene.id}`,
         name: storedScene.config.name,
         description: storedScene.config.description || 'Custom loaded scene',
-        component: () => import('@/scenes/CustomScene.vue'),
-        worldClass: CustomWorld,
+        component: componentPath,
+        worldClass: worldClass,
         config: storedScene.config,
         previewGenerator: async () => {
-          const world = new CustomWorld(null, storedScene.config)
+          const world = new worldClass(null, storedScene.config)
           await world.init()
           const preview = world.getPreviewRender()
           world.dispose()
@@ -354,12 +373,28 @@ export const loadStoredScenes = async () => {
         }
       }
 
+      // Update or add to main scenes array
       if (existingIndex >= 0) {
         scenes[existingIndex] = customScene
       } else {
         scenes.push(customScene)
       }
+
+      // Add to appropriate specialized array if needed
+      if (targetArray) {
+        const specializedIndex = targetArray.findIndex(s => s.id === storedScene.id)
+        if (specializedIndex >= 0) {
+          targetArray[specializedIndex] = customScene
+        } else {
+          targetArray.push(customScene)
+        }
+      }
     })
+
+    console.log('Stored scenes loaded successfully')
+    console.log('Physics maze scenes:', physicsMazeScenes.length)
+    console.log('Serial control scenes:', serialControlScenes.length)
+    console.log('Total scenes:', scenes.length)
   } catch (error) {
     console.error('Error loading stored scenes:', error)
   }
@@ -413,7 +448,16 @@ export const removeCustomScene = async (sceneId) => {
       }
     }
 
+    // Delete scene from storage
     await storageService.deleteScene(sceneId)
+
+    // Also delete associated control file if it exists
+    try {
+      await storageService.deleteControlFile(sceneId)
+    } catch (error) {
+      console.warn('No control file to delete for scene:', sceneId)
+    }
+
     return true
   }
   return false

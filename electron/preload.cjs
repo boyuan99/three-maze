@@ -1,4 +1,4 @@
-const {contextBridge, ipcRenderer} = require('electron')
+const { contextBridge, ipcRenderer } = require('electron')
 
 console.log('Preload: Script starting')
 
@@ -23,7 +23,12 @@ contextBridge.exposeInMainWorld('electron', {
   storeCustomScene: (sceneData) => ipcRenderer.invoke('store-custom-scene', sceneData),
   getStoredScenes: () => ipcRenderer.invoke('get-stored-scenes'),
   deleteStoredScene: (sceneId) => ipcRenderer.invoke('delete-stored-scene', sceneId),
-  
+
+  // Control file management
+  storeControlFile: (sceneId, controlFileData) => ipcRenderer.invoke('store-control-file', sceneId, controlFileData),
+  getStoredControlFiles: () => ipcRenderer.invoke('get-stored-control-files'),
+  deleteControlFile: (sceneId) => ipcRenderer.invoke('delete-control-file', sceneId),
+
   startPythonSerial: () => ipcRenderer.invoke('start-python-serial'),
   stopPythonSerial: () => ipcRenderer.invoke('stop-python-serial'),
   onPythonSerialData: (callback) => {
@@ -41,7 +46,7 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.send('python-data', data)
   },
   onWindowClose: (callback) => ipcRenderer.on('window-close', callback),
-  onPythonPositionData: (callback) => {ipcRenderer.on('python-position-data', (_, data) => callback(data))},
+  onPythonPositionData: (callback) => { ipcRenderer.on('python-position-data', (_, data) => callback(data)) },
   initializeJsSerial: () => ipcRenderer.invoke('initialize-js-serial'),
   closeJsSerial: () => ipcRenderer.invoke('close-js-serial'),
   appendToLog: (data) => ipcRenderer.invoke('append-to-log', data),

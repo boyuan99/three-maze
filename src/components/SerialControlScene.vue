@@ -10,6 +10,7 @@ import {
   removeCustomScene, 
   loadStoredScenes 
 } from '@/scenes'
+import { storageService } from '@/storage.js'
 import NavigationBar from '@/components/NavigationBar.vue'
 
 const router = useRouter()
@@ -21,6 +22,7 @@ const fileInput = ref(null)
 const codeFileInput = ref(null)
 const selectedSceneForCode = ref(null)
 const sceneControlFiles = ref({})
+const controlFileContents = ref({})
 
 const availableSerialScenes = computed(() => {
   return [...serialControlScenes.filter(s => !s.id.startsWith('serial_custom_')), 
@@ -34,11 +36,32 @@ onMounted(async () => {
     const result = await generatePreviews()
     previews.value = result
     previewsLoaded.value = true
+
+    // Load stored control files
+    await loadStoredControlFiles()
   } catch (error) {
     console.error('Error generating previews:', error)
     previewsLoaded.value = true
   }
 })
+
+async function loadStoredControlFiles() {
+  try {
+    const storedControlFiles = await storageService.getStoredControlFiles()
+    
+    Object.entries(storedControlFiles).forEach(([sceneId, controlFileData]) => {
+      sceneControlFiles.value[sceneId] = {
+        name: controlFileData.name,
+        type: controlFileData.type
+      }
+      controlFileContents.value[sceneId] = controlFileData
+    })
+    
+    console.log('Loaded control files for', Object.keys(sceneControlFiles.value).length, 'scenes')
+  } catch (error) {
+    console.error('Error loading stored control files:', error)
+  }
+}
 
 const handleLoadScene = () => {
   fileInput.value.click()
@@ -62,7 +85,7 @@ const handleFileSelect = async (event) => {
 
     await new Promise(resolve => setTimeout(resolve, 100))
 
-    handleSceneSelect(customScene.id)
+    console.log('Scene loaded successfully. Select a control file to enable it.')
   } catch (err) {
     console.error('SerialControlScene: Error loading custom scene:', err)
     error.value = err.message
@@ -77,6 +100,13 @@ const handleDeleteScene = async (sceneId, event) => {
     const removed = await removeCustomScene(sceneId)
     if (removed) {
       delete previews.value[sceneId]
+      
+      // Also delete associated control file
+      if (sceneControlFiles.value[sceneId]) {
+        await storageService.deleteControlFile(sceneId)
+        delete sceneControlFiles.value[sceneId]
+        delete controlFileContents.value[sceneId]
+      }
     }
   }
 }
@@ -86,13 +116,56 @@ const handleSceneSelect = (sceneId, shouldOpen = false) => {
   
   const scene = [...galleryScenes, ...physicsMazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
   
+  if (sceneId.startsWith('serial_custom_') && !sceneControlFiles.value[sceneId]) {
+    error.value = 'Please select a control file for this scene before opening.'
+    return
+  }
+  
   if (window.electron) {
-    window.electron.openScene(sceneId, scene?.config)
+    try {
+      // Create a clean, serializable copy of the data
+      const cleanSceneData = {
+        config: scene?.config ? JSON.parse(JSON.stringify(scene.config)) : null,
+        controlFile: null
+      }
+      
+      // Clean the control file data to ensure it's serializable
+      if (controlFileContents.value[sceneId]) {
+        const originalControlFile = controlFileContents.value[sceneId]
+        cleanSceneData.controlFile = {
+          name: originalControlFile.name || '',
+          content: String(originalControlFile.content || ''),
+          type: originalControlFile.type || 'javascript'
+        }
+      }
+      
+      console.log('Opening scene with data:', cleanSceneData)
+      window.electron.openScene(sceneId, cleanSceneData)
+    } catch (err) {
+      console.error('Error preparing scene data:', err)
+      error.value = 'Failed to prepare scene data: ' + err.message
+      return
+    }
   } else {
-    const path = sceneId.startsWith('serial_custom_')
+    if (controlFileContents.value[sceneId]) {
+      try {
+        // Create a clean copy for session storage
+        const cleanControlFile = {
+          name: controlFileContents.value[sceneId].name || '',
+          content: String(controlFileContents.value[sceneId].content || ''),
+          type: controlFileContents.value[sceneId].type || 'javascript'
+        }
+        sessionStorage.setItem(`controlFile_${sceneId}`, JSON.stringify(cleanControlFile))
+      } catch (err) {
+        console.error('Error storing control file in session storage:', err)
+        error.value = 'Failed to store control file data'
+        return
+      }
+    }
+    
+    router.push(sceneId.startsWith('serial_custom_')
         ? `/scene/custom/${sceneId}`
-        : `/scene/${sceneId}`
-    router.push(path)
+        : `/scene/${sceneId}`)
   }
 }
 
@@ -110,17 +183,46 @@ const handleCodeFileSelect = async (event) => {
   if (!file || !selectedSceneForCode.value) return
   
   try {
+    const content = await file.text()
+    
+    // Create clean, serializable control file data
+    const controlFileData = {
+      name: String(file.name),
+      content: String(content),
+      type: file.name.endsWith('.js') ? 'javascript' : 'other'
+    }
+    
+    // Store in local state
     sceneControlFiles.value[selectedSceneForCode.value] = {
-      name: file.name,
-      path: file.path || URL.createObjectURL(file)
+      name: controlFileData.name,
+      type: controlFileData.type
+    }
+    
+    controlFileContents.value[selectedSceneForCode.value] = controlFileData
+    
+    // Persist to storage with clean data
+    try {
+      await storageService.storeControlFile(selectedSceneForCode.value, controlFileData)
+      console.log('Control file loaded and saved successfully')
+    } catch (storageErr) {
+      console.error('Error saving control file to storage:', storageErr)
+      error.value = 'Control file loaded but failed to save: ' + storageErr.message
     }
     
     event.target.value = null
     selectedSceneForCode.value = null
   } catch (err) {
-    console.error('Error selecting control code file:', err)
+    console.error('Error reading control code file:', err)
     error.value = err.message
   }
+}
+
+const canOpenScene = (sceneId) => {
+  if (!sceneId.startsWith('serial_custom_')) {
+    return true
+  }
+  
+  return !!sceneControlFiles.value[sceneId]
 }
 </script>
 
@@ -226,11 +328,19 @@ const handleCodeFileSelect = async (event) => {
               <p class="scene-description">{{ scene.description }}</p>
               
               <div v-if="sceneControlFiles[scene.id]" class="control-file-info">
-                <p>Control File: {{ sceneControlFiles[scene.id].name }}</p>
+                <p>✓ Control File: {{ sceneControlFiles[scene.id].name }}</p>
+              </div>
+              <div v-else class="control-file-info">
+                <p style="color: #ff6b6b;">⚠ No control file selected</p>
               </div>
               
               <div class="scene-actions">
-                <button class="action-button open-button" @click="handleOpenScene(scene.id)">
+                <button 
+                  class="action-button open-button" 
+                  @click="handleOpenScene(scene.id)"
+                  :disabled="!canOpenScene(scene.id)"
+                  :class="{ 'disabled': !canOpenScene(scene.id) }"
+                >
                   Open Scene
                 </button>
                 <button class="action-button code-button" @click="selectControlCodeFile(scene.id)">
@@ -560,15 +670,24 @@ const handleCodeFileSelect = async (event) => {
 }
 
 .control-file-info {
-  margin-top: 0.5rem;
-  padding: 0.5rem;
-  background-color: #333;
+  margin: 10px 0;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
-  font-size: 0.85rem;
+  font-size: 0.9em;
 }
 
 .control-file-info p {
   margin: 0;
-  color: #ccc;
+}
+
+.action-button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #666;
+}
+
+.action-button.disabled:hover {
+  background: #666;
 }
 </style>
