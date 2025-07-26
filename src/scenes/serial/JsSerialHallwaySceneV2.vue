@@ -100,8 +100,8 @@ function animate() {
         const vy = Math.min(Math.max((parseFloat(serialData.value.y) || 0) * 0.0364 / DT, -MAX_LINEAR_VELOCITY), MAX_LINEAR_VELOCITY)
         
         // Calculate velocity in world coordinates based on the current angle
-        const worldVx = vx * Math.cos(position.value.theta) - vy * Math.sin(position.value.theta)
-        const worldVz = -vx * Math.sin(position.value.theta) - vy * Math.cos(position.value.theta)
+        const worldVx = -vx * Math.cos(position.value.theta) - vy * Math.sin(position.value.theta)
+        const worldVz = vx * Math.sin(position.value.theta) - vy * Math.cos(position.value.theta)
         
         // Directly set the calculated velocity to the physics body
         playerBody.setLinvel({ x: worldVx, y: 0, z: worldVz }, true)

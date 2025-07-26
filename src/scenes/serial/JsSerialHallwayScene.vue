@@ -85,12 +85,12 @@ function animate() {
   if (serialData.value) {
     try {
       // Convert displacement to velocity by dividing by DT
-      const vx = Math.min(Math.max((parseFloat(serialData.value.x) || 0) * 0.0364 / DT, -MAX_LINEAR_VELOCITY), MAX_LINEAR_VELOCITY)
-      const vy = Math.min(Math.max((parseFloat(serialData.value.y) || 0) * 0.0364 / DT, -MAX_LINEAR_VELOCITY), MAX_LINEAR_VELOCITY)
+      const vx = Math.min(Math.max((parseFloat(serialData.value.x) || 0) * 0.0465 / DT, -MAX_LINEAR_VELOCITY), MAX_LINEAR_VELOCITY)
+      const vy = Math.min(Math.max((parseFloat(serialData.value.y) || 0) * 0.0465 / DT, -MAX_LINEAR_VELOCITY), MAX_LINEAR_VELOCITY)
       
       // Calculate world velocities based on current orientation
-      const worldVx = vx * Math.cos(position.value.theta) - vy * Math.sin(position.value.theta)
-      const worldVz = -vx * Math.sin(position.value.theta) - vy * Math.cos(position.value.theta)
+      const worldVx = -vx * Math.cos(position.value.theta) - vy * Math.sin(position.value.theta)
+      const worldVz = vx * Math.sin(position.value.theta) - vy * Math.cos(position.value.theta)
 
       // Set linear velocity directly on physics body
       playerBody.setLinvel({
