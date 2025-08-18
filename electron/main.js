@@ -5,7 +5,9 @@ import fs from 'fs'
 import path from 'path'
 import { spawn } from 'child_process'
 import WebSocket from 'ws'
-import { SerialPort } from 'serialport'
+// SerialPort now managed by HardwareManager
+import { ExperimentManager } from '../src/core/ExperimentManager.js'
+import { HardwareManager } from '../src/core/HardwareManager.js'
 
 const isDevelopment = process.env.NODE_ENV === 'development'
 const VITE_DEV_SERVER_URL = 'http://localhost:5173'
@@ -22,12 +24,14 @@ const sceneWindows = new Map()
 const sceneConfigs = new Map()
 let pythonProcess = null
 let pythonWebSocket = null
-let serialPort = null
-let logStream = null
 let preferredDisplayId = null
 let rewardCount = new Map()
 let trialStartTime = new Map()
-let waterDeliveryProcess = null
+// All hardware management now handled by HardwareManager and user-defined experiments
+
+// Core managers for new modular architecture
+let experimentManager = null
+let hardwareManager = null
 
 async function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -71,6 +75,15 @@ async function createMainWindow() {
       app.quit()
     }
   })
+
+  // Initialize core managers after mainWindow is ready
+  try {
+    experimentManager = new ExperimentManager(mainWindow, ipcMain)
+    hardwareManager = new HardwareManager()
+    console.log('Core managers initialized successfully')
+  } catch (error) {
+    console.error('Failed to initialize core managers:', error)
+  }
 
   return mainWindow
 }
@@ -550,235 +563,15 @@ const startPythonBackend = async (window) => {
   }
 }
 
-ipcMain.handle('initialize-js-serial', async () => {
-  try {
-    console.log('Initializing serial port...')
+// Removed hardcoded 'initialize-js-serial' handler - now defined in experiment files
 
-    // If port is still open, close it first
-    if (serialPort && serialPort.isOpen) {
-      console.log('Closing existing port connection...')
-      await new Promise((resolve, reject) => {
-        serialPort.close((err) => {
-          if (err) {
-            console.error('Error closing existing port:', err)
-            reject(err)
-          } else {
-            resolve()
-          }
-        })
-      })
-    }
+// Removed hardcoded 'append-to-log' handler - now defined in experiment files
 
-    // Wait for port to be released
-    console.log('Waiting for port to be released...')
-    await new Promise(resolve => setTimeout(resolve, 1000))
+// Removed hardcoded 'close-js-serial' handler - now defined in experiment files
 
-    console.log('Creating new serial connection...')
-    serialPort = new SerialPort({
-      path: 'COM3',
-      baudRate: 115200
-    })
+// Legacy water delivery service function removed - now handled by HardwareManager
 
-    // Wait for port to open
-    await new Promise((resolve, reject) => {
-      serialPort.on('open', () => {
-        console.log('Port opened successfully')
-        resolve()
-      })
-      serialPort.on('error', (error) => {
-        console.error('Port error:', error)
-        reject(error)
-      })
-    })
-
-    // Initialize with the same parameters as Python version
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    const initString = "10000,50,10,1\n"
-    await serialPort.write(initString)
-
-    // Create VirmenData directory if it doesn't exist
-    const virmenDataPath = path.join('D:', 'VirmenData')
-    try {
-      if (!fs.existsSync(virmenDataPath)) {
-        fs.mkdirSync(virmenDataPath, { recursive: true })
-      }
-    } catch (dirError) {
-      console.error('Failed to create directory:', dirError)
-      return { error: `Cannot create directory D:\\VirmenData. Access denied or drive not available. Error: ${dirError.message}` }
-    }
-
-    // Create log file with timestamp
-    const timestamp = new Date().toISOString().replace(/:/g, '-')
-    const logPath = path.join(virmenDataPath, `${timestamp}-timedata-js.txt`)
-    try {
-      logStream = fs.createWriteStream(logPath, { flags: 'a' })
-      console.log(`Log file created at: ${logPath}`)
-    } catch (fileError) {
-      console.error('Failed to create log file:', fileError)
-      return { error: `Cannot create log file in D:\\VirmenData. Access denied or path not writable. Error: ${fileError.message}` }
-    }
-
-    // Set up data handler
-    serialPort.on('data', (data) => {
-      try {
-        const line = data.toString().trim()
-        const values = line.split(',')
-
-        if (values.length >= 13) {
-          const serialData = {
-            timestamp: values[0],
-            leftSensor: {
-              dx: parseFloat(values[1]),
-              dy: parseFloat(values[2]),
-              dt: parseFloat(values[3])
-            },
-            rightSensor: {
-              dx: parseFloat(values[4]),
-              dy: parseFloat(values[5]),
-              dt: parseFloat(values[6])
-            },
-            x: parseFloat(values[7]),
-            y: parseFloat(values[8]),
-            theta: parseFloat(values[9]),
-            water: parseInt(values[10]),
-            direction: parseFloat(values[11]),
-            frameCount: parseInt(values[12])
-          }
-
-          // Send to renderer
-          BrowserWindow.getAllWindows().forEach(window => {
-            window.webContents.send('serial-data', serialData)
-          })
-        }
-      } catch (error) {
-        console.error('Error parsing serial data:', error)
-      }
-    })
-
-    return { success: true }
-  } catch (error) {
-    console.error('Serial initialization error:', error)
-    if (error.code === 'EACCES') {
-      return { error: `Access denied to serial port COM3. Error: ${error.message}` }
-    }
-    return { error: `Failed to initialize serial communication: ${error.message}` }
-  }
-})
-
-ipcMain.handle('append-to-log', (event, data) => {
-  try {
-    if (logStream) {
-      logStream.write(data, (error) => {
-        if (error) {
-          console.error('Error writing to log:', error)
-        }
-      })
-    } else {
-      const error = 'Log stream is not initialized'
-      console.error(error)
-      return { error }
-    }
-  } catch (error) {
-    console.error('Error writing to log:', error)
-    return { error: `Failed to write to log file: ${error.message}` }
-  }
-})
-
-ipcMain.handle('close-js-serial', async () => {
-  return new Promise((resolve, reject) => {
-    const cleanup = () => {
-      if (portCloseTimeout) {
-        clearTimeout(portCloseTimeout)
-        portCloseTimeout = null
-      }
-      if (logStream) {
-        logStream.end()
-        logStream = null
-      }
-      serialPort = null
-    }
-
-    try {
-      if (serialPort && serialPort.isOpen) {
-        console.log('Closing serial port...')
-        serialPort.close((err) => {
-          if (err) {
-            console.error('Error while closing port:', err)
-            cleanup()
-            reject(err)
-          } else {
-            console.log('Port closed successfully')
-            cleanup()
-            // Wait a bit before resolving to ensure OS releases the port
-            setTimeout(resolve, 1000)
-          }
-        })
-      } else {
-        console.log('Port was already closed')
-        cleanup()
-        resolve()
-      }
-    } catch (error) {
-      console.error('Error in close-js-serial:', error)
-      cleanup()
-      reject(error)
-    }
-  })
-})
-
-// Function to start the water delivery service if not already running
-async function startWaterDeliveryService() {
-  if (!waterDeliveryProcess) {
-    const pythonScript = join(__dirname, 'scripts/water_delivery.py');
-    waterDeliveryProcess = spawn('python', [pythonScript]);
-
-    waterDeliveryProcess.stdout.on('data', (data) => {
-      const output = data.toString().trim();
-    });
-
-    waterDeliveryProcess.stderr.on('data', (data) => {
-      console.error('Water delivery service error:', data.toString());
-    });
-
-    waterDeliveryProcess.on('exit', () => {
-      waterDeliveryProcess = null;
-    });
-  }
-}
-
-// Updated deliver-water handler using the persistent process
-ipcMain.handle('deliver-water', async () => {
-  try {
-    await startWaterDeliveryService();
-
-    return new Promise((resolve, reject) => {
-      // Send the "deliver" command via stdin to the persistent process
-      waterDeliveryProcess.stdin.write("deliver\n", "utf-8", (err) => {
-        if (err) {
-          console.error('Error sending deliver command:', err);
-          return reject({ error: err.message });
-        }
-      });
-
-      // Listen for the response once (you might want to add more robust handling)
-      const onData = (data) => {
-        const output = data.toString().trim();
-        if (output === 'success') {
-          resolve({ success: true });
-          waterDeliveryProcess.stdout.off('data', onData);
-        } else if (output.startsWith('error:')) {
-          resolve({ error: output.substring(6) });
-          waterDeliveryProcess.stdout.off('data', onData);
-        }
-      };
-      waterDeliveryProcess.stdout.on('data', onData);
-    });
-  } catch (error) {
-    console.error('Failed in deliver-water:', error);
-    return { error: error.message };
-  }
-});
+// Removed hardcoded 'deliver-water' handler - now defined in experiment files
 
 ipcMain.handle('get-displays', () => {
   const displays = screen.getAllDisplays()
@@ -814,3 +607,124 @@ ipcMain.on('reward-delivered', (event) => {
   // Reset trial timer for next trial
   trialStartTime.set(windowId, currentTime)
 })
+
+// ============================================================================
+// NEW MODULAR ARCHITECTURE IPC HANDLERS
+// ============================================================================
+
+ipcMain.handle('load-experiment', async (event, experimentPath, sceneConfig) => {
+  try {
+    if (!experimentManager) {
+      throw new Error('ExperimentManager not initialized')
+    }
+    
+    console.log('Loading experiment:', experimentPath)
+    const result = await experimentManager.loadExperiment(experimentPath, sceneConfig)
+    return { success: true, experiment: result }
+  } catch (error) {
+    console.error('Failed to load experiment:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('unload-experiment', async (event) => {
+  try {
+    if (!experimentManager) {
+      throw new Error('ExperimentManager not initialized')
+    }
+    
+    const result = await experimentManager.unloadExperiment()
+    return { success: true, result }
+  } catch (error) {
+    console.error('Failed to unload experiment:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('request-hardware', async (event, type, config) => {
+  try {
+    if (!hardwareManager) {
+      throw new Error('HardwareManager not initialized')
+    }
+    
+    const experimentId = experimentManager?.getActiveExperiment()?.name || 'default'
+    console.log(`Requesting hardware resource: ${type} for experiment: ${experimentId}`)
+    
+    const handle = await hardwareManager.requestResource(type, config, experimentId)
+    return { success: true, handle }
+  } catch (error) {
+    console.error('Failed to request hardware:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('release-hardware', async (event, handle) => {
+  try {
+    if (!hardwareManager) {
+      throw new Error('HardwareManager not initialized')
+    }
+    
+    const result = await hardwareManager.releaseResource(handle)
+    return { success: true, result }
+  } catch (error) {
+    console.error('Failed to release hardware:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('get-active-experiment', async (event) => {
+  try {
+    if (!experimentManager) {
+      return { success: false, error: 'ExperimentManager not initialized' }
+    }
+    
+    const experiment = experimentManager.getActiveExperiment()
+    return { success: true, experiment }
+  } catch (error) {
+    console.error('Failed to get active experiment:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('validate-experiment', async (event, experimentPath) => {
+  try {
+    if (!experimentManager) {
+      throw new Error('ExperimentManager not initialized')
+    }
+    
+    const result = await experimentManager.validateExperiment(experimentPath)
+    return { success: true, result }
+  } catch (error) {
+    console.error('Failed to validate experiment:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('list-hardware', async (event) => {
+  try {
+    if (!hardwareManager) {
+      throw new Error('HardwareManager not initialized')
+    }
+    
+    const resources = await hardwareManager.listResources()
+    return { success: true, resources }
+  } catch (error) {
+    console.error('Failed to list hardware:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('hardware-status', async (event) => {
+  try {
+    if (!hardwareManager) {
+      throw new Error('HardwareManager not initialized')
+    }
+    
+    const status = await hardwareManager.getStatus()
+    return { success: true, status }
+  } catch (error) {
+    console.error('Failed to get hardware status:', error)
+    return { success: false, error: error.message }
+  }
+})
+

@@ -10,3 +10,6 @@ __pycache__/
 /test/
 *.log
 .cursor/
+/ref/
+/.claude/
+CLAUDE.md

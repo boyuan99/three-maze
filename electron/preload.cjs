@@ -3,6 +3,22 @@ const { contextBridge, ipcRenderer } = require('electron')
 console.log('Preload: Script starting')
 
 contextBridge.exposeInMainWorld('electron', {
+  // Generic dynamic IPC bridge for user-defined experiment handlers
+  invoke: (handlerName, ...args) => {
+    console.log('Preload: Invoking dynamic handler:', handlerName)
+    return ipcRenderer.invoke(handlerName, ...args)
+  },
+  
+  // Core experiment management (always available)
+  loadExperiment: (experimentPath, config) => ipcRenderer.invoke('load-experiment', experimentPath, config),
+  unloadExperiment: () => ipcRenderer.invoke('unload-experiment'),
+  getActiveExperiment: () => ipcRenderer.invoke('get-active-experiment'),
+  validateExperiment: (experimentPath) => ipcRenderer.invoke('validate-experiment', experimentPath),
+  requestHardware: (type, config) => ipcRenderer.invoke('request-hardware', type, config),
+  releaseHardware: (handle) => ipcRenderer.invoke('release-hardware', handle),
+  listHardware: () => ipcRenderer.invoke('list-hardware'),
+  hardwareStatus: () => ipcRenderer.invoke('hardware-status'),
+  
   openScene: (sceneName, sceneConfig) => {
     console.log('Preload: Opening scene:', sceneName)
     console.log('Preload: With config:', sceneConfig)

@@ -1,0 +1,311 @@
+{
+  "name": "Hallway Serial Scene (Migrated)",
+  "description": "Hallway environment migrated from JsSerialHallwayScene.vue - matches original physics exactly",
+  "camera": {
+    "position": {"x": 0, "y": 4.0, "z": 0},
+    "fov": 75,
+    "near": 0.1,
+    "far": 1000
+  },
+  "renderer": {
+    "shadows": true,
+    "physicallyCorrectLights": true
+  },
+  "lights": [
+    {
+      "type": "ambient",
+      "color": 16777215,
+      "intensity": 0.6
+    },
+    {
+      "type": "point",
+      "color": 16777215,
+      "intensity": 1.2,
+      "position": {"x": 0, "y": 8, "z": 0},
+      "distance": 60,
+      "decay": 2,
+      "castShadow": true
+    },
+    {
+      "type": "point",
+      "color": 16777215,
+      "intensity": 1,
+      "position": {"x": 0, "y": 8, "z": -60},
+      "distance": 60,
+      "decay": 2,
+      "castShadow": true
+    },
+    {
+      "type": "point",
+      "color": 16777215,
+      "intensity": 1,
+      "position": {"x": 0, "y": 8, "z": 60},
+      "distance": 60,
+      "decay": 2,
+      "castShadow": true
+    }
+  ],
+  "objects": [
+    {
+      "name": "mainFloor",
+      "geometry": {
+        "type": "box",
+        "width": 20,
+        "height": 1,
+        "depth": 200
+      },
+      "material": {
+        "map": "/assets/textures/Chess_Pattern.jpg",
+        "repeat": {"x": 0.2, "y": 2.0},
+        "metalness": 0.1,
+        "roughness": 0.7
+      },
+      "position": {"x": 0, "y": -0.5, "z": 0},
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static",
+        "shape": "cuboid"
+      }
+    },
+    {
+      "name": "frontBlueSection",
+      "geometry": {
+        "type": "box",
+        "width": 20,
+        "height": 1,
+        "depth": 30
+      },
+      "material": {
+        "color": 255,
+        "metalness": 0.2,
+        "roughness": 0.7
+      },
+      "position": {"x": 0, "y": -0.5, "z": 115},
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static",
+        "shape": "cuboid"
+      }
+    },
+    {
+      "name": "backBlueSection",
+      "geometry": {
+        "type": "box",
+        "width": 20,
+        "height": 1,
+        "depth": 30
+      },
+      "material": {
+        "color": 255,
+        "metalness": 0.2,
+        "roughness": 0.7
+      },
+      "position": {"x": 0, "y": -0.5, "z": -115},
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static",
+        "shape": "cuboid"
+      }
+    },
+    {
+      "name": "leftWall",
+      "geometry": {
+        "type": "box",
+        "width": 1,
+        "height": 10,
+        "depth": 200
+      },
+      "material": {
+        "map": "/assets/textures/Chess_Pattern.jpg",
+        "repeat": {"x": 2.0, "y": 0.1},
+        "metalness": 0.1,
+        "roughness": 0.7
+      },
+      "position": {"x": -10.5, "y": 5, "z": 0},
+      "castShadow": true,
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static",
+        "shape": "cuboid"
+      }
+    },
+    {
+      "name": "rightWall",
+      "geometry": {
+        "type": "box",
+        "width": 1,
+        "height": 10,
+        "depth": 200
+      },
+      "material": {
+        "map": "/assets/textures/Chess_Pattern.jpg",
+        "repeat": {"x": 2.0, "y": 0.1},
+        "metalness": 0.1,
+        "roughness": 0.7
+      },
+      "position": {"x": 10.5, "y": 5, "z": 0},
+      "castShadow": true,
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static",
+        "shape": "cuboid"
+      }
+    },
+    {
+      "name": "leftFrontBlueWall",
+      "geometry": {
+        "type": "box",
+        "width": 1,
+        "height": 10,
+        "depth": 30
+      },
+      "material": {
+        "color": 255,
+        "metalness": 0.2,
+        "roughness": 0.7
+      },
+      "position": {"x": -10.5, "y": 5, "z": 115},
+      "castShadow": true,
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static",
+        "shape": "cuboid"
+      }
+    },
+    {
+      "name": "rightFrontBlueWall",
+      "geometry": {
+        "type": "box",
+        "width": 1,
+        "height": 10,
+        "depth": 30
+      },
+      "material": {
+        "color": 255,
+        "metalness": 0.2,
+        "roughness": 0.7
+      },
+      "position": {"x": 10.5, "y": 5, "z": 115},
+      "castShadow": true,
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static",
+        "shape": "cuboid"
+      }
+    },
+    {
+      "name": "leftBackBlueWall",
+      "geometry": {
+        "type": "box",
+        "width": 1,
+        "height": 10,
+        "depth": 30
+      },
+      "material": {
+        "color": 255,
+        "metalness": 0.2,
+        "roughness": 0.7
+      },
+      "position": {"x": -10.5, "y": 5, "z": -115},
+      "castShadow": true,
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static",
+        "shape": "cuboid"
+      }
+    },
+    {
+      "name": "rightBackBlueWall",
+      "geometry": {
+        "type": "box",
+        "width": 1,
+        "height": 10,
+        "depth": 30
+      },
+      "material": {
+        "color": 255,
+        "metalness": 0.2,
+        "roughness": 0.7
+      },
+      "position": {"x": 10.5, "y": 5, "z": -115},
+      "castShadow": true,
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static",
+        "shape": "cuboid"
+      }
+    },
+    {
+      "name": "frontWall",
+      "geometry": {
+        "type": "box",
+        "width": 20,
+        "height": 10,
+        "depth": 1
+      },
+      "material": {
+        "color": 255,
+        "metalness": 0.2,
+        "roughness": 0.7
+      },
+      "position": {"x": 0, "y": 5, "z": 100.5},
+      "castShadow": true,
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static",
+        "shape": "cuboid"
+      }
+    },
+    {
+      "name": "backWall",
+      "geometry": {
+        "type": "box",
+        "width": 20,
+        "height": 10,
+        "depth": 1
+      },
+      "material": {
+        "color": 255,
+        "metalness": 0.2,
+        "roughness": 0.7
+      },
+      "position": {"x": 0, "y": 5, "z": -100.5},
+      "castShadow": true,
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static",
+        "shape": "cuboid"
+      }
+    }
+  ],
+  "player": {
+    "type": "sphere",
+    "radius": 0.5,
+    "position": {"x": 0, "y": 2, "z": 0},
+    "physics": {
+      "enabled": true,
+      "type": "dynamic",
+      "mass": 1,
+      "linearDamping": 0.9,
+      "angularDamping": 0.9,
+      "restitution": 0,
+      "friction": 1
+    }
+  },
+  "controls": {
+    "type": "serial",
+    "serialControlled": true,
+    "disableMouseControl": true
+  }
+}

@@ -224,6 +224,8 @@ const canOpenScene = (sceneId) => {
   
   return !!sceneControlFiles.value[sceneId]
 }
+
+
 </script>
 
 <template>
@@ -233,6 +235,7 @@ const canOpenScene = (sceneId) => {
       <div class="entrance-content">
         <h1 class="title">Serial Control Scenes</h1>
         
+
         <div v-if="error" class="error-modal">
           <div class="error-content">
             <h3>Error Loading Scene</h3>
@@ -690,4 +693,8 @@ const canOpenScene = (sceneId) => {
 .action-button.disabled:hover {
   background: #666;
 }
+
+
+
+
 </style>
