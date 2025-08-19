@@ -54,20 +54,14 @@ contextBridge.exposeInMainWorld('electron', {
       callback(data)
     })
   },
-  isSerialScene: (scenePath) => ipcRenderer.invoke('is-serial-scene', scenePath),
+  // Keep only the Python handlers that are actually used
   onPythonError: (callback) => {
     ipcRenderer.on('python-error', (event, error) => callback(error))
   },
   sendToPython: (data) => {
     ipcRenderer.send('python-data', data)
   },
-  onWindowClose: (callback) => ipcRenderer.on('window-close', callback),
-  onPythonPositionData: (callback) => { ipcRenderer.on('python-position-data', (_, data) => callback(data)) },
-  initializeJsSerial: () => ipcRenderer.invoke('initialize-js-serial'),
-  closeJsSerial: () => ipcRenderer.invoke('close-js-serial'),
-  appendToLog: (data) => ipcRenderer.invoke('append-to-log', data),
-  onSerialData: (callback) => ipcRenderer.on('serial-data', (event, data) => callback(data)),
-  deliverWater: () => ipcRenderer.invoke('deliver-water'),
+  // Legacy serial handlers removed - use requestHardware('serial-port') instead
   getDisplays: () => ipcRenderer.invoke('get-displays'),
   setPreferredDisplay: (displayId) => ipcRenderer.send('set-preferred-display', displayId),
   getPreferredDisplay: () => ipcRenderer.invoke('get-preferred-display'),

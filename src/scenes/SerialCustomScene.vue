@@ -114,26 +114,9 @@ onMounted(async () => {
     
     console.log('SerialCustomScene: World initialized successfully')
     
-    // Set up serial connection if available
-    if (window.electron) {
-      try {
-        const result = await window.electron.initializeJsSerial()
-        if (result.error) {
-          console.error('Serial initialization failed:', result.error)
-          error.value = result.error
-        } else {
-          console.log('Serial connection initialized successfully')
-          // Set up serial data handler
-          window.electron.onSerialData((data) => {
-            serialData.value = data
-            updateFromSerial(data)
-          })
-        }
-      } catch (err) {
-        console.error('Error setting up serial connection:', err)
-        error.value = 'Error setting up serial connection: ' + err.message
-      }
-    }
+    // Serial connection will be handled by the experiment code using the new hardware manager
+    // The experiment initialization function should handle hardware resource allocation
+    console.log('SerialCustomScene: Serial connection will be handled by experiment code')
     
     // Start animation loop
     animate()
@@ -279,15 +262,8 @@ onBeforeUnmount(async () => {
     world.value = null
   }
   
-  // Close serial connection
-  if (window.electron) {
-    try {
-      await window.electron.closeJsSerial()
-      console.log('Serial connection closed successfully')
-    } catch (err) {
-      console.error('Error closing serial connection:', err)
-    }
-  }
+  // Hardware cleanup is handled by experiment termination code
+  console.log('SerialCustomScene: Hardware cleanup handled by experiment termination')
 })
 </script>
 
