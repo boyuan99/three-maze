@@ -61,6 +61,20 @@ contextBridge.exposeInMainWorld('electron', {
   sendToPython: (data) => {
     ipcRenderer.send('python-data', data)
   },
+  // Generic communication channels for dynamic data streaming
+  communication1: (data) => ipcRenderer.send('communication1', data),
+  onCommunication1: (callback) => {
+    ipcRenderer.on('communication1-data', (event, data) => callback(data))
+  },
+  communication2: (data) => ipcRenderer.send('communication2', data),
+  onCommunication2: (callback) => {
+    ipcRenderer.on('communication2-data', (event, data) => callback(data))
+  },
+  communication3: (data) => ipcRenderer.send('communication3', data),
+  onCommunication3: (callback) => {
+    ipcRenderer.on('communication3-data', (event, data) => callback(data))
+  },
+  
   // Legacy serial handlers removed - use requestHardware('serial-port') instead
   getDisplays: () => ipcRenderer.invoke('get-displays'),
   setPreferredDisplay: (displayId) => ipcRenderer.send('set-preferred-display', displayId),

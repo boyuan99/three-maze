@@ -79,7 +79,7 @@ async function createMainWindow() {
   // Initialize core managers after mainWindow is ready
   try {
     experimentManager = new ExperimentManager(mainWindow, ipcMain)
-    hardwareManager = new HardwareManager()
+    hardwareManager = new HardwareManager(mainWindow)
     console.log('Core managers initialized successfully')
   } catch (error) {
     console.error('Failed to initialize core managers:', error)
@@ -726,5 +726,24 @@ ipcMain.handle('hardware-status', async (event) => {
     console.error('Failed to get hardware status:', error)
     return { success: false, error: error.message }
   }
+})
+
+// Generic communication channels for dynamic data streaming
+// These can be assigned different purposes at runtime
+
+// Communication1: Assigned to serial data streaming
+ipcMain.on('communication1', (event, data) => {
+  // Currently used for serial data streaming
+  console.log('Communication1 received:', data)
+})
+
+// Communication2: Available for future use
+ipcMain.on('communication2', (event, data) => {
+  console.log('Communication2 received:', data)
+})
+
+// Communication3: Available for future use  
+ipcMain.on('communication3', (event, data) => {
+  console.log('Communication3 received:', data)
 })
 

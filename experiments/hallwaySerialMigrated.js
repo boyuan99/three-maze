@@ -17,42 +17,6 @@ function serialHallwayExperiment() {
   return code;
 }
 
-/**
- * Experiment configuration for reference
- */
-const experimentConfig = {
-  name: "Hallway Serial Migration",
-  version: "1.0.0",
-  description: "Migrated from JsSerialHallwayScene.vue using modular architecture",
-  
-  // Hardware requirements
-  hardware: {
-    required: ["serial-port"],
-    optional: ["water-delivery", "data-logging"]
-  },
-  
-  // Data collection configuration
-  logging: {
-    format: "tsv",
-    fields: ["x", "y", "theta", "input_x", "input_y", "water", "timestamp"],
-    path: "experiments/data/"
-  },
-  
-  // Scene compatibility
-  scenes: {
-    compatible: ["hallway", "custom-hallway"],
-    required: "hallway"
-  },
-  
-  // IPC handlers this experiment will register
-  handlers: [
-    "initialize-js-serial",
-    "close-js-serial",
-    "deliver-water", 
-    "append-to-log",
-    "send-message"
-  ]
-};
 
 // --- INITIALIZATION code: executes before the experiment engine starts.
 async function initializationCodeFun(vr) {
@@ -67,7 +31,6 @@ async function initializationCodeFun(vr) {
   vr.PLAYER_RADIUS = 0.5;
   vr.MAX_LINEAR_VELOCITY = 100;
   vr.DT = 1/20;
-  vr.FALL_RESET_TIME = 5000;
 
   // Initialize position and state
   vr.position = [0, 0, vr.PLAYER_RADIUS, 0]; // [x, y, z, theta]
@@ -102,9 +65,17 @@ async function initializationCodeFun(vr) {
     vr.hardwareStatus.serial = 'connected';
     console.log('Serial port connected via hardware manager');
     
-    // TODO: Set up data handler for new architecture
-    // The hardware manager should provide a way to receive data
-    console.log('Serial data handling needs to be implemented for new architecture');
+    // Set up data handler via communication1 channel
+    if (typeof window !== 'undefined' && window.electron && window.electron.onCommunication1) {
+      window.electron.onCommunication1((data) => {
+        // Receive parsed serial data and store for runtime processing
+        vr.serialData = data;
+        console.log('Received serial data:', data);
+      });
+      console.log('Serial data handler set up via communication1');
+    } else {
+      console.warn('Communication1 channel not available');
+    }
   } else {
     throw new Error(`Serial port initialization failed: ${serialResult.error}`);
   }
@@ -144,18 +115,12 @@ function runtimeCodeFun(vr) {
       const worldVx = vx * Math.cos(vr.position[3]) - vy * Math.sin(vr.position[3]);
       const worldVz = -vx * Math.sin(vr.position[3]) - vy * Math.cos(vr.position[3]);
 
-      // Check if player is falling
-      if (vr.fallStartTime) {
-        // If falling, only preserve vertical velocity and stop rotation
-        vr.velocity = [0, 0, vr.velocity[2], 0];
-      } else {
-        // Normal movement when not falling
-        vr.velocity = [worldVx, worldVz, vr.velocity[2], 0];
+      // Set velocity
+      vr.velocity = [worldVx, worldVz, vr.velocity[2], 0];
 
-        // Handle rotation separately (direct angle control)
-        const deltaTheta = (parseFloat(vr.serialData.theta) || 0) * 0.05;
-        vr.position[3] += deltaTheta;
-      }
+      // Handle rotation separately (direct angle control)
+      const deltaTheta = (parseFloat(vr.serialData.theta) || 0) * 0.05;
+      vr.position[3] += deltaTheta;
 
       // Update position based on velocity
       vr.position[0] += vr.velocity[0] * vr.DT;
@@ -191,22 +156,6 @@ function runtimeCodeFun(vr) {
 
       // Clear processed serial data
       vr.serialData = null;
-
-      // Fall detection
-      if (vr.position[2] < vr.PLAYER_RADIUS && !vr.fallStartTime) {
-        vr.fallStartTime = Date.now();
-        console.log('Player started falling');
-      } else if (vr.position[2] >= vr.PLAYER_RADIUS) {
-        vr.fallStartTime = null;
-      }
-
-      // Reset after fall timeout
-      if (vr.fallStartTime && (Date.now() - vr.fallStartTime > vr.FALL_RESET_TIME)) {
-        vr.position = [0, 0, vr.PLAYER_RADIUS, 0];
-        vr.velocity = [0, 0, 0, 0];
-        vr.fallStartTime = null;
-        console.log('Reset position due to fall timeout');
-      }
 
       // Check trial end condition
       if (Math.abs(vr.position[1]) >= 70) {

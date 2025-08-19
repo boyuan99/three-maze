@@ -13,7 +13,8 @@ import { spawn } from 'child_process';
 import path from 'path';
 
 export class HardwareManager {
-  constructor() {
+  constructor(mainWindow = null) {
+    this.mainWindow = mainWindow;
     this.resources = new Map();
     this.resourceOwnership = new Map();
     this.exclusiveResources = new Set(['serial-port', 'water-delivery', 'python-backend']);
@@ -307,6 +308,34 @@ export class HardwareManager {
       // Auto-open if requested
       if (serialConfig.autoOpen !== false) {
         await serialWrapper.open();
+      }
+
+      // Set up automatic data streaming via communication1 if mainWindow is available
+      if (this.mainWindow && this.mainWindow.webContents) {
+        serialPort.on('data', (data) => {
+          try {
+            const dataString = data.toString().trim();
+            if (dataString) {
+              // Parse CSV data (expected format: 13 values)
+              const values = dataString.split(',');
+              if (values.length >= 13) {
+                const parsedData = {
+                  timestamp: values[0],
+                  x: parseFloat(values[7]) || 0,
+                  y: parseFloat(values[8]) || 0,
+                  theta: parseFloat(values[9]) || 0,
+                  water: parseInt(values[10]) || 0,
+                  raw: dataString
+                };
+                // Send via communication1 channel
+                this.mainWindow.webContents.send('communication1-data', parsedData);
+              }
+            }
+          } catch (error) {
+            console.error('Error parsing/sending serial data:', error);
+          }
+        });
+        console.log('Serial data streaming set up via communication1');
       }
 
       return serialWrapper;
