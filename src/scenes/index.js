@@ -12,6 +12,7 @@ import SerialHallwayScene from "@/scenes/serial/SerialHallwayScene.vue"
 import JsSerialHallwayScene from "@/scenes/serial/JsSerialHallwayScene.vue"
 import JsSerialHallwaySceneV2 from "@/scenes/serial/JsSerialHallwaySceneV2.vue"
 import NewSerialHallwayScene from "@/scenes/serial/NewSerialHallwayScene.vue"
+import SerialHallwaySceneV4 from "@/scenes/serial/SerialHallwaySceneV4.vue"
 import { createApp } from 'vue'
 import { storageService } from '@/storage.js'
 import { PhysicsCustomWorld } from '@/worlds/PhysicsCustomWorld.js'
@@ -196,6 +197,21 @@ export const serialControlScenes = [
     name: 'Serial Control Hallway (JavaScript) V3',
     description: 'Test Scene for new logic',
     component: NewSerialHallwayScene,
+    worldClass: HallwayWorld,
+    previewGenerator: async () => {
+      const world = new HallwayWorld(null)
+      await world.init()
+      const preview = world.getPreviewRender()
+      world.dispose()
+      return preview
+    }
+  },
+  {
+    id: 'serial-hallway-v4',
+    path: '/scene/serial-hallway-v4',
+    name: 'Serial Control Hallway V4',
+    description: 'Floor from V3, walls from V2 with collision timeout - hitting walls causes 3s timeout',
+    component: SerialHallwaySceneV4,
     worldClass: HallwayWorld,
     previewGenerator: async () => {
       const world = new HallwayWorld(null)
