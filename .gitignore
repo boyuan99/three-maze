@@ -9,3 +9,5 @@ __pycache__/
 /control/test/
 /src/test/
 *.log
+.claude
+CLAUDE.md
