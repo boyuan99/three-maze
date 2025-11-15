@@ -19,47 +19,46 @@ const previewsLoaded = ref(false)
 const loadingScene = ref(false)
 const error = ref(null)
 const fileInput = ref(null)
-const codeFileInput = ref(null)
-const selectedSceneForCode = ref(null)
-const sceneControlFiles = ref({})
-const controlFileContents = ref({})
+const experimentFileInput = ref(null)
+const selectedSceneForExperiment = ref(null)
+const sceneExperimentFiles = ref({})
 
 const availableSerialScenes = computed(() => {
-  return [...serialControlScenes.filter(s => !s.id.startsWith('serial_custom_')), 
+  // Show both predefined and custom scenes
+  return [...serialControlScenes.filter(s => !s.id.startsWith('serial_custom_')),
           ...serialControlScenes.filter(s => s.id.startsWith('serial_custom_'))]
 })
 
 onMounted(async () => {
   try {
     await loadStoredScenes()
-    
+
     const result = await generatePreviews()
     previews.value = result
     previewsLoaded.value = true
 
-    // Load stored control files
-    await loadStoredControlFiles()
+    // Load stored experiment file associations
+    await loadStoredExperimentFiles()
   } catch (error) {
     console.error('Error generating previews:', error)
     previewsLoaded.value = true
   }
 })
 
-async function loadStoredControlFiles() {
+async function loadStoredExperimentFiles() {
   try {
-    const storedControlFiles = await storageService.getStoredControlFiles()
-    
-    Object.entries(storedControlFiles).forEach(([sceneId, controlFileData]) => {
-      sceneControlFiles.value[sceneId] = {
-        name: controlFileData.name,
-        type: controlFileData.type
+    const storedFiles = await storageService.getStoredControlFiles()
+    Object.entries(storedFiles).forEach(([sceneId, fileData]) => {
+      if (fileData.type === 'python') {
+        sceneExperimentFiles.value[sceneId] = {
+          name: fileData.name,
+          filename: fileData.filename || fileData.name
+        }
       }
-      controlFileContents.value[sceneId] = controlFileData
     })
-    
-    console.log('Loaded control files for', Object.keys(sceneControlFiles.value).length, 'scenes')
+    console.log('Loaded experiment files for', Object.keys(sceneExperimentFiles.value).length, 'scenes')
   } catch (error) {
-    console.error('Error loading stored control files:', error)
+    console.error('Error loading stored experiment files:', error)
   }
 }
 
@@ -75,19 +74,18 @@ const handleFileSelect = async (event) => {
   error.value = null
 
   try {
-    console.log('SerialControlScene: Loading custom scene file:', file.name)
+    console.log('Loading custom scene file:', file.name)
     const customScene = await loadCustomScene(file, 'serial_custom_')
-    console.log('SerialControlScene: Custom scene loaded:', customScene)
+    console.log('Custom scene loaded:', customScene)
 
     previews.value[customScene.id] = await customScene.previewGenerator()
 
     event.target.value = null
-
     await new Promise(resolve => setTimeout(resolve, 100))
 
-    console.log('Scene loaded successfully. Select a control file to enable it.')
+    console.log('Scene loaded successfully. Select a Python experiment file to enable it.')
   } catch (err) {
-    console.error('SerialControlScene: Error loading custom scene:', err)
+    console.error('Error loading custom scene:', err)
     error.value = err.message
   } finally {
     loadingScene.value = false
@@ -100,69 +98,44 @@ const handleDeleteScene = async (sceneId, event) => {
     const removed = await removeCustomScene(sceneId)
     if (removed) {
       delete previews.value[sceneId]
-      
-      // Also delete associated control file
-      if (sceneControlFiles.value[sceneId]) {
+
+      // Also delete associated experiment file
+      if (sceneExperimentFiles.value[sceneId]) {
         await storageService.deleteControlFile(sceneId)
-        delete sceneControlFiles.value[sceneId]
-        delete controlFileContents.value[sceneId]
+        delete sceneExperimentFiles.value[sceneId]
       }
     }
   }
 }
 
+
 const handleSceneSelect = (sceneId, shouldOpen = false) => {
   if (!shouldOpen) return
-  
-  const scene = [...galleryScenes, ...physicsMazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
-  
-  if (sceneId.startsWith('serial_custom_') && !sceneControlFiles.value[sceneId]) {
-    error.value = 'Please select a control file for this scene before opening.'
+
+  // For custom scenes, require Python experiment file
+  if (sceneId.startsWith('serial_custom_') && !sceneExperimentFiles.value[sceneId]) {
+    error.value = 'Please select a Python experiment file for this scene before opening.'
     return
   }
-  
+
+  // Find the scene configuration
+  const scene = [...galleryScenes, ...physicsMazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
+
+  // Prepare scene data with config and experiment file info
+  const sceneData = {
+    config: scene?.config || null,
+    experimentFile: sceneExperimentFiles.value[sceneId]?.filename || null
+  }
+
+  console.log('Opening scene with data:', sceneData)
+
   if (window.electron) {
-    try {
-      // Create a clean, serializable copy of the data
-      const cleanSceneData = {
-        config: scene?.config ? JSON.parse(JSON.stringify(scene.config)) : null,
-        controlFile: null
-      }
-      
-      // Clean the control file data to ensure it's serializable
-      if (controlFileContents.value[sceneId]) {
-        const originalControlFile = controlFileContents.value[sceneId]
-        cleanSceneData.controlFile = {
-          name: originalControlFile.name || '',
-          content: String(originalControlFile.content || ''),
-          type: originalControlFile.type || 'javascript'
-        }
-      }
-      
-      console.log('Opening scene with data:', cleanSceneData)
-      window.electron.openScene(sceneId, cleanSceneData)
-    } catch (err) {
-      console.error('Error preparing scene data:', err)
-      error.value = 'Failed to prepare scene data: ' + err.message
-      return
-    }
+    window.electron.openScene(sceneId, sceneData)
   } else {
-    if (controlFileContents.value[sceneId]) {
-      try {
-        // Create a clean copy for session storage
-        const cleanControlFile = {
-          name: controlFileContents.value[sceneId].name || '',
-          content: String(controlFileContents.value[sceneId].content || ''),
-          type: controlFileContents.value[sceneId].type || 'javascript'
-        }
-        sessionStorage.setItem(`controlFile_${sceneId}`, JSON.stringify(cleanControlFile))
-      } catch (err) {
-        console.error('Error storing control file in session storage:', err)
-        error.value = 'Failed to store control file data'
-        return
-      }
+    // Store experiment file info in session storage for web mode
+    if (sceneExperimentFiles.value[sceneId]) {
+      sessionStorage.setItem(`experimentFile_${sceneId}`, sceneExperimentFiles.value[sceneId].filename)
     }
-    
     router.push(sceneId.startsWith('serial_custom_')
         ? `/scene/custom/${sceneId}`
         : `/scene/${sceneId}`)
@@ -173,56 +146,62 @@ const handleOpenScene = (sceneId) => {
   handleSceneSelect(sceneId, true)
 }
 
-const selectControlCodeFile = (sceneId) => {
-  selectedSceneForCode.value = sceneId
-  codeFileInput.value.click()
+const selectExperimentFile = (sceneId) => {
+  selectedSceneForExperiment.value = sceneId
+  experimentFileInput.value.click()
 }
 
-const handleCodeFileSelect = async (event) => {
+const handleExperimentFileSelect = async (event) => {
   const file = event.target.files[0]
-  if (!file || !selectedSceneForCode.value) return
-  
+  if (!file || !selectedSceneForExperiment.value) return
+
   try {
+    // Only accept Python files
+    if (!file.name.endsWith('.py')) {
+      error.value = 'Please select a Python (.py) experiment file'
+      event.target.value = null
+      selectedSceneForExperiment.value = null
+      return
+    }
+
     const content = await file.text()
-    
-    // Create clean, serializable control file data
-    const controlFileData = {
-      name: String(file.name),
-      content: String(content),
-      type: file.name.endsWith('.js') ? 'javascript' : 'other'
+
+    // Store experiment file association
+    const experimentFileData = {
+      name: file.name,
+      filename: file.name,
+      content: content,
+      type: 'python'
     }
-    
-    // Store in local state
-    sceneControlFiles.value[selectedSceneForCode.value] = {
-      name: controlFileData.name,
-      type: controlFileData.type
+
+    sceneExperimentFiles.value[selectedSceneForExperiment.value] = {
+      name: file.name,
+      filename: file.name
     }
-    
-    controlFileContents.value[selectedSceneForCode.value] = controlFileData
-    
-    // Persist to storage with clean data
+
+    // Persist to storage
     try {
-      await storageService.storeControlFile(selectedSceneForCode.value, controlFileData)
-      console.log('Control file loaded and saved successfully')
-    } catch (storageErr) {
-      console.error('Error saving control file to storage:', storageErr)
-      error.value = 'Control file loaded but failed to save: ' + storageErr.message
+      await storageService.storeControlFile(selectedSceneForExperiment.value, experimentFileData)
+      console.log('Experiment file stored successfully:', file.name)
+    } catch (err) {
+      console.warn('Failed to store experiment file:', err)
     }
-    
+
     event.target.value = null
-    selectedSceneForCode.value = null
+    selectedSceneForExperiment.value = null
   } catch (err) {
-    console.error('Error reading control code file:', err)
+    console.error('Error reading experiment file:', err)
     error.value = err.message
   }
 }
 
 const canOpenScene = (sceneId) => {
+  // Predefined scenes can always be opened
   if (!sceneId.startsWith('serial_custom_')) {
     return true
   }
-  
-  return !!sceneControlFiles.value[sceneId]
+  // Custom scenes require experiment file
+  return !!sceneExperimentFiles.value[sceneId]
 }
 
 
@@ -245,6 +224,7 @@ const canOpenScene = (sceneId) => {
         </div>
         
         <div class="scene-grid">
+          <!-- Load Custom Scene Card -->
           <div
             class="scene-card load-scene-card"
             @click="handleLoadScene"
@@ -270,9 +250,10 @@ const canOpenScene = (sceneId) => {
               @change="handleFileSelect"
             >
           </div>
-          
-          <div 
-            v-for="scene in serialControlScenes.filter(s => !s.id.startsWith('serial_custom_'))" 
+
+          <!-- Predefined Scenes -->
+          <div
+            v-for="scene in serialControlScenes.filter(s => !s.id.startsWith('serial_custom_'))"
             :key="scene.id"
             class="scene-card"
           >
@@ -292,7 +273,7 @@ const canOpenScene = (sceneId) => {
                 <h2 class="scene-title">{{ scene.name }}</h2>
               </div>
               <p class="scene-description">{{ scene.description }}</p>
-              
+
               <div class="scene-actions">
                 <button class="action-button open-button" @click="handleOpenScene(scene.id)">
                   Open Scene
@@ -300,9 +281,10 @@ const canOpenScene = (sceneId) => {
               </div>
             </div>
           </div>
-          
-          <div 
-            v-for="scene in serialControlScenes.filter(s => s.id.startsWith('serial_custom_'))" 
+
+          <!-- Custom Scenes -->
+          <div
+            v-for="scene in serialControlScenes.filter(s => s.id.startsWith('serial_custom_'))"
             :key="scene.id"
             class="scene-card"
           >
@@ -329,39 +311,39 @@ const canOpenScene = (sceneId) => {
                 </button>
               </div>
               <p class="scene-description">{{ scene.description }}</p>
-              
-              <div v-if="sceneControlFiles[scene.id]" class="control-file-info">
-                <p>✓ Control File: {{ sceneControlFiles[scene.id].name }}</p>
+
+              <div v-if="sceneExperimentFiles[scene.id]" class="control-file-info">
+                <p>✓ Experiment: {{ sceneExperimentFiles[scene.id].name }}</p>
               </div>
               <div v-else class="control-file-info">
-                <p style="color: #ff6b6b;">⚠ No control file selected</p>
+                <p style="color: #ff6b6b;">⚠ No Python experiment selected</p>
               </div>
-              
+
               <div class="scene-actions">
-                <button 
-                  class="action-button open-button" 
+                <button
+                  class="action-button open-button"
                   @click="handleOpenScene(scene.id)"
                   :disabled="!canOpenScene(scene.id)"
                   :class="{ 'disabled': !canOpenScene(scene.id) }"
                 >
                   Open Scene
                 </button>
-                <button class="action-button code-button" @click="selectControlCodeFile(scene.id)">
-                  Select Control File
+                <button class="action-button code-button" @click="selectExperimentFile(scene.id)">
+                  Select Experiment
                 </button>
               </div>
             </div>
           </div>
         </div>
-        
+
         <input
-          ref="codeFileInput"
+          ref="experimentFileInput"
           type="file"
-          accept=".js,.py,.json"
+          accept=".py"
           class="hidden-input"
-          @change="handleCodeFileSelect"
+          @change="handleExperimentFileSelect"
         >
-        
+
         <div v-if="loadingScene" class="loading-overlay">
           <div class="loading-content">
             <div class="loading-spinner"></div>

@@ -8,15 +8,13 @@ import HallwayScene from '@/scenes/gallery/HallwayScene.vue'
 import CustomScene from '@/scenes/CustomScene.vue'
 import HallwayControlScene from "@/scenes/physics/HallwayControlScene.vue"
 import HallwayControlScene02 from "@/scenes/physics/HallwayControlScene02.vue"
-import SerialHallwayScene from "@/scenes/serial/SerialHallwayScene.vue"
-import JsSerialHallwayScene from "@/scenes/serial/JsSerialHallwayScene.vue"
-import JsSerialHallwaySceneV2 from "@/scenes/serial/JsSerialHallwaySceneV2.vue"
-import NewSerialHallwayScene from "@/scenes/serial/NewSerialHallwayScene.vue"
+
+// WebSocket-based scenes (current architecture)
+import WebSocketDemo from "@/scenes/serial/WebSocketDemo.vue"
+import WebSocketSerialMonitor from "@/scenes/serial/WebSocketSerialMonitor.vue"
 import { createApp } from 'vue'
 import { storageService } from '@/storage.js'
 import { PhysicsCustomWorld } from '@/worlds/PhysicsCustomWorld.js'
-import { SerialCustomWorld } from '@/worlds/SerialCustomWorld'
-
 // Gallery scenes (Observe Gallery tab)
 export const galleryScenes = [
   {
@@ -111,99 +109,49 @@ export const physicsMazeScenes = [
 // Serial Control tab
 export const serialControlScenes = [
   {
-    id: 'serial-monitor',
-    path: '/scene/serial-monitor',
-    name: 'Serial Monitor (Python)',
-    description: 'Monitor serial port data using Python backend',
-    component: () => import('@/scenes/serial/SerialMonitorScene.vue'),
+    id: 'websocket-serial-monitor',
+    path: '/scene/websocket-serial-monitor',
+    name: 'Serial Monitor',
+    description: 'Monitor and log serial port data in real-time via WebSocket',
+    component: WebSocketSerialMonitor,
     previewGenerator: async () => {
       const canvas = document.createElement('canvas')
       canvas.width = 300
       canvas.height = 200
       const ctx = canvas.getContext('2d')
-      ctx.fillStyle = '#2a2a2a'
+      ctx.fillStyle = '#1e1e1e'
       ctx.fillRect(0, 0, 300, 200)
-      ctx.fillStyle = '#4a4a4a'
-      ctx.fillRect(20, 20, 260, 160)
+      ctx.fillStyle = '#4ec9b0'
+      ctx.font = 'bold 18px Arial'
+      ctx.textAlign = 'center'
+      ctx.fillText('Serial Monitor', 150, 90)
+      ctx.font = '14px Arial'
+      ctx.fillStyle = '#858585'
+      ctx.fillText('Real-time Data Display', 150, 115)
       return canvas.toDataURL()
     }
   },
   {
-    id: 'js-serial-monitor',
-    path: '/scene/js-serial-monitor',
-    name: 'Serial Monitor (JavaScript)',
-    description: 'Monitor serial port data using JavaScript',
-    component: () => import('@/scenes/serial/JsSerialMonitorScene.vue'),
+    id: 'websocket-demo',
+    path: '/scene/websocket-demo',
+    name: 'Backend Demo',
+    description: 'Test WebSocket backend connection and hardware control',
+    component: WebSocketDemo,
     previewGenerator: async () => {
       const canvas = document.createElement('canvas')
       canvas.width = 300
       canvas.height = 200
       const ctx = canvas.getContext('2d')
-      ctx.fillStyle = '#2a2a2a'
+      ctx.fillStyle = '#1e1e1e'
       ctx.fillRect(0, 0, 300, 200)
-      ctx.fillStyle = '#4a4a4a'
-      ctx.fillRect(20, 20, 260, 160)
+      ctx.fillStyle = '#4ec9b0'
+      ctx.font = 'bold 16px Arial'
+      ctx.textAlign = 'center'
+      ctx.fillText('Backend Demo', 150, 100)
+      ctx.font = '14px Arial'
+      ctx.fillStyle = '#858585'
+      ctx.fillText('Hardware Testing', 150, 125)
       return canvas.toDataURL()
-    }
-  },
-  {
-    id: 'serial-hallway',
-    path: '/scene/serial-hallway',
-    name: 'Serial Control Hallway',
-    description: 'Hallway controlled by serial port input',
-    component: SerialHallwayScene,
-    worldClass: HallwayWorld,
-    previewGenerator: async () => {
-      const world = new HallwayWorld(null)
-      await world.init()
-      const preview = world.getPreviewRender()
-      world.dispose()
-      return preview
-    }
-  },
-  {
-    id: 'js-serial-hallway',
-    path: '/scene/js-serial-hallway',
-    name: 'Serial Control Hallway (JavaScript)',
-    description: 'Hallway controlled by serial port input using JavaScript',
-    component: JsSerialHallwayScene,
-    worldClass: HallwayWorld,
-    previewGenerator: async () => {
-      const world = new HallwayWorld(null)
-      await world.init()
-      const preview = world.getPreviewRender()
-      world.dispose()
-      return preview
-    }
-  },
-  {
-    id: 'js-serial-hallway-v2',
-    path: '/scene/js-serial-hallway-v2',
-    name: 'Serial Control Hallway (JavaScript) V2',
-    description: 'Player will be sent back if they hit the wall or reach the end of the hallway',
-    component: JsSerialHallwaySceneV2,
-    worldClass: HallwayWorld,
-    previewGenerator: async () => {
-      const world = new HallwayWorld(null)
-      await world.init()
-      const preview = world.getPreviewRender()
-      world.dispose()
-      return preview
-    }
-  },
-  {
-    id: 'new-serial-hallway',
-    path: '/scene/new-serial-hallway',
-    name: 'Serial Control Hallway (JavaScript) V3',
-    description: 'Test Scene for new logic',
-    component: NewSerialHallwayScene,
-    worldClass: HallwayWorld,
-    previewGenerator: async () => {
-      const world = new HallwayWorld(null)
-      await world.init()
-      const preview = world.getPreviewRender()
-      world.dispose()
-      return preview
     }
   }
 ]
@@ -235,7 +183,7 @@ export const generateRoutes = () => {
       components: {
         default: CustomScene,
         physics: () => import('@/scenes/PhysicsCustomScene.vue'),
-        serial: () => import('@/scenes/SerialCustomScene.vue')
+        serial: () => import('@/scenes/serial/PythonCustomScene.vue')
       },
       beforeEnter: (to, from, next) => {
         const id = to.params.id;
@@ -283,8 +231,8 @@ export const loadCustomScene = async (file, prefix = 'gallery_custom_') => {
       componentPath = () => import('@/scenes/PhysicsCustomScene.vue');
       worldClass = PhysicsCustomWorld;
     } else if (prefix === 'serial_custom_') {
-      componentPath = () => import('@/scenes/SerialCustomScene.vue');
-      worldClass = SerialCustomWorld;
+      componentPath = () => import('@/scenes/serial/PythonCustomScene.vue');
+      worldClass = CustomWorld;  // Use CustomWorld for generic scenes
     } else {
       componentPath = () => import('@/scenes/CustomScene.vue');
       worldClass = CustomWorld;
@@ -346,8 +294,8 @@ export const loadStoredScenes = async () => {
         worldClass = PhysicsCustomWorld
         targetArray = physicsMazeScenes
       } else if (storedScene.id.startsWith('serial_custom_')) {
-        componentPath = () => import('@/scenes/SerialCustomScene.vue')
-        worldClass = SerialCustomWorld
+        componentPath = () => import('@/scenes/serial/PythonCustomScene.vue')
+        worldClass = CustomWorld  // Use CustomWorld for generic scenes
         targetArray = serialControlScenes
       } else {
         // Default to gallery custom scene
@@ -451,11 +399,11 @@ export const removeCustomScene = async (sceneId) => {
     // Delete scene from storage
     await storageService.deleteScene(sceneId)
 
-    // Also delete associated control file if it exists
+    // Also delete associated experiment file if it exists
     try {
       await storageService.deleteControlFile(sceneId)
     } catch (error) {
-      console.warn('No control file to delete for scene:', sceneId)
+      console.warn('No experiment file to delete for scene:', sceneId)
     }
 
     return true

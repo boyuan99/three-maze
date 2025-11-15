@@ -189,4 +189,33 @@ export class CustomWorld extends BaseWorld {
       }
     }
   }
+
+  getPreviewRender(width = 300, height = 200) {
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+
+    const previewRenderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true
+    })
+    previewRenderer.setSize(width, height)
+
+    // Create a camera positioned to look forward horizontally
+    const previewCamera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000)
+
+    // Position camera at eye level (y=1.6), looking forward along -Z axis
+    previewCamera.position.set(0, 1.6, 8)
+    previewCamera.lookAt(0, 1.6, 0)
+    previewCamera.updateProjectionMatrix()
+
+    this.setupPreviewState()
+    previewRenderer.render(this.scene, previewCamera)
+    this.restoreMainState()
+
+    const dataURL = canvas.toDataURL('image/png')
+    previewRenderer.dispose()
+
+    return dataURL
+  }
 }

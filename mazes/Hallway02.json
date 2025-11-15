@@ -11,7 +11,7 @@
     "shadows": true,
     "physicallyCorrectLights": true
   },
-  "skybox": "/assets/evening_road_01_puresky_1k.exr",
+  "skybox": "/src/assets/evening_road_01_puresky_1k.exr",
   "lights": [
     {
       "type": "ambient",
@@ -44,7 +44,7 @@
         "depth": 140
       },
       "material": {
-        "map": "/assets/textures/Chess_Pattern.jpg",
+        "map": "/src/assets/Chess_Pattern.jpg",
         "repeat": {"x": 0.4, "y": 1.4},
         "roughness": 0.8
       },

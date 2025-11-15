@@ -4,6 +4,7 @@ __pycache__/
 /node_modules/
 /.venv/
 /tmp/
+/logs/
 /release/
 /dist/
 /control/test/
@@ -12,4 +13,10 @@ __pycache__/
 .cursor/
 /ref/
 /.claude/
-CLAUDE.md
+
+*.md
+!README.md
+
+
+# Deprecated scene files
+/src/scenes/serial/deprecated/
