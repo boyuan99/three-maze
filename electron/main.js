@@ -4,10 +4,6 @@ import { dirname, join } from 'path'
 import fs from 'fs'
 import path from 'path'
 import { spawn } from 'child_process'
-import WebSocket from 'ws'
-// SerialPort now managed by HardwareManager
-import { ExperimentManager } from '../src/core/ExperimentManager.js'
-import { HardwareManager } from '../src/core/HardwareManager.js'
 
 const isDevelopment = process.env.NODE_ENV === 'development'
 const VITE_DEV_SERVER_URL = 'http://localhost:5173'
@@ -23,15 +19,7 @@ let mainWindow = null
 const sceneWindows = new Map()
 const sceneConfigs = new Map()
 let pythonProcess = null
-let pythonWebSocket = null
 let preferredDisplayId = null
-let rewardCount = new Map()
-let trialStartTime = new Map()
-// All hardware management now handled by HardwareManager and user-defined experiments
-
-// Core managers for new modular architecture
-let experimentManager = null
-let hardwareManager = null
 
 async function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -75,15 +63,6 @@ async function createMainWindow() {
       app.quit()
     }
   })
-
-  // Initialize core managers after mainWindow is ready
-  try {
-    experimentManager = new ExperimentManager(mainWindow, ipcMain)
-    hardwareManager = new HardwareManager(mainWindow)
-    console.log('Core managers initialized successfully')
-  } catch (error) {
-    console.error('Failed to initialize core managers:', error)
-  }
 
   return mainWindow
 }
@@ -162,10 +141,6 @@ async function createSceneWindow(sceneName) {
     return null
   }
 
-  // Initialize counters for this window
-  rewardCount.set(sceneWindow.id, 0)
-  trialStartTime.set(sceneWindow.id, Date.now())
-
   sceneWindows.set(sceneName, sceneWindow)
 
   sceneWindow.on('closed', () => {
@@ -176,27 +151,8 @@ async function createSceneWindow(sceneName) {
 
   sceneWindow.on('close', () => {
     console.log(`Scene window for ${sceneName} is closing`)
-    console.log(`Total rewards earned: ${rewardCount.get(sceneWindow.id)}`)
-
-    // Clean up counters
-    rewardCount.delete(sceneWindow.id)
-    trialStartTime.delete(sceneWindow.id)
-
-    // Send 'stop_logging' via WebSocket
-    if (pythonWebSocket && pythonWebSocket.readyState === WebSocket.OPEN) {
-      pythonWebSocket.send(JSON.stringify({ command: 'stop_logging' }));
-      pythonWebSocket.close();
-      pythonWebSocket = null;
-    }
-
-    // Kill the Python process if it's still running
-    if (pythonProcess) {
-      pythonProcess.kill();
-      pythonProcess = null;
-    }
-
-    sceneWindows.delete(sceneName);
-    sceneConfigs.delete(sceneName);
+    sceneWindows.delete(sceneName)
+    sceneConfigs.delete(sceneName)
   })
 
   return sceneWindow
@@ -267,9 +223,14 @@ function saveDisplayPreference(displayId) {
 app.whenReady().then(async () => {
   try {
     loadDisplayPreference()
+
+    // Start Python backend on app launch
+    console.log('Starting Python WebSocket backend...')
+    await startPythonBackend()
+
     await createMainWindow()
   } catch (e) {
-    console.error('Failed to create main window:', e)
+    console.error('Failed to initialize app:', e)
   }
 })
 
@@ -294,17 +255,18 @@ ipcMain.on('open-scene', async (event, sceneName, sceneData) => {
 
   if (sceneData) {
     console.log('Main: Storing data for scene:', sceneName)
+    console.log('Main: Scene data:', sceneData)
 
-    // Handle both old format (just config) and new format (config + controlFile)
-    if (sceneData.config || sceneData.controlFile) {
-      // New format with config and controlFile
+    // Handle both old format (just config) and new format (config + experimentFile)
+    if (sceneData.config || sceneData.experimentFile) {
+      // New format with config and experimentFile
       sceneConfigs.set(sceneName, sceneData)
     } else {
       // Old format - just config
       sceneConfigs.set(sceneName, { config: sceneData })
     }
 
-    // Store custom scenes persistently (only the scene config, not control files)
+    // Store custom scenes persistently (only the scene config)
     if (sceneName.startsWith('gallery_custom_') || sceneName.startsWith('physics_custom_') || sceneName.startsWith('serial_custom_')) {
       const storedScenes = loadStoredScenes()
       storedScenes[sceneName] = {
@@ -315,16 +277,7 @@ ipcMain.on('open-scene', async (event, sceneName, sceneData) => {
     }
   }
 
-  const sceneWindow = await createSceneWindow(sceneName)
-
-  // Auto-start Python backend for serial scenes
-  if (sceneName.startsWith('serial-')) {
-    try {
-      await startPythonBackend(sceneWindow)
-    } catch (error) {
-      sceneWindow.webContents.send('python-error', error.message)
-    }
-  }
+  await createSceneWindow(sceneName)
 })
 
 ipcMain.handle('get-scene-config', async (event) => {
@@ -336,13 +289,13 @@ ipcMain.handle('get-scene-config', async (event) => {
       const sceneData = sceneConfigs.get(sceneName)
       console.log('Main: Found data for scene:', sceneName)
 
-      // Return the full scene data (config + controlFile if available)
+      // Return the full scene data (config + experimentFile if available)
       if (sceneData && sceneData.config) {
         // New format
         return {
           sceneName,
           config: sceneData.config,
-          controlFile: sceneData.controlFile || null
+          experimentFile: sceneData.experimentFile || null
         }
       } else if (sceneData) {
         // Old format - just config
@@ -436,29 +389,6 @@ const getPythonConfig = () => {
   }
 }
 
-ipcMain.handle('start-python-serial', async (event) => {
-  try {
-    const window = BrowserWindow.fromWebContents(event.sender);
-    await startPythonBackend(window);
-    return true;
-  } catch (error) {
-    return { error: error.message };
-  }
-});
-
-ipcMain.handle('stop-python-serial', async () => {
-  if (pythonWebSocket && pythonWebSocket.readyState === WebSocket.OPEN) {
-    pythonWebSocket.send(JSON.stringify({ command: 'stop_logging' }));
-    pythonWebSocket.close();
-    pythonWebSocket = null;
-  }
-  if (pythonProcess) {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    pythonProcess.kill();
-    pythonProcess = null;
-  }
-  return true;
-});
 
 process.on('uncaughtException', (error) => {
   console.error('Uncaught exception:', error)
@@ -472,7 +402,7 @@ if (isDevelopment) {
   app.commandLine.appendSwitch('ignore-certificate-errors')
 }
 
-const startPythonBackend = async (window) => {
+const startPythonBackend = async () => {
   try {
     if (pythonProcess) {
       pythonProcess.kill();
@@ -486,8 +416,8 @@ const startPythonBackend = async (window) => {
       throw new Error('Python environment not found. Please run setup first.')
     }
 
-    // Start the Python backend
-    pythonProcess = spawn(config.interpreter, ['-m', 'control.hallway'], {
+    // Start the NEW Python WebSocket backend
+    pythonProcess = spawn(config.interpreter, ['-m', 'backend.src.main'], {
       cwd: scriptPath,
       stdio: ['ignore', 'pipe', 'pipe']
     })
@@ -506,7 +436,13 @@ const startPythonBackend = async (window) => {
       })
 
       pythonProcess.stderr.on('data', (data) => {
-        console.error('Python error:', data.toString())
+        const message = data.toString()
+        console.error('Python error:', message)
+        // Python logging goes to stderr by default
+        if (message.includes('WebSocket server started')) {
+          serverStarted = true;
+          resolve()
+        }
       })
 
       pythonProcess.on('exit', (code) => {
@@ -515,44 +451,17 @@ const startPythonBackend = async (window) => {
           reject(new Error('Python backend failed to start'))
         }
       })
-    })
 
-    // Establish WebSocket connection
-    pythonWebSocket = new WebSocket('ws://localhost:8765')
-
-    pythonWebSocket.on('open', () => {
-      console.log('WebSocket connection established with Python backend')
-    })
-
-    pythonWebSocket.on('message', (message) => {
-      try {
-        const parsedData = JSON.parse(message)
-        if (parsedData.type === 'serial_data') {
-          window.webContents.send('python-serial-data', parsedData.data)
-        } else {
-          console.log('Received from Python:', parsedData)
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        if (!serverStarted) {
+          reject(new Error('Python backend startup timeout'))
         }
-      } catch (error) {
-        console.error('Failed to parse message from Python:', message)
-      }
+      }, 10000)
     })
 
-    pythonWebSocket.on('close', () => {
-      console.log('WebSocket connection closed')
-    })
+    console.log('Python backend started successfully - frontend will connect via BackendClient')
 
-    pythonWebSocket.on('error', (error) => {
-      console.error('WebSocket error:', error)
-    })
-
-    // Handle data from the renderer process to Python backend
-    ipcMain.on('python-data', (event, data) => {
-      if (pythonWebSocket && pythonWebSocket.readyState === WebSocket.OPEN) {
-        pythonWebSocket.send(JSON.stringify(data));
-      } else {
-        console.error('WebSocket is not open');
-      }
-    })
 
     return true
   } catch (error) {
@@ -563,15 +472,6 @@ const startPythonBackend = async (window) => {
   }
 }
 
-// Removed hardcoded 'initialize-js-serial' handler - now defined in experiment files
-
-// Removed hardcoded 'append-to-log' handler - now defined in experiment files
-
-// Removed hardcoded 'close-js-serial' handler - now defined in experiment files
-
-// Legacy water delivery service function removed - now handled by HardwareManager
-
-// Removed hardcoded 'deliver-water' handler - now defined in experiment files
 
 ipcMain.handle('get-displays', () => {
   const displays = screen.getAllDisplays()
@@ -595,155 +495,5 @@ ipcMain.handle('get-preferred-display', () => {
   return preferredDisplayId
 })
 
-ipcMain.on('reward-delivered', (event) => {
-  const windowId = BrowserWindow.fromWebContents(event.sender).id
-  const currentCount = rewardCount.get(windowId) || 0
-  const currentTime = Date.now()
-  const trialTime = (currentTime - trialStartTime.get(windowId)) / 1000 // Convert to seconds
 
-  rewardCount.set(windowId, currentCount + 1)
-  console.log(`Reward #${currentCount + 1} delivered! Trial time: ${trialTime.toFixed(2)} seconds`)
-
-  // Reset trial timer for next trial
-  trialStartTime.set(windowId, currentTime)
-})
-
-// ============================================================================
-// NEW MODULAR ARCHITECTURE IPC HANDLERS
-// ============================================================================
-
-ipcMain.handle('load-experiment', async (event, experimentPath, sceneConfig) => {
-  try {
-    if (!experimentManager) {
-      throw new Error('ExperimentManager not initialized')
-    }
-    
-    console.log('Loading experiment:', experimentPath)
-    const result = await experimentManager.loadExperiment(experimentPath, sceneConfig)
-    return { success: true, experiment: result }
-  } catch (error) {
-    console.error('Failed to load experiment:', error)
-    return { success: false, error: error.message }
-  }
-})
-
-ipcMain.handle('unload-experiment', async (event) => {
-  try {
-    if (!experimentManager) {
-      throw new Error('ExperimentManager not initialized')
-    }
-    
-    const result = await experimentManager.unloadExperiment()
-    return { success: true, result }
-  } catch (error) {
-    console.error('Failed to unload experiment:', error)
-    return { success: false, error: error.message }
-  }
-})
-
-ipcMain.handle('request-hardware', async (event, type, config) => {
-  try {
-    if (!hardwareManager) {
-      throw new Error('HardwareManager not initialized')
-    }
-    
-    const experimentId = experimentManager?.getActiveExperiment()?.name || 'default'
-    console.log(`Requesting hardware resource: ${type} for experiment: ${experimentId}`)
-    
-    const handle = await hardwareManager.requestResource(type, config, experimentId)
-    return { success: true, handle }
-  } catch (error) {
-    console.error('Failed to request hardware:', error)
-    return { success: false, error: error.message }
-  }
-})
-
-ipcMain.handle('release-hardware', async (event, handle) => {
-  try {
-    if (!hardwareManager) {
-      throw new Error('HardwareManager not initialized')
-    }
-    
-    const result = await hardwareManager.releaseResource(handle)
-    return { success: true, result }
-  } catch (error) {
-    console.error('Failed to release hardware:', error)
-    return { success: false, error: error.message }
-  }
-})
-
-ipcMain.handle('get-active-experiment', async (event) => {
-  try {
-    if (!experimentManager) {
-      return { success: false, error: 'ExperimentManager not initialized' }
-    }
-    
-    const experiment = experimentManager.getActiveExperiment()
-    return { success: true, experiment }
-  } catch (error) {
-    console.error('Failed to get active experiment:', error)
-    return { success: false, error: error.message }
-  }
-})
-
-ipcMain.handle('validate-experiment', async (event, experimentPath) => {
-  try {
-    if (!experimentManager) {
-      throw new Error('ExperimentManager not initialized')
-    }
-    
-    const result = await experimentManager.validateExperiment(experimentPath)
-    return { success: true, result }
-  } catch (error) {
-    console.error('Failed to validate experiment:', error)
-    return { success: false, error: error.message }
-  }
-})
-
-ipcMain.handle('list-hardware', async (event) => {
-  try {
-    if (!hardwareManager) {
-      throw new Error('HardwareManager not initialized')
-    }
-    
-    const resources = await hardwareManager.listResources()
-    return { success: true, resources }
-  } catch (error) {
-    console.error('Failed to list hardware:', error)
-    return { success: false, error: error.message }
-  }
-})
-
-ipcMain.handle('hardware-status', async (event) => {
-  try {
-    if (!hardwareManager) {
-      throw new Error('HardwareManager not initialized')
-    }
-    
-    const status = await hardwareManager.getStatus()
-    return { success: true, status }
-  } catch (error) {
-    console.error('Failed to get hardware status:', error)
-    return { success: false, error: error.message }
-  }
-})
-
-// Generic communication channels for dynamic data streaming
-// These can be assigned different purposes at runtime
-
-// Communication1: Assigned to serial data streaming
-ipcMain.on('communication1', (event, data) => {
-  // Currently used for serial data streaming
-  console.log('Communication1 received:', data)
-})
-
-// Communication2: Available for future use
-ipcMain.on('communication2', (event, data) => {
-  console.log('Communication2 received:', data)
-})
-
-// Communication3: Available for future use  
-ipcMain.on('communication3', (event, data) => {
-  console.log('Communication3 received:', data)
-})
 
