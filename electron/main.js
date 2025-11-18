@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen } from 'electron'
+import { app, BrowserWindow, ipcMain, screen, dialog } from 'electron'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import fs from 'fs'
@@ -493,6 +493,63 @@ ipcMain.on('set-preferred-display', (event, displayId) => {
 
 ipcMain.handle('get-preferred-display', () => {
   return preferredDisplayId
+})
+
+// File dialog handlers with default paths
+ipcMain.handle('select-maze-file', async () => {
+  const projectRoot = isDevelopment ? process.cwd() : path.join(process.resourcesPath, 'app')
+  const defaultPath = path.join(projectRoot, 'mazes')
+
+  const result = await dialog.showOpenDialog({
+    title: 'Select Maze JSON File',
+    defaultPath: defaultPath,
+    filters: [
+      { name: 'JSON Files', extensions: ['json'] }
+    ],
+    properties: ['openFile']
+  })
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null
+  }
+
+  const filePath = result.filePaths[0]
+  const fileName = path.basename(filePath)
+  const content = fs.readFileSync(filePath, 'utf8')
+
+  return {
+    name: fileName,
+    path: filePath,
+    content: content
+  }
+})
+
+ipcMain.handle('select-experiment-file', async () => {
+  const projectRoot = isDevelopment ? process.cwd() : path.join(process.resourcesPath, 'app')
+  const defaultPath = path.join(projectRoot, 'experiments')
+
+  const result = await dialog.showOpenDialog({
+    title: 'Select Python Experiment File',
+    defaultPath: defaultPath,
+    filters: [
+      { name: 'Python Files', extensions: ['py'] }
+    ],
+    properties: ['openFile']
+  })
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return null
+  }
+
+  const filePath = result.filePaths[0]
+  const fileName = path.basename(filePath)
+  const content = fs.readFileSync(filePath, 'utf8')
+
+  return {
+    name: fileName,
+    path: filePath,
+    content: content
+  }
 })
 
 

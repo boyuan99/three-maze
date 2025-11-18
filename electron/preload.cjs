@@ -45,6 +45,10 @@ contextBridge.exposeInMainWorld('electron', {
   getStoredControlFiles: () => ipcRenderer.invoke('get-stored-control-files'),
   deleteControlFile: (sceneId) => ipcRenderer.invoke('delete-control-file', sceneId),
 
+  // File dialogs with default paths
+  selectMazeFile: () => ipcRenderer.invoke('select-maze-file'),
+  selectExperimentFile: () => ipcRenderer.invoke('select-experiment-file'),
+
   startPythonSerial: () => ipcRenderer.invoke('start-python-serial'),
   stopPythonSerial: () => ipcRenderer.invoke('stop-python-serial'),
   onPythonSerialData: (callback) => {

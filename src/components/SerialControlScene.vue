@@ -62,8 +62,43 @@ async function loadStoredExperimentFiles() {
   }
 }
 
-const handleLoadScene = () => {
-  fileInput.value.click()
+const handleLoadScene = async () => {
+  // Use Electron dialog if available (with default mazes folder)
+  if (window.electron?.selectMazeFile) {
+    loadingScene.value = true
+    error.value = null
+
+    try {
+      const fileData = await window.electron.selectMazeFile()
+
+      if (!fileData) {
+        // User cancelled
+        loadingScene.value = false
+        return
+      }
+
+      console.log('Loading custom scene file:', fileData.name)
+
+      // Create a File-like object from the data
+      const file = new File([fileData.content], fileData.name, { type: 'application/json' })
+      const customScene = await loadCustomScene(file, 'serial_custom_')
+      console.log('Custom scene loaded:', customScene)
+
+      previews.value[customScene.id] = await customScene.previewGenerator()
+
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      console.log('Scene loaded successfully. Select a Python experiment file to enable it.')
+    } catch (err) {
+      console.error('Error loading custom scene:', err)
+      error.value = err.message
+    } finally {
+      loadingScene.value = false
+    }
+  } else {
+    // Fall back to file input for web mode
+    fileInput.value.click()
+  }
 }
 
 const handleFileSelect = async (event) => {
@@ -146,9 +181,58 @@ const handleOpenScene = (sceneId) => {
   handleSceneSelect(sceneId, true)
 }
 
-const selectExperimentFile = (sceneId) => {
+const selectExperimentFile = async (sceneId) => {
   selectedSceneForExperiment.value = sceneId
-  experimentFileInput.value.click()
+
+  // Use Electron dialog if available (with default experiments folder)
+  if (window.electron?.selectExperimentFile) {
+    try {
+      const fileData = await window.electron.selectExperimentFile()
+
+      if (!fileData) {
+        // User cancelled
+        selectedSceneForExperiment.value = null
+        return
+      }
+
+      // Only accept Python files
+      if (!fileData.name.endsWith('.py')) {
+        error.value = 'Please select a Python (.py) experiment file'
+        selectedSceneForExperiment.value = null
+        return
+      }
+
+      // Store experiment file association
+      const experimentFileData = {
+        name: fileData.name,
+        filename: fileData.name,
+        content: fileData.content,
+        type: 'python'
+      }
+
+      sceneExperimentFiles.value[selectedSceneForExperiment.value] = {
+        name: fileData.name,
+        filename: fileData.name
+      }
+
+      // Persist to storage
+      try {
+        await storageService.storeControlFile(selectedSceneForExperiment.value, experimentFileData)
+        console.log('Experiment file stored successfully:', fileData.name)
+      } catch (err) {
+        console.warn('Failed to store experiment file:', err)
+      }
+
+      selectedSceneForExperiment.value = null
+    } catch (err) {
+      console.error('Error reading experiment file:', err)
+      error.value = err.message
+      selectedSceneForExperiment.value = null
+    }
+  } else {
+    // Fall back to file input for web mode
+    experimentFileInput.value.click()
+  }
 }
 
 const handleExperimentFileSelect = async (event) => {
