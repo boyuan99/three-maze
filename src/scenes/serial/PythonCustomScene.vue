@@ -103,6 +103,12 @@ const position = ref({
 // Serial data buffer
 const serialData = ref(null)
 
+// Backend position confirmation
+const pendingBackendPosition = ref(null)
+let frameCount = 0
+const POSITION_UPDATE_INTERVAL = 3  // Send position every 3 frames (~20Hz at 60fps)
+const POSITION_RESET_THRESHOLD = 0.5  // 0.5m difference triggers reset
+
 // Animation loop
 function animate() {
   if (!isActive.value) return
@@ -126,10 +132,15 @@ function animate() {
       const worldVx = vx * Math.cos(position.value.theta) - vy * Math.sin(position.value.theta)
       const worldVz = -vx * Math.sin(position.value.theta) - vy * Math.cos(position.value.theta)
 
+      // Calculate Y velocity: Use backend value if provided, otherwise preserve physics engine
+      const worldVy = (data.verticalVel !== null && data.verticalVel !== undefined)
+                      ? data.verticalVel              // Backend controls vertical velocity
+                      : playerBody.linvel().y         // Preserve physics engine (gravity)
+
       // Update physics body velocity
       playerBody.setLinvel({
         x: worldVx,
-        y: playerBody.linvel().y,
+        y: worldVy,
         z: worldVz
       }, true)
 
@@ -143,59 +154,97 @@ function animate() {
         z: 0
       }, true)
 
-      // Update position tracking
-      const bodyPosition = playerBody.translation()
-      position.value.x = bodyPosition.x
-      position.value.y = bodyPosition.z
-
-      // Update camera
-      fixedCam.update({
-        position: new THREE.Vector3(
-          bodyPosition.x,
-          bodyPosition.y + 2,
-          bodyPosition.z
-        ),
-        rotation: position.value.theta
-      })
-
       serialData.value = null
     } catch (err) {
       console.error('Error processing serial data:', err)
     }
   }
 
-  // Sync position from backend (for autonomous mode experiments)
-  // Backend calculates position and sends via experiment_state events
-  if (playerBody && position.value && !serialData.value) {
-    // Update player body position from backend-calculated position
-    playerBody.setTranslation({
-      x: position.value.x,
-      y: PLAYER_RADIUS,  // Keep player at ground level
-      z: position.value.y
-    }, true)
+  // Handle backend position confirmation (for resets)
+  if (pendingBackendPosition.value) {
+    const backend = pendingBackendPosition.value
+    const current = playerBody.translation()
 
-    // Update player body rotation
-    playerBody.setRotation({
-      x: 0,
-      y: position.value.theta,
-      z: 0
-    }, true)
+    // Calculate position difference
+    const dx = backend.x - current.x
+    const dy = backend.y - current.y
+    const dz = backend.z - current.z
+    const distance = Math.sqrt(dx*dx + dy*dy + dz*dz)
 
-    // Update camera to follow player
-    if (fixedCam) {
-      fixedCam.update({
-        position: new THREE.Vector3(
-          position.value.x,
-          PLAYER_RADIUS + 1.6,  // Eye height above player
-          position.value.y
-        ),
-        rotation: position.value.theta
-      })
+    if (distance > POSITION_RESET_THRESHOLD) {
+      // Large difference → This is a reset command
+
+      playerBody.setTranslation({
+        x: backend.x,
+        y: backend.y,
+        z: backend.z
+      }, true)
+
+      // Clear velocity
+      playerBody.setLinvel({ x: 0, y: 0, z: 0 }, true)
+
+      position.value.theta = backend.theta
+      playerBody.setRotation({
+        x: 0,
+        y: backend.theta,
+        z: 0,
+        w: 1
+      }, true)
+
+      // Update camera immediately
+      if (fixedCam) {
+        fixedCam.update({
+          position: new THREE.Vector3(
+            backend.x,
+            backend.y + 1.6,
+            backend.z
+          ),
+          rotation: backend.theta
+        })
+      }
+    } else {
+      // Small difference → Normal confirmation, let physics engine continue
     }
+
+    pendingBackendPosition.value = null
   }
 
   // Step physics world
   world.step()
+
+  // Update position tracking from physics
+  const bodyPosition = playerBody.translation()
+  const bodyVelocity = playerBody.linvel()
+
+  position.value.x = bodyPosition.x
+  position.value.y = bodyPosition.z  // Three.js Z is our game Y
+
+  // Update camera to follow player
+  if (fixedCam) {
+    fixedCam.update({
+      position: new THREE.Vector3(
+        bodyPosition.x,
+        bodyPosition.y + 1.6,  // Eye height
+        bodyPosition.z
+      ),
+      rotation: position.value.theta
+    })
+  }
+
+  // Send position update to backend (every N frames)
+  frameCount++
+  if (frameCount >= POSITION_UPDATE_INTERVAL && backendClient && backendClient.connected) {
+    frameCount = 0
+
+    const posUpdate = {
+      x: bodyPosition.x,
+      y: bodyPosition.y,  // Height
+      z: bodyPosition.z,  // Forward/backward
+      theta: position.value.theta
+    }
+
+    backendClient.send('position_update', posUpdate)
+  }
 
   renderer.render(scene, camera)
 }
@@ -213,12 +262,9 @@ function handleSerialData(data) {
 // Handle experiment state updates
 let firstStateUpdate = true
 function handleExperimentState(stateData) {
-  // DEBUG: Log first state update
+  // Handle first state update
   if (firstStateUpdate) {
     firstStateUpdate = false
-    console.log('[DEBUG] ========== FIRST EXPERIMENT STATE UPDATE ==========')
-    console.log('[DEBUG] State data:', stateData)
-    console.log('[DEBUG] Position BEFORE state update:', position.value)
   }
 
   // Update player position
@@ -228,13 +274,26 @@ function handleExperimentState(stateData) {
     position.value.theta = stateData.player.position[3]
   }
 
-  // DEBUG: Log position after first update
-  if (!firstStateUpdate && stateData.experiment?.trialNumber === 0) {
-    if (!handleExperimentState.firstPositionLogged) {
-      handleExperimentState.firstPositionLogged = true
-      console.log('[DEBUG] Position AFTER first state update:', position.value)
-      console.log('[DEBUG] ===============================================')
+  // CRITICAL FIX: Extract velocity from experiment_state and convert to serial data format
+  // Backend sends velocity in experiment_state.player.velocity [vx, vy, vz, vtheta] in cm/s
+  // Frontend expects displacement, so we need to convert: displacement = velocity * DT / 0.0364
+  if (stateData.player?.velocity) {
+    const vel = stateData.player.velocity
+    // Convert velocity (cm/s) back to displacement units expected by animate()
+    // animate() does: velocity = (displacement * 0.0364) / DT
+    // So: displacement = (velocity * DT) / 0.0364
+    const displacement = {
+      x: (vel[0] * DT) / 0.0364,   // vx (cm/s) -> displacement
+      y: (vel[1] * DT) / 0.0364,   // vy (cm/s) -> displacement
+      // NEW: Extract vertical velocity (if provided by backend)
+      // vel[2] can be: number (backend control), null/undefined (physics engine)
+      verticalVel: (vel[2] !== null && vel[2] !== undefined)
+                    ? vel[2] / 100  // cm/s → m/s
+                    : null,         // null = use physics engine
+      theta: vel[3]                // vtheta (rad/s) is used directly
     }
+
+    serialData.value = displacement
   }
 
   // Update experiment status
@@ -608,6 +667,10 @@ onMounted(async () => {
       // Set up event listeners
       backendClient.on('serial_data', handleSerialData)
       backendClient.on('experiment_state', handleExperimentState)
+      backendClient.on('position_confirm', (data) => {
+        // Backend confirms position (or sends reset position)
+        pendingBackendPosition.value = data
+      })
       backendClient.on('error', (data) => {
         console.error('[ERROR] Backend error:', data)
         error.value = `Backend error: ${data.message || JSON.stringify(data)}`
@@ -627,9 +690,6 @@ onMounted(async () => {
 
       // Register (load) experiment if specified
       if (experimentFile.value) {
-        console.log('[DEBUG] Registering experiment:', experimentFile.value)
-        console.log('[DEBUG] Position BEFORE experiment register:', position.value)
-
         const registerResponse = await backendClient.send('experiment_register', {
           filename: experimentFile.value,
           config: {}
@@ -637,8 +697,6 @@ onMounted(async () => {
 
         if (registerResponse && registerResponse.type === 'experiment_registered') {
           experimentRunning.value = true
-          console.log('[DEBUG] Experiment registered successfully')
-          console.log('[DEBUG] Initial state from backend:', registerResponse.data.state)
         } else if (registerResponse && registerResponse.type === 'experiment_error') {
           console.error('[ERROR] Failed to register experiment:', registerResponse.data.error)
           error.value = `Failed to load experiment: ${registerResponse.data.error}`
@@ -648,7 +706,6 @@ onMounted(async () => {
 
       // Start experiment (just notification, actual start happens in register)
       await backendClient.send('experiment_start', {})
-      console.log('[DEBUG] Position AFTER experiment start:', position.value)
     } catch (err) {
       console.error('PythonCustomScene: Backend connection error:', err)
       error.value = 'Failed to connect to Python backend: ' + err.message
@@ -661,10 +718,6 @@ onMounted(async () => {
 })
 
 onUnmounted(async () => {
-  console.log('========== PythonCustomScene: Component unmounting ==========')
-  console.log('[DEBUG] Final position state:', position.value)
-  console.log('[DEBUG] Experiment running:', experimentRunning.value)
-
   isActive.value = false
 
   window.removeEventListener('resize', onWindowResize)
@@ -672,21 +725,16 @@ onUnmounted(async () => {
   // Disconnect backend with proper cleanup
   if (backendClient && backendClient.connected) {
     try {
-      console.log('[DEBUG] Sending experiment cleanup commands...')
-
       // Send unregister first for proper cleanup
       if (experimentRunning.value) {
         await backendClient.send('experiment_unregister', {})
-        console.log('[DEBUG] Experiment unregistered')
       }
 
       // Then send stop
       await backendClient.send('experiment_stop', {})
-      console.log('[DEBUG] Experiment stopped')
 
       // Disconnect
       backendClient.disconnect()
-      console.log('[DEBUG] Backend disconnected')
     } catch (err) {
       console.error('[ERROR] Error during cleanup:', err)
     }
@@ -696,8 +744,6 @@ onUnmounted(async () => {
   position.value = { x: 0, y: 0, theta: 0 }
   serialData.value = null
   experimentRunning.value = false
-  console.log('[DEBUG] All state reset to defaults')
-  console.log('[DEBUG] Position after reset:', position.value)
 
   const currentState = state.value
   if (!currentState) return
