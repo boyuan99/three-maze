@@ -19,13 +19,16 @@ import sys
 import time
 from typing import Dict, Any, Optional, Set
 import websockets
+from datetime import datetime
+import os
 
-# Configure logging to use stdout instead of stderr for cleaner Electron console
+# Configure basic logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stdout  # Use stdout instead of stderr
+    handlers=[logging.StreamHandler(sys.stdout)]
 )
+
 logger = logging.getLogger(__name__)
 
 
@@ -86,6 +89,7 @@ class BackendServer:
             "experiment_register": self._handle_experiment_register,
             "experiment_list": self._handle_experiment_list,
             "experiment_unregister": self._handle_experiment_unregister,
+            "position_update": self._handle_position_update,
         }
 
     async def _handle_ping(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -545,6 +549,28 @@ class BackendServer:
             return {
                 "type": "experiment_error",
                 "data": {"error": "No active Python experiment"}
+            }
+
+    async def _handle_position_update(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle position update from frontend physics engine"""
+        if self.active_experiment and hasattr(self.active_experiment, 'process_position_update'):
+            # Pass position to experiment and get response position
+            response_position = await self.active_experiment.process_position_update(data)
+
+            return {
+                "type": "position_confirm",
+                "data": response_position
+            }
+        else:
+            # No experiment active, echo back the position
+            return {
+                "type": "position_confirm",
+                "data": {
+                    "x": data.get("x", 0),
+                    "y": data.get("y", 0),
+                    "z": data.get("z", 0),
+                    "theta": data.get("theta", 0)
+                }
             }
 
     async def _handle_status_request(self, data: Dict[str, Any]) -> Dict[str, Any]:
