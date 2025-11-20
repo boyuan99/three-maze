@@ -104,7 +104,9 @@ class Experiment:
 
         # State tracking
         self.position = np.array([0.0, 0.0, self.PLAYER_RADIUS, 0.0])
-        self.velocity = np.array([0.0, 0.0, 0.0, 0.0])
+        # velocity[2] (vertical) = None means "use physics engine" (default)
+        # velocity[2] = number means "backend controls vertical velocity"
+        self.velocity = [0.0, 0.0, None, 0.0]
         self.trial_number = 0
         self.num_rewards = 0
         self.is_active = False
@@ -226,7 +228,8 @@ class Experiment:
 
         # === 4. INITIALIZE EXPERIMENT STATE ===
         self.position = np.array([0.0, 0.0, self.PLAYER_RADIUS, 0.0])
-        self.velocity = np.array([0.0, 0.0, 0.0, 0.0])
+        # velocity[2] (vertical) = None means "use physics engine" (default)
+        self.velocity = [0.0, 0.0, None, 0.0]  # Use list to support None values
         self.trial_number = 0
         self.num_rewards = 0
         self.is_active = True
@@ -376,6 +379,69 @@ class Experiment:
 
         return self.get_state()
 
+    async def process_position_update(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Process position update from frontend physics engine.
+
+        Frontend sends position every ~20Hz. Backend checks for events
+        (trial end, fall timeout) and either echoes position or sends reset.
+
+        Args:
+            data: Position dict with keys: x, y (height), z, theta
+
+        Returns:
+            Position dict to send back (same for confirmation, different for reset)
+        """
+        if not self.is_active:
+            return data  # Echo back
+
+        # Update position from frontend
+        # Note: Frontend Z is our Y (forward/backward), Frontend Y is our Z (height)
+        self.position[0] = data.get('x', 0)
+        self.position[1] = data.get('z', 0)  # Frontend Z -> Backend Y
+        self.position[2] = data.get('y', 0)  # Frontend Y (height) -> Backend Z
+        self.position[3] = data.get('theta', 0)
+
+        # Check for fall condition
+        current_z = self.position[2]
+        if current_z < self.PLAYER_RADIUS and self.fall_start_time is None:
+            self.fall_start_time = datetime.now()
+            self.is_falling = True
+            logger.info(f"[{self.experiment_id}] Player falling (height: {current_z:.2f}m)")
+        elif current_z >= self.PLAYER_RADIUS:
+            self.fall_start_time = None
+            self.is_falling = False
+
+        # Check fall timeout
+        need_reset = False
+        if self.fall_start_time is not None:
+            fall_duration = (datetime.now() - self.fall_start_time).total_seconds() * 1000
+            if fall_duration > self.FALL_RESET_TIME:
+                logger.info(f"[{self.experiment_id}] Fall timeout ({fall_duration:.0f}ms) - resetting player")
+                need_reset = True
+
+        # Check for trial end condition
+        if abs(self.position[1]) >= self.TRIAL_END_Y:
+            logger.info(f"[{self.experiment_id}] Trial end detected (Y={self.position[1]:.2f})")
+            await self._handle_trial_end()
+            need_reset = True
+
+        # Log data
+        self._log_data()
+
+        # Return position (reset if needed, otherwise confirm)
+        if need_reset:
+            self._reset_player()
+            return {
+                'x': 0.0,
+                'y': self.PLAYER_RADIUS,  # Height
+                'z': 0.0,
+                'theta': 0.0
+            }
+        else:
+            # Echo back the position (confirmation)
+            return data
+
     def _update_position_from_serial(self, data: Dict[str, Any]):
         """Convert serial data to position/velocity updates."""
         try:
@@ -421,13 +487,22 @@ class Experiment:
         """Check if player has fallen off the platform."""
         current_z = self.position[2]
 
-        if current_z < self.PLAYER_RADIUS and self.fall_start_time is None:
+        # Use a tolerance threshold to avoid physics engine fluctuations
+        # Only consider falling if significantly below player radius
+        FALL_THRESHOLD = self.PLAYER_RADIUS - 0.2  # 0.3m instead of 0.5m
+
+        if current_z < FALL_THRESHOLD and self.fall_start_time is None:
             self.fall_start_time = datetime.now()
             self.is_falling = True
-            logger.debug(f"[{self.experiment_id}] Player falling...")
-        elif current_z >= self.PLAYER_RADIUS:
+            # Lock horizontal movement during fall: set velocity[2] = 0
+            self.velocity[2] = 0.0
+            logger.info(f"[{self.experiment_id}] Player falling (height: {current_z:.2f}m) - locking horizontal velocity")
+        elif current_z >= FALL_THRESHOLD:
             self.fall_start_time = None
             self.is_falling = False
+            # Resume physics engine control: set velocity[2] = None
+            self.velocity[2] = None
+            logger.debug(f"[{self.experiment_id}] Player recovered - resuming physics engine")
 
         if self.fall_start_time is not None:
             fall_duration = (datetime.now() - self.fall_start_time).total_seconds() * 1000
@@ -478,7 +553,8 @@ class Experiment:
         """Reset player to starting position."""
         logger.debug(f"[{self.experiment_id}] Resetting player")
         self.position = np.array([0.0, 0.0, self.PLAYER_RADIUS, 0.0])
-        self.velocity = np.array([0.0, 0.0, 0.0, 0.0])
+        # Reset velocity with velocity[2] = None to restore physics engine control
+        self.velocity = [0.0, 0.0, None, 0.0]
         self.fall_start_time = None
         self.is_falling = False
 
@@ -500,7 +576,7 @@ class Experiment:
         return {
             'player': {
                 'position': self.position.tolist(),
-                'velocity': self.velocity.tolist()
+                'velocity': list(self.velocity)  # velocity is already a list, ensure it's copied
             },
             'experiment': {
                 'trialNumber': self.trial_number,
