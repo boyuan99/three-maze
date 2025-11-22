@@ -1,22 +1,75 @@
-/.idea/
-.DS_Store
-__pycache__/
-/node_modules/
-/.venv/
-/tmp/
-/logs/
-/release/
-/dist/
-/control/test/
-/test/
-*.log
-.cursor/
-/ref/
-/.claude/
+# ========================
+# IDE & Editor
+# ========================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
+# ========================
+# Operating System
+# ========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Desktop.ini
+
+# ========================
+# Dependencies
+# ========================
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# ========================
+# Build & Distribution
+# ========================
+dist/
+release/
+build/
+out/
+
+# ========================
+# Logs & Temp Files
+# ========================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+tmp/
+temp/
+
+# ========================
+# Testing
+# ========================
+**/test/
+coverage/
+.nyc_output/
+
+# ========================
+# Project Specific
+# ========================
+# Reference files
+ref/
+
+# Deprecated scene files
+**/deprecated/
+
+# Documentation (except README)
 *.md
 !README.md
 
-
-# Deprecated scene files
-/src/scenes/serial/deprecated/
+# Configuration files (except package files)
+*.json
+!package.json
+!package-lock.json
+!tsconfig*.json
+!jsconfig*.json
