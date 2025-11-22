@@ -78,6 +78,22 @@
           </button>
         </div>
         <div class="control-group">
+          <button
+            v-if="!isPaused"
+            @click="pauseData"
+            class="btn btn-secondary"
+          >
+            Pause
+          </button>
+          <button
+            v-else
+            @click="resumeData"
+            class="btn btn-warning"
+          >
+            Resume
+          </button>
+        </div>
+        <div class="control-group">
           <button @click="clearData" class="btn btn-secondary">
             Clear Display
           </button>
@@ -87,35 +103,27 @@
       <!-- Data Display -->
       <div class="data-display">
         <div class="data-header">
-          <h3>Serial Data Stream</h3>
-          <span class="data-count">{{ dataHistory.length }} samples</span>
+          <h3>Serial Data Stream (Raw)</h3>
+          <div class="header-info">
+            <span class="data-count">{{ dataHistory.length }} lines</span>
+            <span v-if="isPaused" class="pause-indicator">
+              ⏸ PAUSED ({{ pausedCount }} skipped)
+            </span>
+          </div>
         </div>
-        <div class="data-content" ref="dataContent">
+        <div class="data-content raw-content" ref="dataContent">
           <div v-if="dataHistory.length === 0" class="no-data">
             Waiting for serial data...
           </div>
-          <div v-else class="data-table">
-            <div class="data-row header-row">
-              <div class="data-cell">Timestamp</div>
-              <div class="data-cell">X</div>
-              <div class="data-cell">Y</div>
-              <div class="data-cell">Theta</div>
-              <div class="data-cell">Water</div>
-              <div class="data-cell">White</div>
-              <div class="data-cell">World</div>
-            </div>
+          <div v-else class="raw-data-list">
             <div
               v-for="(data, index) in displayData"
               :key="index"
-              class="data-row"
+              class="raw-data-line"
             >
-              <div class="data-cell">{{ formatTimestamp(data.timestamp) }}</div>
-              <div class="data-cell">{{ data.x?.toFixed(2) || 'N/A' }}</div>
-              <div class="data-cell">{{ data.y?.toFixed(2) || 'N/A' }}</div>
-              <div class="data-cell">{{ data.theta?.toFixed(3) || 'N/A' }}</div>
-              <div class="data-cell">{{ data.water || 0 }}</div>
-              <div class="data-cell">{{ data.isWhite ? 'Yes' : 'No' }}</div>
-              <div class="data-cell">{{ data.currentWorld || '-' }}</div>
+              <span class="line-number">{{ dataHistory.length - index }}</span>
+              <span class="line-timestamp">{{ formatTimestamp(data.timestamp) }}</span>
+              <span class="line-content">{{ data.raw || data }}</span>
             </div>
           </div>
         </div>
@@ -182,6 +190,8 @@ const dataHistory = ref([])
 const maxDisplayRows = 100
 const dataContent = ref(null)
 const autoScroll = ref(true)
+const isPaused = ref(false)
+const pausedCount = ref(0)  // Track how many samples received while paused
 
 // Session tracking
 const sessionStartTime = ref(null)
@@ -246,6 +256,21 @@ function clearData() {
   dataHistory.value = []
   sampleCount.value = 0
   sampleRate.value = 0
+  pausedCount.value = 0
+}
+
+function pauseData() {
+  isPaused.value = true
+  pausedCount.value = 0
+  console.log('[SerialMonitor] Data display paused')
+}
+
+function resumeData() {
+  isPaused.value = false
+  if (pausedCount.value > 0) {
+    console.log(`[SerialMonitor] Resumed - ${pausedCount.value} samples skipped while paused`)
+  }
+  pausedCount.value = 0
 }
 
 function formatTimestamp(ts) {
@@ -299,6 +324,12 @@ function updateSampleRate() {
 // Watch for serial data
 watch(serialData, (newData) => {
   if (newData) {
+    // If paused, increment counter but don't display
+    if (isPaused.value) {
+      pausedCount.value++
+      return
+    }
+
     dataHistory.value.push({
       ...newData,
       timestamp: newData.timestamp || Date.now()
@@ -510,6 +541,15 @@ onUnmounted(() => {
   background: #ff9781;
 }
 
+.btn-warning {
+  background: #dcdcaa;
+  color: #1e1e1e;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background: #ececba;
+}
+
 .btn-secondary {
   background: #3c3c3c;
   color: #d4d4d4;
@@ -544,15 +584,36 @@ onUnmounted(() => {
   font-size: 18px;
 }
 
+.header-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
 .data-count {
   color: #858585;
   font-size: 14px;
+}
+
+.pause-indicator {
+  color: #dcdcaa;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 4px 12px;
+  background: rgba(220, 220, 170, 0.1);
+  border-radius: 4px;
+  border: 1px solid #dcdcaa;
 }
 
 .data-content {
   flex: 1;
   overflow-y: auto;
   overflow-x: auto;
+}
+
+.raw-content {
+  padding: 10px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 
 .no-data {
@@ -564,33 +625,41 @@ onUnmounted(() => {
   font-size: 16px;
 }
 
-.data-table {
-  width: 100%;
+.raw-data-list {
+  display: flex;
+  flex-direction: column;
 }
 
-.data-row {
-  display: grid;
-  grid-template-columns: 120px repeat(6, 1fr);
-  gap: 10px;
-  padding: 8px 15px;
+.raw-data-line {
+  display: flex;
+  gap: 15px;
+  padding: 4px 5px;
   border-bottom: 1px solid #3c3c3c;
-}
-
-.data-row:hover {
-  background: #1e1e1e;
-}
-
-.header-row {
-  background: #1e1e1e;
-  color: #4ec9b0;
-  font-weight: bold;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.data-cell {
   font-size: 13px;
+  line-height: 1.6;
+}
+
+.raw-data-line:hover {
+  background: #1e1e1e;
+}
+
+.line-number {
+  color: #858585;
+  min-width: 50px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.line-timestamp {
+  color: #569cd6;
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.line-content {
+  color: #d4d4d4;
+  flex: 1;
+  word-break: break-all;
 }
 
 /* Statistics Panel */
