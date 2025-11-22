@@ -10,7 +10,6 @@ import HallwayControlScene from "@/scenes/physics/HallwayControlScene.vue"
 import HallwayControlScene02 from "@/scenes/physics/HallwayControlScene02.vue"
 
 // WebSocket-based scenes (current architecture)
-import WebSocketDemo from "@/scenes/serial/WebSocketDemo.vue"
 import WebSocketSerialMonitor from "@/scenes/serial/WebSocketSerialMonitor.vue"
 import { createApp } from 'vue'
 import { storageService } from '@/storage.js'
@@ -128,29 +127,6 @@ export const serialControlScenes = [
       ctx.font = '14px Arial'
       ctx.fillStyle = '#858585'
       ctx.fillText('Real-time Data Display', 150, 115)
-      return canvas.toDataURL()
-    }
-  },
-  {
-    id: 'websocket-demo',
-    path: '/scene/websocket-demo',
-    name: 'Backend Demo',
-    description: 'Test WebSocket backend connection and hardware control',
-    component: WebSocketDemo,
-    previewGenerator: async () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = 300
-      canvas.height = 200
-      const ctx = canvas.getContext('2d')
-      ctx.fillStyle = '#1e1e1e'
-      ctx.fillRect(0, 0, 300, 200)
-      ctx.fillStyle = '#4ec9b0'
-      ctx.font = 'bold 16px Arial'
-      ctx.textAlign = 'center'
-      ctx.fillText('Backend Demo', 150, 100)
-      ctx.font = '14px Arial'
-      ctx.fillStyle = '#858585'
-      ctx.fillText('Hardware Testing', 150, 125)
       return canvas.toDataURL()
     }
   }
