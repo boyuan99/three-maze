@@ -49,6 +49,9 @@ contextBridge.exposeInMainWorld('electron', {
   selectMazeFile: () => ipcRenderer.invoke('select-maze-file'),
   selectExperimentFile: () => ipcRenderer.invoke('select-experiment-file'),
 
+  // Get WebSocket port
+  getWsPort: () => ipcRenderer.invoke('get-ws-port'),
+
   startPythonSerial: () => ipcRenderer.invoke('start-python-serial'),
   stopPythonSerial: () => ipcRenderer.invoke('stop-python-serial'),
   onPythonSerialData: (callback) => {

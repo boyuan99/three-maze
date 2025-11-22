@@ -33,8 +33,8 @@
  */
 
 export class MinimalBackendClient {
-  constructor(url = 'ws://localhost:8765') {
-    this.url = url;
+  constructor(url = null) {
+    this.url = url; // Will be set dynamically if null
     this.ws = null;
     this.connected = false;
     this.requestId = 0;
@@ -60,7 +60,19 @@ export class MinimalBackendClient {
    * Connect to the Python backend WebSocket server
    * @returns {Promise<void>}
    */
-  connect() {
+  async connect() {
+    // If URL not provided, get WebSocket port from Electron
+    if (!this.url) {
+      try {
+        const port = await window.electron.getWsPort();
+        this.url = `ws://localhost:${port}`;
+        this.log('Got WebSocket port from Electron:', port);
+      } catch (error) {
+        this.error('Failed to get WebSocket port from Electron, using default 8765');
+        this.url = 'ws://localhost:8765';
+      }
+    }
+
     return new Promise((resolve, reject) => {
       this.log('Connecting to Python backend at', this.url);
 

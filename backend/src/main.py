@@ -21,6 +21,7 @@ from typing import Dict, Any, Optional, Set
 import websockets
 from datetime import datetime
 import os
+import socket
 
 # Configure basic logging
 logging.basicConfig(
@@ -30,6 +31,33 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+
+def find_available_port(start_port: int = 8765, max_attempts: int = 10) -> Optional[int]:
+    """
+    Find an available port starting from start_port.
+
+    Args:
+        start_port: Port to start searching from
+        max_attempts: Maximum number of ports to try
+
+    Returns:
+        Available port number, or None if no port found
+    """
+    for port in range(start_port, start_port + max_attempts):
+        try:
+            # Try to bind to the port
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                s.bind(('localhost', port))
+                # If successful, port is available
+                logger.info(f"Found available port: {port}")
+                return port
+        except OSError:
+            logger.debug(f"Port {port} is already in use, trying next...")
+            continue
+
+    return None
 
 
 class BackendServer:
@@ -872,11 +900,27 @@ class BackendServer:
                     await self.data_logger.stop_logging()
 
     async def start(self):
-        """Start the WebSocket server"""
+        """Start the WebSocket server with automatic port selection"""
+        # Try to find an available port starting from the configured port
+        available_port = find_available_port(self.port)
+
+        if available_port is None:
+            logger.error(f"Could not find available port starting from {self.port}")
+            raise RuntimeError(f"No available ports found (tried {self.port}-{self.port + 9})")
+
+        # Update port if different from configured
+        if available_port != self.port:
+            logger.warning(f"Port {self.port} is in use, using port {available_port} instead")
+            self.port = available_port
+
         logger.info(f"Starting WebSocket server on ws://{self.host}:{self.port}")
 
         async with websockets.serve(self.handle_client, self.host, self.port):
-            logger.info("WebSocket server started successfully")
+            # Print clear success message with port info for start-dev.js to parse
+            logger.info("=" * 60)
+            logger.info(f"WebSocket server ready on port {self.port}")
+            logger.info(f"  -> ws://{self.host}:{self.port}")
+            logger.info("=" * 60)
             logger.info("Waiting for client connections...")
 
             # If in replay mode, start web dashboard

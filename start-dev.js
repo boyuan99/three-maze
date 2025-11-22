@@ -168,10 +168,13 @@ function checkPort(port) {
 
 /**
  * Start Electron with the detected Vite port
+ * (Electron will manage Python backend internally)
  */
-function startElectron(port) {
+function startElectron(vitePort) {
   return new Promise((resolve, reject) => {
-    log(`\n[START] Starting Electron with Vite port ${port}...`, colors.cyan)
+    log(`\n[START] Starting Electron...`, colors.cyan)
+    log(`  - Vite dev server: ${vitePort}`, colors.cyan)
+    log(`  - Python backend will be managed by Electron`, colors.cyan)
 
     electronProcess = spawn('electron', ['.'], {
       cwd: __dirname,
@@ -180,7 +183,7 @@ function startElectron(port) {
       env: {
         ...process.env,
         NODE_ENV: 'development',
-        VITE_DEV_SERVER_PORT: port.toString()
+        VITE_DEV_SERVER_PORT: vitePort.toString()
       }
     })
 
@@ -310,7 +313,8 @@ function killProcess(proc, name, timeout = 3000) {
 }
 
 /**
- * Cleanup and shutdown both processes
+ * Cleanup and shutdown all processes
+ * (Python backend is managed by Electron, will be cleaned up automatically)
  */
 async function cleanup(exitCode = 0) {
   if (isShuttingDown) return
@@ -318,7 +322,7 @@ async function cleanup(exitCode = 0) {
 
   log('\n\n[SHUTDOWN] Shutting down...', colors.yellow)
 
-  // Kill both processes and wait for them to exit
+  // Kill all processes and wait for them to exit
   await Promise.all([
     killProcess(electronProcess, 'Electron'),
     killProcess(viteProcess, 'Vite')
@@ -357,20 +361,21 @@ async function main() {
     log('='.repeat(60), colors.blue)
 
     // Step 1: Start Vite and capture port
-    const port = await startVite()
+    const vitePort = await startVite()
 
     // Step 2: Wait for Vite to be fully ready
-    await waitForVite(port)
+    await waitForVite(vitePort)
 
-    // Step 3: Start Electron with the detected port
-    await startElectron(port)
+    // Step 3: Start Electron (which will manage Python backend internally)
+    await startElectron(vitePort)
 
     log('\n' + '='.repeat(60), colors.green)
     log('  [SUCCESS] Development environment ready!', colors.bright + colors.green)
-    log(`  [INFO] Vite dev server: http://localhost:${port}`, colors.green)
+    log(`  [INFO] Vite dev server: http://localhost:${vitePort}`, colors.green)
+    log(`  [INFO] Python backend managed by Electron`, colors.green)
     log(`  [INFO] Electron window should now be open`, colors.green)
     log('='.repeat(60), colors.green)
-    log('\n[INFO] Press Ctrl+C to stop both servers\n', colors.cyan)
+    log('\n[INFO] Press Ctrl+C to stop all servers\n', colors.cyan)
 
   } catch (err) {
     log(`\n[ERROR] ${err.message}`, colors.red)

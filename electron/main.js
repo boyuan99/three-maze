@@ -21,6 +21,7 @@ let mainWindow = null
 const sceneWindows = new Map()
 const sceneConfigs = new Map()
 let pythonProcess = null
+let detectedWsPort = null  // Dynamically detected WebSocket port
 let preferredDisplayId = null
 
 async function createMainWindow() {
@@ -226,7 +227,7 @@ app.whenReady().then(async () => {
   try {
     loadDisplayPreference()
 
-    // Start Python backend on app launch
+    // Start Python backend in both dev and production modes
     console.log('Starting Python WebSocket backend...')
     await startPythonBackend()
 
@@ -280,6 +281,12 @@ ipcMain.on('open-scene', async (event, sceneName, sceneData) => {
   }
 
   await createSceneWindow(sceneName)
+})
+
+// Expose WebSocket port to renderer
+ipcMain.handle('get-ws-port', () => {
+  // Return detected port or default
+  return detectedWsPort || '8765'
 })
 
 ipcMain.handle('get-scene-config', async (event) => {
@@ -418,32 +425,60 @@ const startPythonBackend = async () => {
       throw new Error('Python environment not found. Please run setup first.')
     }
 
-    // Start the NEW Python WebSocket backend
+    // Start the Python WebSocket backend
     pythonProcess = spawn(config.interpreter, ['-m', 'backend.src.main'], {
       cwd: scriptPath,
-      stdio: ['ignore', 'pipe', 'pipe']
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        PYTHONUNBUFFERED: '1'  // Disable Python output buffering
+      }
     })
 
-    // Wait for the WebSocket server to start
+    // Wait for the WebSocket server to start and capture the port
     await new Promise((resolve, reject) => {
       let serverStarted = false;
 
       pythonProcess.stdout.on('data', (data) => {
         const message = data.toString()
         console.log('Python output:', message)
-        if (message.includes('WebSocket server started')) {
-          serverStarted = true;
+
+        // Look for pattern: "WebSocket server ready on port 8765"
+        const portMatch = message.match(/WebSocket server ready on port (\d+)/i)
+        if (portMatch && !detectedWsPort) {
+          const port = parseInt(portMatch[1])
+          // Validate port is in reasonable range (8765-8775)
+          if (port >= 8765 && port <= 8775) {
+            detectedWsPort = port.toString()
+            serverStarted = true
+            console.log(`✓ Python WebSocket backend ready on port ${detectedWsPort}`)
+            resolve()
+          }
+        }
+
+        // Fallback: old-style detection (for compatibility)
+        if (message.includes('WebSocket server started') && !serverStarted) {
+          detectedWsPort = '8765'  // Default port
+          serverStarted = true
           resolve()
         }
       })
 
       pythonProcess.stderr.on('data', (data) => {
         const message = data.toString()
-        console.error('Python error:', message)
         // Python logging goes to stderr by default
-        if (message.includes('WebSocket server started')) {
-          serverStarted = true;
-          resolve()
+        console.log('Python:', message)
+
+        // Look for port in stderr too
+        const portMatch = message.match(/WebSocket server ready on port (\d+)/i)
+        if (portMatch && !detectedWsPort) {
+          const port = parseInt(portMatch[1])
+          if (port >= 8765 && port <= 8775) {
+            detectedWsPort = port.toString()
+            serverStarted = true
+            console.log(`✓ Python WebSocket backend ready on port ${detectedWsPort}`)
+            resolve()
+          }
         }
       })
 
@@ -454,23 +489,21 @@ const startPythonBackend = async () => {
         }
       })
 
-      // Timeout after 10 seconds
+      // Timeout after 30 seconds
       setTimeout(() => {
         if (!serverStarted) {
           reject(new Error('Python backend startup timeout'))
         }
-      }, 10000)
+      }, 30000)
     })
 
-    console.log('Python backend started successfully - frontend will connect via BackendClient')
-
-
+    console.log('✓ Python backend started successfully')
     return true
   } catch (error) {
     console.error('Failed to start Python backend:', error)
-
-    pythonProcess = null;
-    throw error;
+    pythonProcess = null
+    detectedWsPort = null
+    throw error
   }
 }
 
