@@ -6,7 +6,9 @@ import path from 'path'
 import { spawn } from 'child_process'
 
 const isDevelopment = process.env.NODE_ENV === 'development'
-const VITE_DEV_SERVER_URL = 'http://localhost:5173'
+// Read Vite port from environment variable (set by start script)
+const VITE_DEV_SERVER_PORT = process.env.VITE_DEV_SERVER_PORT || '5173'
+const VITE_DEV_SERVER_URL = `http://localhost:${VITE_DEV_SERVER_PORT}`
 const userDataPath = app.getPath('userData')
 const customScenesPath = path.join(userDataPath, 'customScenes.json')
 const controlFilesPath = path.join(userDataPath, 'controlFiles.json')
