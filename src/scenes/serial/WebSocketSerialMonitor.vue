@@ -181,7 +181,7 @@ const {
 
 // Serial configuration
 const serialConfig = ref({
-  port: 'COM5',
+  port: 'COM3',
   baudRate: 115200
 })
 
