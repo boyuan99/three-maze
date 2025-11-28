@@ -1,0 +1,854 @@
+"""
+EXPERIMENT_ID: vue_style_hallway
+EXPERIMENT_NAME: Vue-Style Hallway Experiment (Backend-Driven Architecture)
+HARDWARE_MODE: standalone
+
+vue_style_hallway_experiment.py
+
+Standalone experiment using backend-driven data logging architecture.
+
+BACKEND-DRIVEN ARCHITECTURE (optimized for stable data logging):
+- Serial data read in background loop -> immediate processing -> immediate logging
+- Data logging rate is driven by hardware (Teensy serial output), not frontend rendering
+- Frontend position updates (5Hz) only used for fall detection synchronization
+- Eliminates frontend rendering bottlenecks from affecting data logging
+
+Data Flow:
+1. Background _serial_read_loop() reads serial port continuously (1ms poll)
+2. When data arrives -> parse -> update position -> LOG IMMEDIATELY
+3. autonomous_experiment_loop() broadcasts state to frontend at 50Hz
+4. Frontend sends position updates at 5Hz (for fall detection height sync only)
+
+Key Features:
+- Serial data format: 13 fields from Teensy (timestamp, leftSensor, rightSensor, combined values)
+- Conversion factor: 0.0465 (Vue standard)
+- World coordinate transformation: Vue sign conventions
+- Water delivery: 5V pulse, 17ms duration (Electron standard)
+- Fall detection: PLAYER_RADIUS threshold with 5000ms timeout, synced with frontend physics
+- Data logging: BACKEND-DRIVEN at serial data rate (stable, hardware-paced)
+
+Hardware Management: Direct
+- User directly initializes pyserial for serial communication
+- User directly initializes nidaqmx with persistent task
+- User directly manages file I/O for data logging
+
+Data Logging:
+- Logs position, velocity, raw sensor data, timestamps
+- Separate log for trial timing and rewards
+
+Usage:
+    experiment = Experiment("vue_style_hallway", config)
+    await experiment.initialize(config)
+
+    Config should include:
+    {
+        'port': 'COM3',              # Serial port (Electron default: COM3)
+        'baudRate': 115200,          # Baud rate
+        'daqDevice': 'Dev1',         # NI-DAQ device
+        'daqChannel': 'ao0',         # Water delivery channel
+        'trialEndY': 70.0,           # Trial end position
+        'waterVoltagе': 5.0,         # Water solenoid voltage
+        'waterDurationMs': 17        # Water pulse duration (Electron default: 17ms)
+    }
+"""
+
+from typing import Dict, Any, Optional
+import numpy as np
+from datetime import datetime
+import asyncio
+import logging
+import os
+
+logger = logging.getLogger(__name__)
+
+
+class Experiment:
+    """
+    Vue-style hallway experiment with Electron preprocessing logic.
+
+    Fully replicates the Electron/Vue data processing pipeline:
+    - Electron main.js: 13-field CSV parsing and water delivery
+    - Vue frontend: motion processing and fall detection
+    - Frontend physics engine: position sync for accurate fall timeout detection
+
+    Hardware Mode: STANDALONE
+    - User directly initializes all hardware
+    - Persistent DAQ task for water delivery (like Electron)
+    - Complete transparency and control
+
+    Key Methods:
+    - process_serial_data(): Handle trackball input from serial port
+    - process_position_update(): Sync with frontend physics engine (CRITICAL for falls)
+    """
+
+    # Declare standalone mode
+    HARDWARE_MODE = 'standalone'
+
+    def __init__(self, experiment_id: str, config: Dict[str, Any], hardware_manager=None, event_callback=None):
+        """
+        Initialize vue-style hallway experiment.
+
+        Args:
+            experiment_id: Unique identifier (e.g., "vue_style_hallway")
+            config: Configuration dictionary from frontend
+            hardware_manager: Not used in standalone mode (always None)
+            event_callback: Callback function for sending events to frontend (callable)
+        """
+        self.experiment_id = experiment_id
+        self.config = config
+        self.event_callback = event_callback  # Callback for sending events to frontend
+
+        # Hallway dimensions
+        self.HALLWAY_LENGTH = 200.0
+        self.HALLWAY_WIDTH = 40.0
+        self.WALL_HEIGHT = 10.0
+        self.BLUE_SEGMENT_LENGTH = 30.0
+
+        # Physics parameters
+        self.PLAYER_RADIUS = 0.5
+        self.MAX_LINEAR_VELOCITY = 100.0
+        self.DT = 1.0 / 20.0  # 20Hz
+
+        # Conversion factor (MATCHES VUE)
+        self.ENCODER_TO_CM = 0.0465  # Vue uses 0.0465
+
+        # Trial parameters
+        self.TRIAL_END_Y = 70.0
+        self.FALL_RESET_TIME = 5000  # milliseconds
+
+        # Water delivery parameters (MATCHES ELECTRON)
+        self.WATER_VOLTAGE = 5.0      # Electron default: 5.0V
+        self.WATER_DURATION_MS = 17   # Electron default: 17ms
+
+        # State tracking
+        self.position = np.array([0.0, 0.0, self.PLAYER_RADIUS, 0.0])  # [x, z, y(height), theta]
+        self.velocity = [0.0, 0.0, 0.0, 0.0]  # [vx, vz, vy, vtheta]
+        self.trial_number = 0
+        self.num_rewards = 0
+        self.fall_count = 0
+        self.is_active = False
+        self.start_time = None
+
+        self.fall_start_time = None
+        self.is_falling = False
+
+        # Trial timing (MATCHES ELECTRON)
+        self.trial_start_time = None
+
+        # Hardware resources (initialized in initialize())
+        self.serial_port = None
+        self.daq_task = None  # Persistent task (like Electron)
+        self.data_file = None
+        self.data_file_path = None
+        self.serial_read_task = None
+        self.serial_buffer = []
+
+        # Raw sensor data tracking
+        self.last_sensor_data = None
+
+        # Position update tracking
+        self.position_update_count = 0
+
+    async def initialize(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Initialize experiment with direct hardware setup.
+
+        Matches Electron initialization:
+        1. Serial port with init string (like main.js)
+        2. Persistent DAQ task for water delivery
+        3. Dual log files (data + timing)
+
+        Args:
+            config: Configuration dictionary with hardware settings
+
+        Returns:
+            Initial state dictionary for frontend
+        """
+        logger.info(f"[{self.experiment_id}] ========== INITIALIZE START ==========")
+
+        # Override default parameters from config
+        self.TRIAL_END_Y = config.get('trialEndY', self.TRIAL_END_Y)
+        self.PLAYER_RADIUS = config.get('playerRadius', self.PLAYER_RADIUS)
+        self.MAX_LINEAR_VELOCITY = config.get('maxVelocity', self.MAX_LINEAR_VELOCITY)
+        self.WATER_VOLTAGE = config.get('waterVoltage', self.WATER_VOLTAGE)
+        self.WATER_DURATION_MS = config.get('waterDurationMs', self.WATER_DURATION_MS)
+
+        # === 1. INITIALIZE SERIAL PORT (ELECTRON STYLE) ===
+        try:
+            import serial
+
+            port = config.get('port', 'COM3')  # Electron default: COM3
+            baudrate = config.get('baudRate', 115200)
+
+            self.serial_port = serial.Serial(
+                port=port,
+                baudrate=baudrate,
+                timeout=0.001,  # Non-blocking reads
+                write_timeout=1.0
+            )
+
+            logger.info(f"[{self.experiment_id}] Serial port opened: {port} @ {baudrate} baud")
+
+            # Wait for initialization (like Electron: 2000ms)
+            await asyncio.sleep(2.0)
+
+            # Send initialization string (MATCHES ELECTRON: "10000,50,10,1\n")
+            init_string = "10000,50,10,1\n"
+            self.serial_port.write(init_string.encode('utf-8'))
+            logger.info(f"[{self.experiment_id}] Initialization string sent: {init_string.strip()}")
+
+            # Start background task to read serial data
+            self.serial_read_task = asyncio.create_task(self._serial_read_loop())
+
+            await asyncio.sleep(0.5)
+
+        except Exception as e:
+            logger.error(f"[{self.experiment_id}] Failed to initialize serial port: {e}")
+            raise
+
+        # === 2. INITIALIZE WATER DELIVERY (ELECTRON STYLE - PERSISTENT TASK) ===
+        try:
+            import nidaqmx
+            from nidaqmx.constants import VoltageUnits, SampleTimingType
+
+            daq_device = config.get('daqDevice', 'Dev1')
+            daq_channel = config.get('daqChannel', 'ao0')
+
+            # Create persistent DAQ task (like water_delivery.py)
+            self.daq_task = nidaqmx.Task()
+            self.daq_task.ao_channels.add_ao_voltage_chan(
+                f"{daq_device}/{daq_channel}",
+                min_val=0.0,
+                max_val=5.0,
+                units=VoltageUnits.VOLTS
+            )
+            # Set timing to ON_DEMAND (like water_delivery.py)
+            self.daq_task.timing.samp_timing_type = SampleTimingType.ON_DEMAND
+
+            logger.info(f"[{self.experiment_id}] Persistent DAQ task created: {daq_device}/{daq_channel}")
+            logger.info(f"[{self.experiment_id}] Water delivery: {self.WATER_VOLTAGE}V, {self.WATER_DURATION_MS}ms")
+
+        except Exception as e:
+            logger.warning(f"[{self.experiment_id}] DAQ not available: {e}")
+            self.daq_task = None
+
+        # === 3. OPEN DATA FILES (DUAL LOGS) ===
+        try:
+            # Create logs directory (like Electron creates VirmenData)
+            os.makedirs("logs", exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+
+            # Main data log (matches NewSerialHallwayScene.vue format)
+            self.data_file_path = f"logs/{self.experiment_id}-{timestamp}-data.tsv"
+            self.data_file = open(self.data_file_path, 'w')
+            # Format: x, -y, theta, raw_x, raw_y, water, timestamp, scene_name
+            data_header = "x\t-y\ttheta\traw_x\traw_y\twater\ttimestamp\tscene_name\n"
+            self.data_file.write(data_header)
+
+            logger.info(f"[{self.experiment_id}] Data file opened: {self.data_file_path}")
+
+        except Exception as e:
+            logger.error(f"[{self.experiment_id}] Failed to open data files: {e}")
+            # Cleanup
+            if self.serial_port:
+                self.serial_port.close()
+            if self.daq_task:
+                self.daq_task.close()
+            raise
+
+        # === 4. INITIALIZE EXPERIMENT STATE ===
+        self.position = np.array([0.0, 0.0, self.PLAYER_RADIUS, 0.0])
+        self.velocity = [0.0, 0.0, 0.0, 0.0]
+        self.trial_number = 0
+        self.num_rewards = 0
+        self.fall_count = 0
+        self.is_active = True
+        self.start_time = datetime.now()
+        self.trial_start_time = datetime.now()  # Initialize trial timer
+
+        self.fall_start_time = None
+        self.is_falling = False
+
+        logger.info(f"[{self.experiment_id}] Initialization complete")
+        logger.info(f"[{self.experiment_id}] Trial end at Y = ±{self.TRIAL_END_Y}")
+        logger.info(f"[{self.experiment_id}] Using Vue conversion factor: {self.ENCODER_TO_CM}")
+        logger.info(f"[{self.experiment_id}] ========== INITIALIZE COMPLETE ==========")
+
+        return self.get_state()
+
+    async def _serial_read_loop(self):
+        """Background task to read serial data continuously and process immediately."""
+        logger.info(f"[{self.experiment_id}] Serial read loop started")
+
+        while self.serial_port and self.serial_port.is_open:
+            try:
+                if self.serial_port.in_waiting > 0:
+                    line = self.serial_port.readline().decode('utf-8').strip()
+                    if line:
+                        # Parse the data
+                        parsed = self._parse_serial_line(line)
+                        if parsed:
+                            # Store as latest data
+                            self.last_sensor_data = parsed
+
+                            # Calculate velocities from serial data
+                            velocities = self._calculate_velocities(parsed)
+
+                            # Send serial_data event to frontend (event-driven)
+                            if self.event_callback:
+                                try:
+                                    data_to_send = {
+                                        'velocity': velocities,
+                                        'raw': {
+                                            'x': parsed.get('x', 0),
+                                            'y': parsed.get('y', 0),
+                                            'theta': parsed.get('theta', 0)
+                                        },
+                                        'timestamp': parsed.get('timestamp'),
+                                        'water': parsed.get('water', 0),
+                                        'frameCount': parsed.get('frameCount', 0)
+                                    }
+
+                                    # Debug: log first few serial_data events
+                                    if not hasattr(self, '_serial_data_count'):
+                                        self._serial_data_count = 0
+
+                                    if self._serial_data_count < 5:
+                                        logger.info(f"[{self.experiment_id}] Sending serial_data: vel={{x:{velocities['x']:.3f}, z:{velocities['z']:.3f}, theta:{velocities['theta']:.3f}}}, raw={{x:{parsed.get('x', 0)}, y:{parsed.get('y', 0)}}}")
+                                        self._serial_data_count += 1
+
+                                    await self.event_callback('serial_data', data_to_send)
+                                except Exception as e:
+                                    logger.error(f"[{self.experiment_id}] Error in event callback: {e}")
+
+                            # Update internal position from velocities
+                            self._update_position_from_velocities(velocities)
+
+                            # Log data immediately (backend-driven logging)
+                            self._log_data()
+
+                            # Keep in buffer for compatibility (but now only for backup)
+                            self.serial_buffer.append(parsed)
+                            if len(self.serial_buffer) > 10:
+                                self.serial_buffer.pop(0)
+            except Exception as e:
+                logger.error(f"[{self.experiment_id}] Serial read error: {e}")
+
+            await asyncio.sleep(0.001)  # 1ms poll rate for responsive serial reading
+
+    def _parse_serial_line(self, line: str) -> Optional[Dict[str, Any]]:
+        """
+        Parse a line of CSV data from Teensy.
+
+        ELECTRON MAIN.JS PREPROCESSING (lines 549-583):
+        Expected 13-field format:
+        timestamp,left_dx,left_dy,left_dt,right_dx,right_dy,right_dt,x,y,theta,water,direction,frameCount
+
+        Returns format matching Electron preprocessing output.
+        """
+        try:
+            # Skip non-data lines
+            skip_patterns = [
+                '[CMD]', '[CONFIG]', '[INFO]', '[START]', '[RUNNING]', '[STOP]',
+                'Time(us)', 'Data Header', 'Data Start', '---', '==='
+            ]
+            if any(pattern in line for pattern in skip_patterns):
+                return None
+
+            # Skip lines that don't start with a digit
+            if not line or not line[0].isdigit():
+                return None
+
+            values = line.split(',')
+            if len(values) < 13:
+                return None
+
+            # Parse 13-field format (MATCHES ELECTRON main.js:554-573)
+            parsed_data = {
+                'timestamp': values[0],
+                'leftSensor': {
+                    'dx': float(values[1]),
+                    'dy': float(values[2]),
+                    'dt': float(values[3])
+                },
+                'rightSensor': {
+                    'dx': float(values[4]),
+                    'dy': float(values[5]),
+                    'dt': float(values[6])
+                },
+                'x': float(values[7]),
+                'y': float(values[8]),
+                'theta': float(values[9]),
+                'water': int(values[10]),
+                'direction': float(values[11]),
+                'frameCount': int(values[12])
+            }
+
+            return parsed_data
+
+        except (ValueError, IndexError) as e:
+            logger.debug(f"[{self.experiment_id}] Failed to parse line: {line} - {e}")
+            return None
+
+    async def process_serial_data(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Return current experiment state for frontend.
+
+        BACKEND-DRIVEN ARCHITECTURE:
+        - Serial data is read and processed in _serial_read_loop()
+        - This method just returns the current state for the autonomous_experiment_loop()
+        - Data logging happens in _serial_read_loop() at the rate serial data arrives
+
+        Args:
+            data: None (standalone mode reads own serial buffer)
+
+        Returns:
+            Updated state dict for frontend, or None if no update
+        """
+        if not self.is_active:
+            return None
+
+        # Check for trial end condition (based on current position)
+        if abs(self.position[1]) >= self.TRIAL_END_Y:
+            await self._handle_trial_end()
+
+        # Return current state (no processing needed, already done in _serial_read_loop)
+        return self.get_state()
+
+    async def process_position_update(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Process position update from frontend physics engine.
+
+        VUE FRONTEND SYNC: Frontend sends position every frame (~60Hz).
+        Backend checks for events (trial end, fall timeout) and either
+        echoes position or sends reset command.
+
+        This method is CRITICAL for fall detection because:
+        - Vue frontend's Rapier physics engine updates position continuously
+        - Height (y) decreases due to gravity when falling
+        - Backend needs these updates to detect fall timeout
+
+        Args:
+            data: Position dict with keys: x, y (height), z, theta
+                  Note: Frontend Z is our Y (forward/back)
+                        Frontend Y is our Z (height)
+
+        Returns:
+            Position dict with action, lockMovement flag, and position data
+        """
+        if not self.is_active:
+            return {
+                'action': 'update',
+                'lockMovement': False,
+                **data
+            }
+
+        self.position_update_count += 1
+
+        # Update position from frontend physics engine
+        # Coordinate mapping: Frontend (x, y, z) -> Backend (x, z, y)
+        # - Frontend X -> Backend X (left/right)
+        # - Frontend Y -> Backend Z (height/vertical)
+        # - Frontend Z -> Backend Y (forward/backward)
+        self.position[0] = data.get('x', 0)
+        self.position[1] = data.get('z', 0)  # Frontend Z -> Backend Y
+        self.position[2] = data.get('y', 0)  # Frontend Y (height) -> Backend Z
+        self.position[3] = data.get('theta', 0)
+
+        # Check for fall condition (Vue-style)
+        current_height = self.position[2]
+
+        # Use a forgiving threshold to avoid false positives from physics engine settling
+        # The ball sits on ground at PLAYER_RADIUS (0.5m), but physics jitter drops it to ~0.48m
+        # Only detect falls when significantly below the player radius
+        FALL_THRESHOLD = self.PLAYER_RADIUS * 0.8  # 80% of player radius (0.4m for 0.5m radius)
+        RECOVERY_THRESHOLD = self.PLAYER_RADIUS * 0.85  # Recover at 85% (0.425m) to add hysteresis
+
+        if current_height < FALL_THRESHOLD and self.fall_start_time is None:
+            # Start tracking fall
+            self.fall_start_time = datetime.now()
+            self.is_falling = True
+            self.fall_count += 1
+            logger.info(f"[{self.experiment_id}] Fall detected! Total falls: {self.fall_count} (height: {current_height:.2f}m, threshold: {FALL_THRESHOLD:.2f}m)")
+        elif current_height >= RECOVERY_THRESHOLD and self.is_falling:
+            # Reset fall tracking when recovered (with hysteresis to prevent bouncing)
+            self.fall_start_time = None
+            self.is_falling = False
+            logger.info(f"[{self.experiment_id}] Fall recovered (height: {current_height:.2f}m)")
+
+        # Check fall timeout and reset if needed
+        need_reset = False
+        if self.fall_start_time is not None:
+            fall_duration = (datetime.now() - self.fall_start_time).total_seconds() * 1000
+            if fall_duration > self.FALL_RESET_TIME:
+                logger.info(f"[{self.experiment_id}] Fall timeout ({fall_duration:.0f}ms) - resetting player")
+                need_reset = True
+
+        # Check for trial end condition
+        if abs(self.position[1]) >= self.TRIAL_END_Y:
+            logger.info(f"[{self.experiment_id}] Trial end detected (Y={self.position[1]:.2f})")
+            await self._handle_trial_end()
+            need_reset = True
+
+        # NOTE: Data logging removed from here - now happens in _serial_read_loop() at serial data rate
+        # This ensures data is logged at the rate it arrives from hardware, not at frontend update rate
+
+        # Flush data file periodically on important events
+        if self.data_file and (need_reset or self.is_falling):
+            self.data_file.flush()
+
+        # Return position with action, lock flag, and current velocity
+        if need_reset:
+            self._reset_player()
+            # Send SET command to teleport player to specified position
+            # For now, always teleport to origin, but can be randomized/changed in the future
+            return {
+                'action': 'set',
+                'lockMovement': False,  # Unlock after teleport
+                'x': 0.0,
+                'y': self.PLAYER_RADIUS,  # Frontend Y = height
+                'z': 0.0,                 # Frontend Z = forward/back
+                'theta': 0.0,
+                'velocity': list(self.velocity)  # Include velocity for frontend
+            }
+        elif self.is_falling:
+            # During fall: echo position but LOCK horizontal movement
+            return {
+                'action': 'update',
+                'lockMovement': True,  # Lock XZ movement during fall
+                'velocity': list(self.velocity),  # Include current velocity
+                **data
+            }
+        else:
+            # Normal: echo back the position (confirmation) with current velocity
+            return {
+                'action': 'update',
+                'lockMovement': False,
+                'velocity': list(self.velocity),  # Include current velocity
+                **data
+            }
+
+    def _calculate_velocities(self, data: Dict[str, Any]) -> Dict[str, float]:
+        """
+        Calculate velocities from serial data.
+
+        Args:
+            data: Parsed serial data with x, y, theta
+
+        Returns:
+            Dictionary with velocities in world coordinates (m/s):
+            {
+                'x': world_vx (m/s),
+                'z': world_vz (m/s),
+                'y': 0.0 (vertical controlled by physics),
+                'theta': raw_theta (rotation speed)
+            }
+        """
+        try:
+            # Extract x, y, theta from preprocessed data
+            raw_x = float(data.get('x', 0))
+            raw_y = float(data.get('y', 0))
+            raw_theta = float(data.get('theta', 0))
+
+            # Convert displacement to velocity (Vue-style with 0.0465)
+            # Units: encoder counts * (cm/count) / (seconds) = cm/s
+            vx = np.clip(
+                raw_x * self.ENCODER_TO_CM / self.DT,
+                -self.MAX_LINEAR_VELOCITY,
+                self.MAX_LINEAR_VELOCITY
+            )
+            vy = np.clip(
+                raw_y * self.ENCODER_TO_CM / self.DT,
+                -self.MAX_LINEAR_VELOCITY,
+                self.MAX_LINEAR_VELOCITY
+            )
+
+            # Get current theta for world transformation
+            theta = self.position[3]
+
+            # VUE-STYLE world coordinate transformation
+            world_vx = -vx * np.cos(theta) - vy * np.sin(theta)
+            world_vz = vx * np.sin(theta) - vy * np.cos(theta)
+
+            # Return velocities in m/s (convert from cm/s)
+            return {
+                'x': world_vx / 100.0,      # cm/s -> m/s
+                'z': -world_vz / 100.0,     # cm/s -> m/s, negated for correct direction
+                'y': 0.0,                    # Vertical velocity controlled by physics
+                'theta': raw_theta           # Rotation speed (rad/frame)
+            }
+
+        except Exception as e:
+            logger.error(f"[{self.experiment_id}] Error calculating velocities: {e}")
+            return {'x': 0.0, 'z': 0.0, 'y': 0.0, 'theta': 0.0}
+
+    def _update_position_from_velocities(self, velocities: Dict[str, float]):
+        """
+        Update internal position from calculated velocities.
+
+        Args:
+            velocities: Dictionary with x, z, y, theta velocities
+        """
+        try:
+            # Lock movement and rotation when falling
+            if not self.is_falling:
+                # Normal movement - update all velocities
+                self.velocity[0] = velocities['x'] * 100.0  # m/s -> cm/s
+                self.velocity[1] = velocities['z'] * 100.0  # m/s -> cm/s
+                self.velocity[2] = 0.0  # Vertical velocity controlled by physics
+                self.velocity[3] = velocities['theta']  # Store raw theta for frontend
+
+                # Update position (manual integration)
+                self.position[0] += self.velocity[0] * self.DT
+                self.position[1] += self.velocity[1] * self.DT
+
+                # Update rotation
+                delta_theta = velocities['theta'] * 0.05
+                self.position[3] += delta_theta
+            else:
+                # Falling - lock all horizontal movement and rotation
+                self.velocity[0] = 0.0
+                self.velocity[1] = 0.0
+                self.velocity[2] = 0.0  # Vertical velocity controlled by physics
+                self.velocity[3] = 0.0  # Lock rotation
+
+            # Normalize theta to [-π, π]
+            while self.position[3] > np.pi:
+                self.position[3] -= 2 * np.pi
+            while self.position[3] < -np.pi:
+                self.position[3] += 2 * np.pi
+
+        except Exception as e:
+            logger.error(f"[{self.experiment_id}] Error updating position: {e}")
+
+    def _check_fall_condition(self):
+        """
+        Check if player has fallen off the platform.
+
+        VUE-STYLE (NewSerialHallwayScene.vue:168-192):
+        - Exact PLAYER_RADIUS threshold
+        - Fall timeout: 5000ms
+        """
+        current_height = self.position[2]
+
+        # Vue-style fall detection (line 168): if (currentY < PLAYER_RADIUS && !fallStartTime.value)
+        if current_height < self.PLAYER_RADIUS and self.fall_start_time is None:
+            # Start tracking fall
+            self.fall_start_time = datetime.now()
+            self.is_falling = True
+            self.fall_count += 1
+
+            # Lock horizontal movement during fall (set velocity to zero)
+            self.velocity[0] = 0.0
+            self.velocity[1] = 0.0
+
+            logger.info(f"[{self.experiment_id}] Fall detected! Total falls: {self.fall_count} (height: {current_height:.2f}m)")
+
+        elif current_height >= self.PLAYER_RADIUS:
+            # Reset fall tracking when recovered
+            self.fall_start_time = None
+            self.is_falling = False
+
+        # Check fall timeout (Vue:181 - Date.now() - fallStartTime.value > FALL_RESET_TIME)
+        if self.fall_start_time is not None:
+            fall_duration = (datetime.now() - self.fall_start_time).total_seconds() * 1000
+            if fall_duration > self.FALL_RESET_TIME:
+                logger.info(f"[{self.experiment_id}] Fall timeout ({fall_duration:.0f}ms) - resetting player")
+                self._reset_player()
+
+    async def _handle_trial_end(self):
+        """
+        Handle trial completion: deliver reward and reset position.
+
+        VUE-STYLE (NewSerialHallwayScene.vue:195-220):
+        - Reset position first
+        - Then deliver water
+        - Log trial timing (MATCHES ELECTRON)
+        """
+        self.trial_number += 1
+
+        # Calculate trial time (MATCHES ELECTRON main.js:734-738)
+        current_time = datetime.now()
+        trial_time = (current_time - self.trial_start_time).total_seconds()
+
+        logger.info(f"[{self.experiment_id}] Trial {self.trial_number} completed at Y={self.position[1]:.2f}")
+
+        # Reset position first (Vue does this before water delivery, line 197-204)
+        self._reset_player()
+
+        # Then deliver water reward (Vue:208)
+        success = await self._deliver_water()
+
+        if success:
+            # Log timing info (MATCHES ELECTRON console output, line 738)
+            logger.info(f"[{self.experiment_id}] Reward #{self.num_rewards} delivered! Trial time: {trial_time:.2f} seconds")
+
+            # Log water delivery event to data file (matches NewSerialHallwayScene.vue)
+            self._log_data(water_delivered=True)
+        else:
+            logger.warning(f"[{self.experiment_id}] Water delivery failed")
+
+        # Reset trial timer for next trial (MATCHES ELECTRON line 741)
+        self.trial_start_time = datetime.now()
+
+    async def _deliver_water(self) -> bool:
+        """
+        Deliver water reward using persistent DAQ task.
+
+        ELECTRON STYLE (water_delivery.py:12-18):
+        - 5V pulse (configurable)
+        - 17ms duration (Electron default, configurable)
+        - Uses persistent DAQ task
+        """
+        if not self.daq_task:
+            logger.warning(f"[{self.experiment_id}] DAQ not available for water delivery")
+            return False
+
+        try:
+            duration_s = self.WATER_DURATION_MS / 1000.0
+
+            # Send voltage pulse (MATCHES water_delivery.py:15-18)
+            self.daq_task.write([self.WATER_VOLTAGE], auto_start=True)
+            await asyncio.sleep(duration_s)
+            # Reset to 0V
+            self.daq_task.write([0.0], auto_start=True)
+
+            self.num_rewards += 1
+            return True
+
+        except Exception as e:
+            logger.error(f"[{self.experiment_id}] Water delivery error: {e}")
+            return False
+
+    def _reset_player(self):
+        """
+        Reset player to starting position.
+
+        VUE-STYLE (NewSerialHallwayScene.vue:183-188):
+        - Reset position, rotation, and velocity
+        """
+        logger.info(f"[{self.experiment_id}] Resetting player to start position")
+
+        # Reset position
+        self.position = np.array([0.0, 0.0, self.PLAYER_RADIUS, 0.0])
+
+        # Reset velocity
+        self.velocity = [0.0, 0.0, 0.0, 0.0]
+
+        # Reset fall tracking
+        self.fall_start_time = None
+        self.is_falling = False
+
+    def _log_data(self, water_delivered=False):
+        """
+        Write current state to data file.
+
+        Matches NewSerialHallwayScene.vue format:
+        x, -y, theta, raw_x, raw_y, water, timestamp, scene_name
+
+        Args:
+            water_delivered: Whether water reward was just delivered
+        """
+        if self.data_file and self.last_sensor_data:
+            # Use Teensy timestamp from serial data (not Python timestamp)
+            timestamp = self.last_sensor_data.get('timestamp', 0)
+
+            # Format matches NewSerialHallwayScene.vue line 159
+            # x (3 decimals), -y (3 decimals, negated), theta (3 decimals), raw_x, raw_y, water (0/1), timestamp, scene_name
+            line = (
+                f"{self.position[0]:.3f}\t"           # x
+                f"{-self.position[1]:.3f}\t"          # -y (negated!)
+                f"{self.position[3]:.3f}\t"           # theta
+                f"{self.last_sensor_data.get('x', 0)}\t"  # raw_x
+                f"{self.last_sensor_data.get('y', 0)}\t"  # raw_y
+                f"{1 if water_delivered else 0}\t"   # water
+                f"{timestamp}\t"                       # Teensy timestamp (microseconds)
+                f"{self.experiment_id}\n"              # scene_name
+            )
+            self.data_file.write(line)
+            # No flush here - will be flushed periodically by caller for better performance
+
+    def get_state(self) -> Dict[str, Any]:
+        """Get current experiment state for frontend rendering."""
+        return {
+            'player': {
+                'position': self.position.tolist(),
+                'velocity': list(self.velocity)
+            },
+            'experiment': {
+                'trialNumber': self.trial_number,
+                'numRewards': self.num_rewards,
+                'fallCount': self.fall_count,
+                'isActive': self.is_active,
+                'isFalling': self.is_falling,
+                'elapsedTime': self._get_elapsed_time()
+            },
+            'serial_connected': self.serial_port is not None and self.serial_port.is_open,
+            'serial_port': self.serial_port.port if self.serial_port else None,
+            'state': 'running' if self.is_active else 'stopped'
+        }
+
+    def _get_elapsed_time(self) -> float:
+        """Get elapsed time since experiment start."""
+        if self.start_time:
+            return (datetime.now() - self.start_time).total_seconds()
+        return 0.0
+
+    async def terminate(self) -> Dict[str, Any]:
+        """Clean up all hardware resources."""
+        logger.info(f"[{self.experiment_id}] ========== STARTING CLEANUP ==========")
+        logger.info(f"[{self.experiment_id}] Total trials: {self.trial_number}")
+        logger.info(f"[{self.experiment_id}] Total rewards: {self.num_rewards}")
+        logger.info(f"[{self.experiment_id}] Total falls: {self.fall_count}")
+
+        # === 1. STOP SERIAL PORT ===
+        try:
+            if self.serial_port and self.serial_port.is_open:
+                # Cancel background read task
+                if self.serial_read_task:
+                    self.serial_read_task.cancel()
+                    try:
+                        await self.serial_read_task
+                    except asyncio.CancelledError:
+                        pass
+
+                # Close serial port
+                self.serial_port.close()
+                logger.info(f"[{self.experiment_id}] Serial port closed")
+        except Exception as e:
+            logger.error(f"[{self.experiment_id}] Error closing serial port: {e}")
+
+        # === 2. CLOSE DAQ TASK (Persistent task cleanup) ===
+        try:
+            if self.daq_task:
+                # Ensure output is 0V before closing
+                try:
+                    self.daq_task.write([0.0], auto_start=True)
+                except:
+                    pass
+                self.daq_task.close()
+                logger.info(f"[{self.experiment_id}] DAQ task closed")
+        except Exception as e:
+            logger.error(f"[{self.experiment_id}] Error closing DAQ: {e}")
+
+        # === 3. CLOSE DATA FILES ===
+        try:
+            if self.data_file:
+                self.data_file.close()
+                logger.info(f"[{self.experiment_id}] Data file closed: {self.data_file_path}")
+        except Exception as e:
+            logger.error(f"[{self.experiment_id}] Error closing data file: {e}")
+
+        elapsed = self._get_elapsed_time()
+        logger.info(f"[{self.experiment_id}] Total duration: {elapsed:.1f} seconds")
+        logger.info(f"[{self.experiment_id}] ========== CLEANUP COMPLETE ==========")
+
+        self.is_active = False
+
+        return {
+            'trialNumber': self.trial_number,
+            'numRewards': self.num_rewards,
+            'fallCount': self.fall_count,
+            'elapsedTime': elapsed,
+            'rewardRate': self.num_rewards / elapsed if elapsed > 0 else 0
+        }
