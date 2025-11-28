@@ -82,12 +82,16 @@ class HardwareManager:
         self.water_delivery = None
         self.is_initialized = False
 
-    async def initialize_serial(self, port: str, baudrate: int = 115200) -> Dict[str, Any]:
-        """Initialize serial port"""
+    async def initialize_serial(self, port: str, baudrate: int = 115200, data_callback=None) -> Dict[str, Any]:
+        """Initialize serial port with optional data callback"""
         try:
             if self.serial_manager is None:
                 from backend.src.hardware.serial_manager import SerialManager
                 self.serial_manager = SerialManager()
+
+            # Set data callback if provided (for event-driven mode)
+            if data_callback:
+                self.serial_manager.set_data_callback(data_callback)
 
             config = {
                 'port': port,

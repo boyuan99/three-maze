@@ -75,6 +75,9 @@ class BackendServer:
         self.active_experiment = None  # Active Python experiment instance
         self.autonomous_task = None  # Background task for autonomous experiments
 
+        # Event-driven serial data queue (one queue per client)
+        self.client_queues: Dict[Any, asyncio.Queue] = {}
+
         # NEW: Use ExperimentLoader for dynamic loading
         from backend.src.experiment_loader import ExperimentLoader
         self.experiment_loader = ExperimentLoader()
@@ -177,7 +180,12 @@ class BackendServer:
             port = data.get("port", "COM5")
             baudrate = data.get("baudRate", 115200)
 
-            result = await self.hardware_manager.initialize_serial(port, baudrate)
+            # Set up event-driven callback for serial data
+            result = await self.hardware_manager.initialize_serial(
+                port,
+                baudrate,
+                data_callback=self._on_serial_data_received
+            )
 
             if result.get("success"):
                 return {
@@ -462,25 +470,71 @@ class BackendServer:
 
             # === AUTONOMOUS MODE ===
             elif hardware_mode == 'autonomous':
-                # Create experiment without hardware_manager
+                # Create event callback for autonomous experiments
+                async def autonomous_event_callback(event_type: str, data: dict):
+                    """
+                    Event callback for autonomous experiments.
+                    Allows experiments to push data events directly to clients.
+                    """
+                    if 'timestamp' not in data:
+                        data['timestamp'] = time.time() * 1000
+
+                    message_data = {
+                        "type": event_type,
+                        "data": data,
+                        "timestamp": time.time() * 1000
+                    }
+
+                    # Push to all client queues
+                    for queue in self.client_queues.values():
+                        try:
+                            queue.put_nowait(message_data)
+                        except asyncio.QueueFull:
+                            logger.warning(f"Client queue full, dropping {event_type} event")
+
+                # Create experiment with event_callback
                 self.active_experiment = ExperimentClass(
                     experiment_id=experiment_id,
                     config=config,
-                    hardware_manager=None
+                    hardware_manager=None,
+                    event_callback=autonomous_event_callback
                 )
 
-                logger.info(f"Created autonomous experiment: {experiment_id}")
+                logger.info(f"Created autonomous experiment with event callback: {experiment_id}")
 
             # === STANDALONE MODE ===
             elif hardware_mode == 'standalone':
-                # Create experiment without hardware_manager (same as autonomous)
+                # Create event callback for standalone experiments
+                async def standalone_event_callback(event_type: str, data: dict):
+                    """
+                    Event callback for standalone experiments.
+                    Allows experiments to push data events directly to clients.
+                    """
+                    if 'timestamp' not in data:
+                        data['timestamp'] = time.time() * 1000
+
+                    message_data = {
+                        "type": event_type,
+                        "data": data,
+                        "timestamp": time.time() * 1000
+                    }
+
+                    # Push to all client queues
+                    for queue in self.client_queues.values():
+                        try:
+                            queue.put_nowait(message_data)
+                        except asyncio.QueueFull:
+                            logger.warning(f"Client queue full, dropping {event_type} event")
+
+                # Create experiment with event_callback
                 self.active_experiment = ExperimentClass(
                     experiment_id=experiment_id,
                     config=config,
-                    hardware_manager=None
+                    hardware_manager=None,
+                    event_callback=standalone_event_callback
                 )
 
-                logger.info(f"Created standalone experiment: {experiment_id}")
+                logger.info(f"Created standalone experiment with event callback: {experiment_id}")
 
             else:
                 return {
@@ -493,10 +547,12 @@ class BackendServer:
 
             logger.info(f"Experiment initialized successfully: {experiment_id}")
 
-            # Start background loop for autonomous and standalone experiments
+            # Start background loop for autonomous/standalone experiments
+            # This loop broadcasts experiment state (including serial_connected status)
+            # to frontend at regular intervals
             if hardware_mode in ['autonomous', 'standalone']:
                 self.autonomous_task = asyncio.create_task(self.autonomous_experiment_loop())
-                logger.info("Started autonomous experiment background loop")
+                logger.info(f"Started autonomous experiment loop for {hardware_mode} mode")
 
             return {
                 "type": "experiment_registered",
@@ -783,67 +839,109 @@ class BackendServer:
 
         logger.info("Autonomous experiment loop stopped")
 
+    async def _on_serial_data_received(self, serial_data: Dict[str, Any]):
+        """
+        Callback invoked when serial data is received (event-driven).
+        Pushes data to all connected client queues.
+        """
+        # Add timestamp if not present
+        if 'timestamp' not in serial_data:
+            serial_data['timestamp'] = time.time() * 1000
+
+        # If Python experiment is active, process data through it
+        if self.active_experiment:
+            try:
+                experiment_state = await self.active_experiment.process_serial_data(serial_data)
+
+                if experiment_state:
+                    # Push experiment state to all client queues
+                    message_data = {
+                        "type": "experiment_state",
+                        "data": experiment_state,
+                        "timestamp": time.time() * 1000
+                    }
+
+                    for queue in self.client_queues.values():
+                        try:
+                            queue.put_nowait(message_data)
+                        except asyncio.QueueFull:
+                            logger.warning("Client queue full, dropping data")
+                    return
+            except Exception as e:
+                logger.error(f"Error processing serial data in experiment: {e}")
+                # Fall through to send raw data
+
+        # No experiment or experiment processing failed - send raw serial data
+        message_data = {
+            "type": "serial_data",
+            "data": serial_data,
+            "timestamp": serial_data.get('timestamp', time.time() * 1000)
+        }
+
+        # Push to all client queues
+        for queue in self.client_queues.values():
+            try:
+                queue.put_nowait(message_data)
+            except asyncio.QueueFull:
+                logger.warning("Client queue full, dropping data")
+
     async def serial_data_streamer(self, websocket: Any):
         """
-        Stream serial data to client at ~60 Hz (or from replayer if in replay mode).
+        Event-driven serial data streamer.
 
-        If a Python experiment is active (MANAGED mode), process serial data through
-        the experiment and send back the updated state. Otherwise, send raw serial
-        data to frontend.
+        Waits for data from the client's queue (populated by serial data callback)
+        and sends it to the WebSocket client immediately.
 
         Note: This is only for MANAGED mode experiments. AUTONOMOUS experiments use
         autonomous_experiment_loop() instead.
         """
-        while websocket in self.active_clients:
-            try:
-                serial_data = None
+        # Create a queue for this client
+        client_queue = asyncio.Queue(maxsize=1000)  # Buffer up to 1000 messages
+        self.client_queues[websocket] = client_queue
 
-                # Get data from replayer if in replay mode
-                if self.replay_mode and self.replayer:
-                    serial_data = await self.replayer.get_next_frame()
-                # Otherwise get from hardware
-                elif self.hardware_manager:
-                    serial_data = await self.hardware_manager.read_serial_data()
+        logger.info(f"Started event-driven serial data streamer for client")
 
-                if serial_data:
-                    # If Python experiment is active, process data through it
-                    if self.active_experiment:
-                        try:
-                            experiment_state = await self.active_experiment.process_serial_data(serial_data)
+        try:
+            while websocket in self.active_clients:
+                try:
+                    # In replay mode, use replayer with polling
+                    if self.replay_mode and self.replayer:
+                        serial_data = await self.replayer.get_next_frame()
 
-                            if experiment_state:
-                                # Send experiment state update
+                        if serial_data:
+                            # Process through experiment if active
+                            if self.active_experiment:
+                                try:
+                                    experiment_state = await self.active_experiment.process_serial_data(serial_data)
+                                    if experiment_state:
+                                        message = {
+                                            "type": "experiment_state",
+                                            "data": experiment_state,
+                                            "timestamp": time.time() * 1000
+                                        }
+                                        await websocket.send(json.dumps(message))
+                                except Exception as e:
+                                    logger.error(f"Error processing replay data in experiment: {e}")
+                            else:
                                 message = {
-                                    "type": "experiment_state",
-                                    "data": experiment_state,
+                                    "type": "serial_data",
+                                    "data": serial_data,
                                     "timestamp": time.time() * 1000
                                 }
                                 await websocket.send(json.dumps(message))
-                        except Exception as e:
-                            logger.error(f"Error processing serial data in experiment: {e}")
-                            # Fall back to sending raw serial data
-                            message = {
-                                "type": "serial_data",
-                                "data": serial_data,
-                                "timestamp": time.time() * 1000
-                            }
-                            await websocket.send(json.dumps(message))
                     else:
-                        # No Python experiment active - send raw serial data
-                        message = {
-                            "type": "serial_data",
-                            "data": serial_data,
-                            "timestamp": time.time() * 1000
-                        }
-                        await websocket.send(json.dumps(message))
+                        # Event-driven mode: wait for data from queue
+                        message_data = await client_queue.get()
+                        await websocket.send(json.dumps(message_data))
 
-                # ~60 Hz = ~16ms delay (replayer handles its own timing)
-                if not self.replay_mode:
-                    await asyncio.sleep(0.016)
-
-            except Exception as e:
-                logger.error(f"Error streaming serial data: {e}")
-                await asyncio.sleep(0.1)  # Slow down on error
+                except Exception as e:
+                    logger.error(f"Error streaming serial data: {e}")
+                    await asyncio.sleep(0.1)  # Slow down on error
+        finally:
+            # Cleanup: remove client queue
+            if websocket in self.client_queues:
+                del self.client_queues[websocket]
+                logger.info(f"Removed client queue")
 
     async def handle_client(self, websocket: Any):
         """Handle client connection"""
