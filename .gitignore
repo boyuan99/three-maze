@@ -53,6 +53,7 @@ temp/
 **/test/
 coverage/
 .nyc_output/
+virtual_sensor/
 
 # ========================
 # Project Specific
