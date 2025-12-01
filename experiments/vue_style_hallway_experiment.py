@@ -109,8 +109,8 @@ class Experiment:
         self.MAX_LINEAR_VELOCITY = 100.0
         self.DT = 1.0 / 20.0  # 20Hz
 
-        # Conversion factor (MATCHES VUE)
-        self.ENCODER_TO_CM = 0.0465  # Vue uses 0.0465
+        # Conversion factor (matches frontend PythonCustomScene.vue)
+        self.ENCODER_TO_CM = 0.0364  # Frontend uses 0.0364
 
         # Trial parameters
         self.TRIAL_END_Y = 70.0
@@ -291,19 +291,19 @@ class Experiment:
                             # Store as latest data
                             self.last_sensor_data = parsed
 
-                            # Calculate velocities from serial data
-                            velocities = self._calculate_velocities(parsed)
+                            # Calculate world velocities and deltaTheta from serial data
+                            # This performs ALL conversions so frontend can directly apply
+                            standardized_data = self._calculate_standardized_motion(parsed)
 
                             # Send serial_data event to frontend (event-driven)
                             if self.event_callback:
                                 try:
+                                    # Standardized format for frontend:
+                                    # - velocity: world coordinates (m/s), directly apply to physics
+                                    # - deltaTheta: rotation increment (radians), directly add to theta
                                     data_to_send = {
-                                        'velocity': velocities,
-                                        'raw': {
-                                            'x': parsed.get('x', 0),
-                                            'y': parsed.get('y', 0),
-                                            'theta': parsed.get('theta', 0)
-                                        },
+                                        'velocity': standardized_data['velocity'],
+                                        'deltaTheta': standardized_data['deltaTheta'],
                                         'timestamp': parsed.get('timestamp'),
                                         'water': parsed.get('water', 0),
                                         'frameCount': parsed.get('frameCount', 0)
@@ -314,15 +314,16 @@ class Experiment:
                                         self._serial_data_count = 0
 
                                     if self._serial_data_count < 5:
-                                        logger.info(f"[{self.experiment_id}] Sending serial_data: vel={{x:{velocities['x']:.3f}, z:{velocities['z']:.3f}, theta:{velocities['theta']:.3f}}}, raw={{x:{parsed.get('x', 0)}, y:{parsed.get('y', 0)}}}")
+                                        vel = standardized_data['velocity']
+                                        logger.info(f"[{self.experiment_id}] Sending serial_data: vel={{x:{vel['x']:.4f}, z:{vel['z']:.4f}}}, deltaTheta={standardized_data['deltaTheta']:.4f}")
                                         self._serial_data_count += 1
 
                                     await self.event_callback('serial_data', data_to_send)
                                 except Exception as e:
                                     logger.error(f"[{self.experiment_id}] Error in event callback: {e}")
 
-                            # Update internal position from velocities
-                            self._update_position_from_velocities(velocities)
+                            # Update internal position from standardized motion data
+                            self._update_position_from_standardized(standardized_data)
 
                             # Log data immediately (backend-driven logging)
                             self._log_data()
@@ -528,30 +529,37 @@ class Experiment:
                 **data
             }
 
-    def _calculate_velocities(self, data: Dict[str, Any]) -> Dict[str, float]:
+    def _calculate_standardized_motion(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Calculate velocities from serial data.
+        Calculate standardized motion data from serial input.
+        
+        Performs ALL conversions so frontend can directly apply the values:
+        - velocity: world coordinates (m/s), directly apply to physics engine
+        - deltaTheta: rotation increment (radians), directly add to current theta
+        
+        This matches the conversion logic from PythonCustomScene.vue:
+        - vx = raw_x * 0.0364 / DT
+        - worldVx = vx * cos(theta) - vy * sin(theta)
+        - deltaTheta = raw_theta * 0.05
 
         Args:
             data: Parsed serial data with x, y, theta
 
         Returns:
-            Dictionary with velocities in world coordinates (m/s):
+            Dictionary with standardized motion data:
             {
-                'x': world_vx (m/s),
-                'z': world_vz (m/s),
-                'y': 0.0 (vertical controlled by physics),
-                'theta': raw_theta (rotation speed)
+                'velocity': {'x': m/s, 'y': None, 'z': m/s},
+                'deltaTheta': radians
             }
         """
         try:
-            # Extract x, y, theta from preprocessed data
+            # Extract raw displacement values from serial data
             raw_x = float(data.get('x', 0))
             raw_y = float(data.get('y', 0))
             raw_theta = float(data.get('theta', 0))
 
-            # Convert displacement to velocity (Vue-style with 0.0465)
-            # Units: encoder counts * (cm/count) / (seconds) = cm/s
+            # Convert displacement to velocity (matches frontend: raw * 0.0364 / DT)
+            # Result is in some internal velocity unit, will be used as m/s by frontend
             vx = np.clip(
                 raw_x * self.ENCODER_TO_CM / self.DT,
                 -self.MAX_LINEAR_VELOCITY,
@@ -566,21 +574,70 @@ class Experiment:
             # Get current theta for world transformation
             theta = self.position[3]
 
-            # VUE-STYLE world coordinate transformation
-            world_vx = -vx * np.cos(theta) - vy * np.sin(theta)
-            world_vz = vx * np.sin(theta) - vy * np.cos(theta)
+            # World coordinate transformation
+            # Negating world_vx to correct left/right direction
+            world_vx = -(vx * np.cos(theta) - vy * np.sin(theta))
+            world_vz = -vx * np.sin(theta) - vy * np.cos(theta)
 
-            # Return velocities in m/s (convert from cm/s)
+            # Calculate deltaTheta (matches frontend: raw_theta * 0.05)
+            delta_theta = raw_theta * 0.05
+
+            # Lock movement when falling
+            if self.is_falling:
+                world_vx = 0.0
+                world_vz = 0.0
+                delta_theta = 0.0
+
             return {
-                'x': world_vx / 100.0,      # cm/s -> m/s
-                'z': -world_vz / 100.0,     # cm/s -> m/s, negated for correct direction
-                'y': 0.0,                    # Vertical velocity controlled by physics
-                'theta': raw_theta           # Rotation speed (rad/frame)
+                'velocity': {
+                    'x': world_vx,
+                    'y': None,  # Vertical velocity controlled by physics engine (gravity)
+                    'z': world_vz
+                },
+                'deltaTheta': delta_theta
             }
 
         except Exception as e:
-            logger.error(f"[{self.experiment_id}] Error calculating velocities: {e}")
-            return {'x': 0.0, 'z': 0.0, 'y': 0.0, 'theta': 0.0}
+            logger.error(f"[{self.experiment_id}] Error calculating standardized motion: {e}")
+            return {
+                'velocity': {'x': 0.0, 'y': None, 'z': 0.0},
+                'deltaTheta': 0.0
+            }
+
+    def _update_position_from_standardized(self, motion_data: Dict[str, Any]):
+        """
+        Update internal position from standardized motion data.
+
+        Args:
+            motion_data: Dictionary with velocity and deltaTheta
+        """
+        try:
+            vel = motion_data['velocity']
+            delta_theta = motion_data['deltaTheta']
+
+            if not self.is_falling:
+                # Store velocity for internal tracking (convert to cm/s for consistency)
+                self.velocity[0] = vel['x'] * 100.0 if vel['x'] else 0.0
+                self.velocity[1] = vel['z'] * 100.0 if vel['z'] else 0.0
+                self.velocity[2] = 0.0  # Vertical controlled by physics
+                self.velocity[3] = delta_theta
+
+                # Update internal position (manual integration)
+                self.position[0] += self.velocity[0] * self.DT
+                self.position[1] += self.velocity[1] * self.DT
+                self.position[3] += delta_theta
+            else:
+                # Falling - lock all movement
+                self.velocity = [0.0, 0.0, 0.0, 0.0]
+
+            # Normalize theta to [-π, π]
+            while self.position[3] > np.pi:
+                self.position[3] -= 2 * np.pi
+            while self.position[3] < -np.pi:
+                self.position[3] += 2 * np.pi
+
+        except Exception as e:
+            logger.error(f"[{self.experiment_id}] Error updating position: {e}")
 
     def _update_position_from_velocities(self, velocities: Dict[str, float]):
         """
