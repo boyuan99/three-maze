@@ -73,7 +73,6 @@ class BackendServer:
         self.data_logger = None
         self.replayer = None  # DataReplayer instance if in replay mode
         self.active_experiment = None  # Active Python experiment instance
-        self.autonomous_task = None  # Background task for autonomous experiments
 
         # Event-driven serial data queue (one queue per client)
         self.client_queues: Dict[Any, asyncio.Queue] = {}
@@ -369,12 +368,11 @@ class BackendServer:
         """
         Handle Python experiment registration with dynamic loading.
 
-        NEW: Experiments are loaded dynamically from experiments/ folder.
-        No manual registration needed!
+        Experiments are loaded dynamically from experiments/ folder.
 
         Supports two hardware management modes:
-        1. MANAGED: Backend provides shared hardware_manager
-        2. AUTONOMOUS: Experiment manages its own hardware
+        1. MANAGED: Backend provides shared hardware_manager, event-driven
+        2. STANDALONE: Experiment manages its own hardware, event-driven
         """
         try:
             # NEW: Accept either experimentId (old) or filename (new)
@@ -433,8 +431,7 @@ class BackendServer:
                 # For backward compatibility, map old IDs to filenames
                 id_to_file = {
                     "hallway02": "hallway_experiment.py",
-                    "hallway_python": "hallway_experiment.py",
-                    "autonomous_hallway": "autonomous_hallway_experiment.py"
+                    "hallway_python": "hallway_experiment.py"
                 }
 
                 filename = id_to_file.get(experiment_id)
@@ -468,41 +465,7 @@ class BackendServer:
 
                 logger.info(f"Created managed experiment: {experiment_id}")
 
-            # === AUTONOMOUS MODE ===
-            elif hardware_mode == 'autonomous':
-                # Create event callback for autonomous experiments
-                async def autonomous_event_callback(event_type: str, data: dict):
-                    """
-                    Event callback for autonomous experiments.
-                    Allows experiments to push data events directly to clients.
-                    """
-                    if 'timestamp' not in data:
-                        data['timestamp'] = time.time() * 1000
-
-                    message_data = {
-                        "type": event_type,
-                        "data": data,
-                        "timestamp": time.time() * 1000
-                    }
-
-                    # Push to all client queues
-                    for queue in self.client_queues.values():
-                        try:
-                            queue.put_nowait(message_data)
-                        except asyncio.QueueFull:
-                            logger.warning(f"Client queue full, dropping {event_type} event")
-
-                # Create experiment with event_callback
-                self.active_experiment = ExperimentClass(
-                    experiment_id=experiment_id,
-                    config=config,
-                    hardware_manager=None,
-                    event_callback=autonomous_event_callback
-                )
-
-                logger.info(f"Created autonomous experiment with event callback: {experiment_id}")
-
-            # === STANDALONE MODE ===
+            # === STANDALONE MODE (Event-Driven) ===
             elif hardware_mode == 'standalone':
                 # Create event callback for standalone experiments
                 async def standalone_event_callback(event_type: str, data: dict):
@@ -547,12 +510,8 @@ class BackendServer:
 
             logger.info(f"Experiment initialized successfully: {experiment_id}")
 
-            # Start background loop for autonomous/standalone experiments
-            # This loop broadcasts experiment state (including serial_connected status)
-            # to frontend at regular intervals
-            if hardware_mode in ['autonomous', 'standalone']:
-                self.autonomous_task = asyncio.create_task(self.autonomous_experiment_loop())
-                logger.info(f"Started autonomous experiment loop for {hardware_mode} mode")
+            # STANDALONE mode is purely event-driven, no polling loop needed
+            # Data is pushed via event_callback when serial data arrives
 
             return {
                 "type": "experiment_registered",
@@ -568,13 +527,6 @@ class BackendServer:
         except Exception as e:
             logger.error(f"Error registering experiment: {e}", exc_info=True)
             # Cleanup if initialization failed
-            if self.autonomous_task:
-                self.autonomous_task.cancel()
-                try:
-                    await self.autonomous_task
-                except asyncio.CancelledError:
-                    pass
-                self.autonomous_task = None
             if self.active_experiment is not None:
                 try:
                     await self.active_experiment.terminate()
@@ -600,16 +552,6 @@ class BackendServer:
         """Handle Python experiment unregistration"""
         if self.active_experiment:
             try:
-                # Stop autonomous task if running
-                if self.autonomous_task:
-                    self.autonomous_task.cancel()
-                    try:
-                        await self.autonomous_task
-                    except asyncio.CancelledError:
-                        pass
-                    self.autonomous_task = None
-                    logger.info("Stopped autonomous experiment background loop")
-
                 summary = await self.active_experiment.terminate()
                 experiment_id = self.active_experiment.experiment_id
                 self.active_experiment = None
@@ -791,54 +733,6 @@ class BackendServer:
                 "timestamp": time.time() * 1000
             }))
 
-    async def autonomous_experiment_loop(self):
-        """
-        Background loop for autonomous and standalone experiments.
-
-        Periodically calls experiment.process_serial_data(None) and broadcasts
-        the updated state to all connected clients.
-
-        Autonomous and standalone experiments manage their own serial ports,
-        so they don't need serial data from the backend. They return their state directly.
-        """
-        logger.info("Starting autonomous experiment loop")
-
-        while self.active_experiment and self.active_experiment.HARDWARE_MODE in ['autonomous', 'standalone']:
-            try:
-                # Call experiment's process_serial_data (it reads its own serial)
-                experiment_state = await self.active_experiment.process_serial_data(None)
-
-                if experiment_state:
-                    # Broadcast state to all connected clients
-                    message = {
-                        "type": "experiment_state",
-                        "data": experiment_state,
-                        "timestamp": time.time() * 1000
-                    }
-                    message_json = json.dumps(message)
-
-                    # Send to all clients (use list() to avoid "Set changed size during iteration")
-                    disconnected_clients = []
-                    for client in list(self.active_clients):
-                        try:
-                            await client.send(message_json)
-                        except Exception as e:
-                            logger.error(f"Failed to send to client: {e}")
-                            disconnected_clients.append(client)
-
-                    # Remove disconnected clients
-                    for client in disconnected_clients:
-                        self.active_clients.discard(client)
-
-                # Run at ~50 Hz (matching the experiment's DT = 1/20 = 50ms, but we poll faster)
-                await asyncio.sleep(0.02)  # 20ms = 50Hz
-
-            except Exception as e:
-                logger.error(f"Error in autonomous experiment loop: {e}", exc_info=True)
-                await asyncio.sleep(0.1)  # Slow down on error
-
-        logger.info("Autonomous experiment loop stopped")
-
     async def _on_serial_data_received(self, serial_data: Dict[str, Any]):
         """
         Callback invoked when serial data is received (event-driven).
@@ -889,11 +783,10 @@ class BackendServer:
         """
         Event-driven serial data streamer.
 
-        Waits for data from the client's queue (populated by serial data callback)
-        and sends it to the WebSocket client immediately.
+        Waits for data from the client's queue (populated by serial data callback
+        or experiment's event_callback) and sends it to the WebSocket client immediately.
 
-        Note: This is only for MANAGED mode experiments. AUTONOMOUS experiments use
-        autonomous_experiment_loop() instead.
+        Used by both MANAGED and STANDALONE mode experiments.
         """
         # Create a queue for this client
         client_queue = asyncio.Queue(maxsize=1000)  # Buffer up to 1000 messages
@@ -968,20 +861,10 @@ class BackendServer:
             if len(self.active_clients) == 0:
                 logger.info("No active clients, cleaning up hardware")
 
-                # Clean up autonomous experiment (CRITICAL!)
+                # Clean up active experiment (CRITICAL!)
                 if self.active_experiment:
                     logger.info("Cleaning up active experiment due to client disconnect")
                     try:
-                        # Stop autonomous task if running
-                        if self.autonomous_task:
-                            self.autonomous_task.cancel()
-                            try:
-                                await self.autonomous_task
-                            except asyncio.CancelledError:
-                                pass
-                            self.autonomous_task = None
-                            logger.info("Stopped autonomous experiment background loop")
-
                         # Terminate experiment
                         summary = await self.active_experiment.terminate()
                         experiment_id = self.active_experiment.experiment_id
