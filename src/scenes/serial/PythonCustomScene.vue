@@ -68,10 +68,8 @@ const experimentFile = ref(null)
 const sceneName = ref('Python Custom Scene')
 const sceneDescription = ref('Custom scene with Python backend')
 
-// Physics constants from scene config
+// Physics constants
 const PLAYER_RADIUS = 0.5
-const MAX_LINEAR_VELOCITY = 100
-const DT = 1/20
 
 // Scene state
 const state = shallowRef({
@@ -120,39 +118,31 @@ function animate() {
   if (!scene || !camera || !renderer || !world || !playerBody) return
 
   // Handle serial data from Python backend
+  // Backend sends standardized data: velocity (m/s) and deltaTheta (radians)
+  // All conversions are done in backend, frontend just applies the values
   if (serialData.value) {
     try {
       const data = serialData.value
 
-      // Convert displacement to velocity
-      const vx = Math.min(Math.max((parseFloat(data.x) || 0) * 0.0364 / DT, -MAX_LINEAR_VELOCITY), MAX_LINEAR_VELOCITY)
-      const vy = Math.min(Math.max((parseFloat(data.y) || 0) * 0.0364 / DT, -MAX_LINEAR_VELOCITY), MAX_LINEAR_VELOCITY)
+      // Apply velocity directly (backend already computed world coordinates)
+      if (data.velocity) {
+        const vel = data.velocity
+        playerBody.setLinvel({
+          x: vel.x || 0,
+          y: (vel.y !== null && vel.y !== undefined) ? vel.y : playerBody.linvel().y,
+          z: vel.z || 0
+        }, true)
+      }
 
-      // Calculate world velocities based on current orientation
-      const worldVx = vx * Math.cos(position.value.theta) - vy * Math.sin(position.value.theta)
-      const worldVz = -vx * Math.sin(position.value.theta) - vy * Math.cos(position.value.theta)
-
-      // Calculate Y velocity: Use backend value if provided, otherwise preserve physics engine
-      const worldVy = (data.verticalVel !== null && data.verticalVel !== undefined)
-                      ? data.verticalVel              // Backend controls vertical velocity
-                      : playerBody.linvel().y         // Preserve physics engine (gravity)
-
-      // Update physics body velocity
-      playerBody.setLinvel({
-        x: worldVx,
-        y: worldVy,
-        z: worldVz
-      }, true)
-
-      // Handle rotation
-      const deltaTheta = (parseFloat(data.theta) || 0) * 0.05
-      position.value.theta += deltaTheta
-
-      playerBody.setRotation({
-        x: 0,
-        y: position.value.theta,
-        z: 0
-      }, true)
+      // Apply rotation directly (backend already computed deltaTheta)
+      if (data.deltaTheta !== undefined) {
+        position.value.theta += data.deltaTheta
+        playerBody.setRotation({
+          x: 0,
+          y: position.value.theta,
+          z: 0
+        }, true)
+      }
 
       serialData.value = null
     } catch (err) {
@@ -259,41 +249,14 @@ function handleSerialData(data) {
   }
 }
 
-// Handle experiment state updates
-let firstStateUpdate = true
+// Handle experiment state updates (for status display only, NOT for motion control)
+// Motion is controlled exclusively by serial_data events
 function handleExperimentState(stateData) {
-  // Handle first state update
-  if (firstStateUpdate) {
-    firstStateUpdate = false
-  }
-
-  // Update player position
+  // Update display position (for info panel only)
   if (stateData.player?.position) {
     position.value.x = stateData.player.position[0]
     position.value.y = stateData.player.position[1]
     position.value.theta = stateData.player.position[3]
-  }
-
-  // CRITICAL FIX: Extract velocity from experiment_state and convert to serial data format
-  // Backend sends velocity in experiment_state.player.velocity [vx, vy, vz, vtheta] in cm/s
-  // Frontend expects displacement, so we need to convert: displacement = velocity * DT / 0.0364
-  if (stateData.player?.velocity) {
-    const vel = stateData.player.velocity
-    // Convert velocity (cm/s) back to displacement units expected by animate()
-    // animate() does: velocity = (displacement * 0.0364) / DT
-    // So: displacement = (velocity * DT) / 0.0364
-    const displacement = {
-      x: (vel[0] * DT) / 0.0364,   // vx (cm/s) -> displacement
-      y: (vel[1] * DT) / 0.0364,   // vy (cm/s) -> displacement
-      // NEW: Extract vertical velocity (if provided by backend)
-      // vel[2] can be: number (backend control), null/undefined (physics engine)
-      verticalVel: (vel[2] !== null && vel[2] !== undefined)
-                    ? vel[2] / 100  // cm/s → m/s
-                    : null,         // null = use physics engine
-      theta: vel[3]                // vtheta (rad/s) is used directly
-    }
-
-    serialData.value = displacement
   }
 
   // Update experiment status
@@ -303,7 +266,7 @@ function handleExperimentState(stateData) {
     experimentRunning.value = false
   }
 
-  // Update serial port info (use backend-calculated data rate)
+  // Update serial port info
   if (stateData.serial_port) {
     serialPort.value = stateData.serial_port
   }
