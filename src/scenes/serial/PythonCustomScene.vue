@@ -103,8 +103,9 @@ const serialData = ref(null)
 
 // Backend position confirmation
 const pendingBackendPosition = ref(null)
-let frameCount = 0
-const POSITION_UPDATE_INTERVAL = 3  // Send position every 3 frames (~20Hz at 60fps)
+
+// Event-driven position update: send position after processing serial data
+let pendingSerialData = null  // Holds serial data until position is sent
 const POSITION_RESET_THRESHOLD = 0.5  // 0.5m difference triggers reset
 
 // Animation loop
@@ -117,8 +118,8 @@ function animate() {
 
   if (!scene || !camera || !renderer || !world || !playerBody) return
 
-  // Handle serial data from Python backend
-  // Backend sends standardized data: velocity (m/s) and deltaTheta (radians)
+  // === 1. Handle serial data from Python backend ===
+  // Backend sends standardized data: velocity (m/s), deltaTheta (radians), and seq number
   // All conversions are done in backend, frontend just applies the values
   if (serialData.value) {
     try {
@@ -144,26 +145,21 @@ function animate() {
         }, true)
       }
 
+      // EVENT-DRIVEN: Mark that we need to send position update after physics step
+      pendingSerialData = data
       serialData.value = null
     } catch (err) {
       console.error('Error processing serial data:', err)
     }
   }
 
-  // Handle backend position confirmation (for resets)
+  // === 2. Handle backend position confirmation (for resets) ===
   if (pendingBackendPosition.value) {
     const backend = pendingBackendPosition.value
-    const current = playerBody.translation()
-
-    // Calculate position difference
-    const dx = backend.x - current.x
-    const dy = backend.y - current.y
-    const dz = backend.z - current.z
-    const distance = Math.sqrt(dx*dx + dy*dy + dz*dz)
-
-    if (distance > POSITION_RESET_THRESHOLD) {
-      // Large difference → This is a reset command
-
+    
+    // Check if this is a reset command (action === 'set')
+    if (backend.action === 'set') {
+      // Reset command: teleport player to specified position
       playerBody.setTranslation({
         x: backend.x,
         y: backend.y,
@@ -177,8 +173,7 @@ function animate() {
       playerBody.setRotation({
         x: 0,
         y: backend.theta,
-        z: 0,
-        w: 1
+        z: 0
       }, true)
 
       // Update camera immediately
@@ -192,24 +187,24 @@ function animate() {
           rotation: backend.theta
         })
       }
-    } else {
-      // Small difference → Normal confirmation, let physics engine continue
+      
+      console.log('Player reset to:', backend.x, backend.y, backend.z)
     }
+    // action === 'update' means normal confirmation, no action needed
 
     pendingBackendPosition.value = null
   }
 
-  // Step physics world
+  // === 3. Step physics world ===
   world.step()
 
-  // Update position tracking from physics
+  // === 4. Update position tracking from physics ===
   const bodyPosition = playerBody.translation()
-  const bodyVelocity = playerBody.linvel()
 
   position.value.x = bodyPosition.x
   position.value.y = bodyPosition.z  // Three.js Z is our game Y
 
-  // Update camera to follow player
+  // === 5. Update camera to follow player ===
   if (fixedCam) {
     fixedCam.update({
       position: new THREE.Vector3(
@@ -221,12 +216,11 @@ function animate() {
     })
   }
 
-  // Send position update to backend (every N frames)
-  frameCount++
-  if (frameCount >= POSITION_UPDATE_INTERVAL && backendClient && backendClient.connected) {
-    frameCount = 0
-
+  // === 6. EVENT-DRIVEN: Send position update after processing serial data ===
+  // Only send when we have new serial data that was just processed
+  if (pendingSerialData && backendClient && backendClient.connected) {
     const posUpdate = {
+      seq: pendingSerialData.seq,  // Include sequence number for matching
       x: bodyPosition.x,
       y: bodyPosition.y,  // Height
       z: bodyPosition.z,  // Forward/backward
@@ -234,8 +228,10 @@ function animate() {
     }
 
     backendClient.send('position_update', posUpdate)
+    pendingSerialData = null  // Clear after sending
   }
 
+  // === 7. Render ===
   renderer.render(scene, camera)
 }
 

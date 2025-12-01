@@ -1,31 +1,31 @@
 """
 EXPERIMENT_ID: vue_style_hallway
-EXPERIMENT_NAME: Vue-Style Hallway Experiment (Backend-Driven Architecture)
+EXPERIMENT_NAME: Vue-Style Hallway Experiment (Event-Driven Architecture)
 HARDWARE_MODE: standalone
 
 vue_style_hallway_experiment.py
 
-Standalone experiment using backend-driven data logging architecture.
+Standalone experiment using EVENT-DRIVEN architecture with single position source.
 
-BACKEND-DRIVEN ARCHITECTURE (optimized for stable data logging):
-- Serial data read in background loop -> immediate processing -> immediate logging
-- Data logging rate is driven by hardware (Teensy serial output), not frontend rendering
-- Frontend position updates (5Hz) only used for fall detection synchronization
-- Eliminates frontend rendering bottlenecks from affecting data logging
+EVENT-DRIVEN ARCHITECTURE:
+- Serial data read in background loop -> send to frontend -> frontend processes physics
+- Frontend sends position update back -> backend logs data and checks events
+- Single position source: frontend physics engine (Rapier)
+- Data logging happens in process_position_update() using frontend position
 
 Data Flow:
 1. Background _serial_read_loop() reads serial port continuously (1ms poll)
-2. When data arrives -> parse -> update position -> LOG IMMEDIATELY
-3. autonomous_experiment_loop() broadcasts state to frontend at 50Hz
-4. Frontend sends position updates at 5Hz (for fall detection height sync only)
+2. When data arrives -> parse -> calculate velocity -> send to frontend (serial_data event)
+3. Frontend applies velocity to physics engine -> sends position back (position_update)
+4. Backend receives position -> checks trial end/fall -> logs data -> confirms position
 
 Key Features:
 - Serial data format: 13 fields from Teensy (timestamp, leftSensor, rightSensor, combined values)
-- Conversion factor: 0.0465 (Vue standard)
+- Conversion factor: 0.0364 (Vue standard)
 - World coordinate transformation: Vue sign conventions
 - Water delivery: 5V pulse, 17ms duration (Electron standard)
 - Fall detection: PLAYER_RADIUS threshold with 5000ms timeout, synced with frontend physics
-- Data logging: BACKEND-DRIVEN at serial data rate (stable, hardware-paced)
+- Data logging: EVENT-DRIVEN, uses frontend physics position (single source of truth)
 
 Hardware Management: Direct
 - User directly initializes pyserial for serial communication
@@ -148,6 +148,10 @@ class Experiment:
 
         # Position update tracking
         self.position_update_count = 0
+
+        # Event-driven architecture: sequence number for serial data
+        self._serial_seq = 0
+        self.pending_serial_data = {}  # {seq: raw_data} for matching with position updates
 
     async def initialize(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -277,8 +281,14 @@ class Experiment:
         return self.get_state()
 
     async def _serial_read_loop(self):
-        """Background task to read serial data continuously and process immediately."""
-        logger.info(f"[{self.experiment_id}] Serial read loop started")
+        """Background task to read serial data and send to frontend.
+        
+        EVENT-DRIVEN ARCHITECTURE:
+        - Read serial data -> parse -> calculate velocity -> send to frontend
+        - DO NOT update position here (frontend physics is the single source)
+        - DO NOT log data here (logging happens in process_position_update)
+        """
+        logger.info(f"[{self.experiment_id}] Serial read loop started (event-driven mode)")
 
         while self.serial_port and self.serial_port.is_open:
             try:
@@ -288,20 +298,29 @@ class Experiment:
                         # Parse the data
                         parsed = self._parse_serial_line(line)
                         if parsed:
-                            # Store as latest data
+                            # Increment sequence number
+                            self._serial_seq += 1
+                            
+                            # Store as latest data (for logging when position comes back)
                             self.last_sensor_data = parsed
+                            
+                            # Store in pending map for sequence matching
+                            self.pending_serial_data[self._serial_seq] = parsed
+                            
+                            # Clean up old pending data (keep last 100)
+                            if len(self.pending_serial_data) > 100:
+                                oldest_key = min(self.pending_serial_data.keys())
+                                del self.pending_serial_data[oldest_key]
 
                             # Calculate world velocities and deltaTheta from serial data
-                            # This performs ALL conversions so frontend can directly apply
                             standardized_data = self._calculate_standardized_motion(parsed)
 
                             # Send serial_data event to frontend (event-driven)
                             if self.event_callback:
                                 try:
-                                    # Standardized format for frontend:
-                                    # - velocity: world coordinates (m/s), directly apply to physics
-                                    # - deltaTheta: rotation increment (radians), directly add to theta
+                                    # Include sequence number for matching
                                     data_to_send = {
+                                        'seq': self._serial_seq,  # Sequence number for matching
                                         'velocity': standardized_data['velocity'],
                                         'deltaTheta': standardized_data['deltaTheta'],
                                         'timestamp': parsed.get('timestamp'),
@@ -315,23 +334,16 @@ class Experiment:
 
                                     if self._serial_data_count < 5:
                                         vel = standardized_data['velocity']
-                                        logger.info(f"[{self.experiment_id}] Sending serial_data: vel={{x:{vel['x']:.4f}, z:{vel['z']:.4f}}}, deltaTheta={standardized_data['deltaTheta']:.4f}")
+                                        logger.info(f"[{self.experiment_id}] Sending serial_data seq={self._serial_seq}: vel={{x:{vel['x']:.4f}, z:{vel['z']:.4f}}}")
                                         self._serial_data_count += 1
 
                                     await self.event_callback('serial_data', data_to_send)
                                 except Exception as e:
                                     logger.error(f"[{self.experiment_id}] Error in event callback: {e}")
 
-                            # Update internal position from standardized motion data
-                            self._update_position_from_standardized(standardized_data)
+                            # EVENT-DRIVEN: Do NOT update position or log here!
+                            # Position comes from frontend, logging happens in process_position_update
 
-                            # Log data immediately (backend-driven logging)
-                            self._log_data()
-
-                            # Keep in buffer for compatibility (but now only for backup)
-                            self.serial_buffer.append(parsed)
-                            if len(self.serial_buffer) > 10:
-                                self.serial_buffer.pop(0)
             except Exception as e:
                 logger.error(f"[{self.experiment_id}] Serial read error: {e}")
 
@@ -395,10 +407,10 @@ class Experiment:
         """
         Return current experiment state for frontend.
 
-        BACKEND-DRIVEN ARCHITECTURE:
-        - Serial data is read and processed in _serial_read_loop()
-        - This method just returns the current state for the autonomous_experiment_loop()
-        - Data logging happens in _serial_read_loop() at the rate serial data arrives
+        EVENT-DRIVEN ARCHITECTURE:
+        - Serial data is read in _serial_read_loop() and sent to frontend
+        - Position updates come from frontend via process_position_update()
+        - This method just returns the current state for status display
 
         Args:
             data: None (standalone mode reads own serial buffer)
@@ -409,28 +421,21 @@ class Experiment:
         if not self.is_active:
             return None
 
-        # Check for trial end condition (based on current position)
-        if abs(self.position[1]) >= self.TRIAL_END_Y:
-            await self._handle_trial_end()
-
-        # Return current state (no processing needed, already done in _serial_read_loop)
+        # Return current state
         return self.get_state()
 
     async def process_position_update(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Process position update from frontend physics engine.
 
-        VUE FRONTEND SYNC: Frontend sends position every frame (~60Hz).
-        Backend checks for events (trial end, fall timeout) and either
-        echoes position or sends reset command.
-
-        This method is CRITICAL for fall detection because:
-        - Vue frontend's Rapier physics engine updates position continuously
-        - Height (y) decreases due to gravity when falling
-        - Backend needs these updates to detect fall timeout
+        EVENT-DRIVEN ARCHITECTURE:
+        - Frontend sends position after processing serial_data
+        - This is the SINGLE SOURCE OF TRUTH for position
+        - Log data here using frontend position
+        - Check for trial end and fall events
 
         Args:
-            data: Position dict with keys: x, y (height), z, theta
+            data: Position dict with keys: x, y (height), z, theta, seq (optional)
                   Note: Frontend Z is our Y (forward/back)
                         Frontend Y is our Z (height)
 
@@ -445,8 +450,11 @@ class Experiment:
             }
 
         self.position_update_count += 1
+        
+        # Get sequence number if provided (for matching with serial data)
+        seq = data.get('seq')
 
-        # Update position from frontend physics engine
+        # Update position from frontend physics engine (SINGLE SOURCE OF TRUTH)
         # Coordinate mapping: Frontend (x, y, z) -> Backend (x, z, y)
         # - Frontend X -> Backend X (left/right)
         # - Frontend Y -> Backend Z (height/vertical)
@@ -460,8 +468,6 @@ class Experiment:
         current_height = self.position[2]
 
         # Use a forgiving threshold to avoid false positives from physics engine settling
-        # The ball sits on ground at PLAYER_RADIUS (0.5m), but physics jitter drops it to ~0.48m
-        # Only detect falls when significantly below the player radius
         FALL_THRESHOLD = self.PLAYER_RADIUS * 0.8  # 80% of player radius (0.4m for 0.5m radius)
         RECOVERY_THRESHOLD = self.PLAYER_RADIUS * 0.85  # Recover at 85% (0.425m) to add hysteresis
 
@@ -470,9 +476,9 @@ class Experiment:
             self.fall_start_time = datetime.now()
             self.is_falling = True
             self.fall_count += 1
-            logger.info(f"[{self.experiment_id}] Fall detected! Total falls: {self.fall_count} (height: {current_height:.2f}m, threshold: {FALL_THRESHOLD:.2f}m)")
+            logger.info(f"[{self.experiment_id}] Fall detected! Total falls: {self.fall_count} (height: {current_height:.2f}m)")
         elif current_height >= RECOVERY_THRESHOLD and self.is_falling:
-            # Reset fall tracking when recovered (with hysteresis to prevent bouncing)
+            # Reset fall tracking when recovered
             self.fall_start_time = None
             self.is_falling = False
             logger.info(f"[{self.experiment_id}] Fall recovered (height: {current_height:.2f}m)")
@@ -491,18 +497,24 @@ class Experiment:
             await self._handle_trial_end()
             need_reset = True
 
-        # NOTE: Data logging removed from here - now happens in _serial_read_loop() at serial data rate
-        # This ensures data is logged at the rate it arrives from hardware, not at frontend update rate
+        # EVENT-DRIVEN: Log data here using frontend position (single source of truth)
+        if not need_reset and self.last_sensor_data:
+            self._log_data()
 
         # Flush data file periodically on important events
         if self.data_file and (need_reset or self.is_falling):
             self.data_file.flush()
 
+        # Clean up matched pending serial data
+        if seq and seq in self.pending_serial_data:
+            del self.pending_serial_data[seq]
+
         # Return position with action, lock flag, and current velocity
         if need_reset:
             self._reset_player()
-            # Send SET command to teleport player to specified position
-            # For now, always teleport to origin, but can be randomized/changed in the future
+            # Log the reset position
+            self._log_data()
+            
             return {
                 'action': 'set',
                 'lockMovement': False,  # Unlock after teleport
@@ -510,22 +522,20 @@ class Experiment:
                 'y': self.PLAYER_RADIUS,  # Frontend Y = height
                 'z': 0.0,                 # Frontend Z = forward/back
                 'theta': 0.0,
-                'velocity': list(self.velocity)  # Include velocity for frontend
+                'velocity': [0.0, 0.0, 0.0, 0.0]
             }
         elif self.is_falling:
             # During fall: echo position but LOCK horizontal movement
             return {
                 'action': 'update',
                 'lockMovement': True,  # Lock XZ movement during fall
-                'velocity': list(self.velocity),  # Include current velocity
                 **data
             }
         else:
-            # Normal: echo back the position (confirmation) with current velocity
+            # Normal: echo back the position (confirmation)
             return {
                 'action': 'update',
                 'lockMovement': False,
-                'velocity': list(self.velocity),  # Include current velocity
                 **data
             }
 
@@ -604,114 +614,10 @@ class Experiment:
                 'deltaTheta': 0.0
             }
 
-    def _update_position_from_standardized(self, motion_data: Dict[str, Any]):
-        """
-        Update internal position from standardized motion data.
-
-        Args:
-            motion_data: Dictionary with velocity and deltaTheta
-        """
-        try:
-            vel = motion_data['velocity']
-            delta_theta = motion_data['deltaTheta']
-
-            if not self.is_falling:
-                # Store velocity for internal tracking (convert to cm/s for consistency)
-                self.velocity[0] = vel['x'] * 100.0 if vel['x'] else 0.0
-                self.velocity[1] = vel['z'] * 100.0 if vel['z'] else 0.0
-                self.velocity[2] = 0.0  # Vertical controlled by physics
-                self.velocity[3] = delta_theta
-
-                # Update internal position (manual integration)
-                self.position[0] += self.velocity[0] * self.DT
-                self.position[1] += self.velocity[1] * self.DT
-                self.position[3] += delta_theta
-            else:
-                # Falling - lock all movement
-                self.velocity = [0.0, 0.0, 0.0, 0.0]
-
-            # Normalize theta to [-π, π]
-            while self.position[3] > np.pi:
-                self.position[3] -= 2 * np.pi
-            while self.position[3] < -np.pi:
-                self.position[3] += 2 * np.pi
-
-        except Exception as e:
-            logger.error(f"[{self.experiment_id}] Error updating position: {e}")
-
-    def _update_position_from_velocities(self, velocities: Dict[str, float]):
-        """
-        Update internal position from calculated velocities.
-
-        Args:
-            velocities: Dictionary with x, z, y, theta velocities
-        """
-        try:
-            # Lock movement and rotation when falling
-            if not self.is_falling:
-                # Normal movement - update all velocities
-                self.velocity[0] = velocities['x'] * 100.0  # m/s -> cm/s
-                self.velocity[1] = velocities['z'] * 100.0  # m/s -> cm/s
-                self.velocity[2] = 0.0  # Vertical velocity controlled by physics
-                self.velocity[3] = velocities['theta']  # Store raw theta for frontend
-
-                # Update position (manual integration)
-                self.position[0] += self.velocity[0] * self.DT
-                self.position[1] += self.velocity[1] * self.DT
-
-                # Update rotation
-                delta_theta = velocities['theta'] * 0.05
-                self.position[3] += delta_theta
-            else:
-                # Falling - lock all horizontal movement and rotation
-                self.velocity[0] = 0.0
-                self.velocity[1] = 0.0
-                self.velocity[2] = 0.0  # Vertical velocity controlled by physics
-                self.velocity[3] = 0.0  # Lock rotation
-
-            # Normalize theta to [-π, π]
-            while self.position[3] > np.pi:
-                self.position[3] -= 2 * np.pi
-            while self.position[3] < -np.pi:
-                self.position[3] += 2 * np.pi
-
-        except Exception as e:
-            logger.error(f"[{self.experiment_id}] Error updating position: {e}")
-
-    def _check_fall_condition(self):
-        """
-        Check if player has fallen off the platform.
-
-        VUE-STYLE (NewSerialHallwayScene.vue:168-192):
-        - Exact PLAYER_RADIUS threshold
-        - Fall timeout: 5000ms
-        """
-        current_height = self.position[2]
-
-        # Vue-style fall detection (line 168): if (currentY < PLAYER_RADIUS && !fallStartTime.value)
-        if current_height < self.PLAYER_RADIUS and self.fall_start_time is None:
-            # Start tracking fall
-            self.fall_start_time = datetime.now()
-            self.is_falling = True
-            self.fall_count += 1
-
-            # Lock horizontal movement during fall (set velocity to zero)
-            self.velocity[0] = 0.0
-            self.velocity[1] = 0.0
-
-            logger.info(f"[{self.experiment_id}] Fall detected! Total falls: {self.fall_count} (height: {current_height:.2f}m)")
-
-        elif current_height >= self.PLAYER_RADIUS:
-            # Reset fall tracking when recovered
-            self.fall_start_time = None
-            self.is_falling = False
-
-        # Check fall timeout (Vue:181 - Date.now() - fallStartTime.value > FALL_RESET_TIME)
-        if self.fall_start_time is not None:
-            fall_duration = (datetime.now() - self.fall_start_time).total_seconds() * 1000
-            if fall_duration > self.FALL_RESET_TIME:
-                logger.info(f"[{self.experiment_id}] Fall timeout ({fall_duration:.0f}ms) - resetting player")
-                self._reset_player()
+    # NOTE: The following methods have been removed in the event-driven architecture:
+    # - _update_position_from_standardized(): No longer needed, position comes from frontend
+    # - _update_position_from_velocities(): No longer needed, position comes from frontend
+    # - _check_fall_condition(): Fall detection now happens in process_position_update()
 
     async def _handle_trial_end(self):
         """
