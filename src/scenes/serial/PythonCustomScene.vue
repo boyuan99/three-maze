@@ -119,31 +119,48 @@ function animate() {
   if (!scene || !camera || !renderer || !world || !playerBody) return
 
   // === 1. Handle serial data from Python backend ===
-  // Backend sends standardized data: velocity (m/s), deltaTheta (radians), and seq number
-  // All conversions are done in backend, frontend just applies the values
+  // Backend sends RAW data: {x, y, theta} displacement values
+  // Frontend calculates world coordinates using CURRENT theta (avoids lag)
+  // This matches the old NewSerialHallwayScene.vue implementation
   if (serialData.value) {
     try {
       const data = serialData.value
 
-      // Apply velocity directly (backend already computed world coordinates)
-      if (data.velocity) {
-        const vel = data.velocity
-        playerBody.setLinvel({
-          x: vel.x || 0,
-          y: (vel.y !== null && vel.y !== undefined) ? vel.y : playerBody.linvel().y,
-          z: vel.z || 0
-        }, true)
-      }
+      // Physics constants (matching backend and old implementation)
+      const ENCODER_TO_CM = 0.0364  // Conversion factor
+      const DT = 1.0 / 20.0  // 20Hz sampling rate
+      const MAX_LINEAR_VELOCITY = 100  // m/s
 
-      // Apply rotation directly (backend already computed deltaTheta)
-      if (data.deltaTheta !== undefined) {
-        position.value.theta += data.deltaTheta
-        playerBody.setRotation({
-          x: 0,
-          y: position.value.theta,
-          z: 0
-        }, true)
-      }
+      // Get raw displacement values from backend
+      const rawX = parseFloat(data.x) || 0
+      const rawY = parseFloat(data.y) || 0
+      const rawTheta = parseFloat(data.theta) || 0
+
+      // Convert displacement to velocity (same as old implementation)
+      const vx = Math.min(Math.max(rawX * ENCODER_TO_CM / DT, -MAX_LINEAR_VELOCITY), MAX_LINEAR_VELOCITY)
+      const vy = Math.min(Math.max(rawY * ENCODER_TO_CM / DT, -MAX_LINEAR_VELOCITY), MAX_LINEAR_VELOCITY)
+
+      // Calculate world velocities using CURRENT theta (key difference from backend calculation)
+      // This uses position.value.theta which is the current frame's theta, not lagged
+      // Formula matches exactly NewSerialHallwayScene.vue lines 104-105
+      const worldVx = -vx * Math.cos(position.value.theta) - vy * Math.sin(position.value.theta)
+      const worldVz = vx * Math.sin(position.value.theta) - vy * Math.cos(position.value.theta)
+
+      // Apply world velocity to physics body
+      playerBody.setLinvel({
+        x: worldVx,
+        y: playerBody.linvel().y,  // Preserve vertical velocity (gravity)
+        z: worldVz
+      }, true)
+
+      // Handle rotation (same as before)
+      const deltaTheta = rawTheta * 0.05
+      position.value.theta += deltaTheta
+      playerBody.setRotation({
+        x: 0,
+        y: position.value.theta,
+        z: 0
+      }, true)
 
       // EVENT-DRIVEN: Mark that we need to send position update after physics step
       pendingSerialData = data

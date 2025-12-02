@@ -316,13 +316,17 @@ class Experiment:
                             standardized_data = self._calculate_standardized_motion(parsed)
 
                             # Send serial_data event to frontend (event-driven)
+                            # NOTE: Send RAW data, let frontend calculate world coordinates
+                            # This avoids theta lag issue (backend theta is 1 cycle behind)
                             if self.event_callback:
                                 try:
                                     # Include sequence number for matching
+                                    # Send raw displacement values - frontend will calculate world velocity
                                     data_to_send = {
                                         'seq': self._serial_seq,  # Sequence number for matching
-                                        'velocity': standardized_data['velocity'],
-                                        'deltaTheta': standardized_data['deltaTheta'],
+                                        'x': parsed.get('x', 0),  # Raw X displacement
+                                        'y': parsed.get('y', 0),  # Raw Y displacement  
+                                        'theta': parsed.get('theta', 0),  # Raw theta displacement
                                         'timestamp': parsed.get('timestamp'),
                                         'water': parsed.get('water', 0),
                                         'frameCount': parsed.get('frameCount', 0)
@@ -333,8 +337,7 @@ class Experiment:
                                         self._serial_data_count = 0
 
                                     if self._serial_data_count < 5:
-                                        vel = standardized_data['velocity']
-                                        logger.info(f"[{self.experiment_id}] Sending serial_data seq={self._serial_seq}: vel={{x:{vel['x']:.4f}, z:{vel['z']:.4f}}}")
+                                        logger.info(f"[{self.experiment_id}] Sending serial_data seq={self._serial_seq}")
                                         self._serial_data_count += 1
 
                                     await self.event_callback('serial_data', data_to_send)
