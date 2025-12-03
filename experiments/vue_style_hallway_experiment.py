@@ -153,6 +153,10 @@ class Experiment:
         self._serial_seq = 0
         self.pending_serial_data = {}  # {seq: raw_data} for matching with position updates
 
+        # Real-time theta tracking (backend accumulates theta to avoid lag)
+        # This is used for velocity calculation, separate from self.position[3] which comes from frontend
+        self.realtime_theta = 0.0
+
     async def initialize(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Initialize experiment with direct hardware setup.
@@ -312,21 +316,24 @@ class Experiment:
                                 oldest_key = min(self.pending_serial_data.keys())
                                 del self.pending_serial_data[oldest_key]
 
-                            # Calculate world velocities and deltaTheta from serial data
-                            standardized_data = self._calculate_standardized_motion(parsed)
+                            # First, update realtime_theta BEFORE calculating velocity
+                            # This ensures we use the current theta, not lagged theta
+                            raw_theta = float(parsed.get('theta', 0))
+                            delta_theta = raw_theta * 0.05
+                            self.realtime_theta += delta_theta
+
+                            # Calculate world velocities using realtime_theta (no lag!)
+                            standardized_data = self._calculate_standardized_motion_realtime(parsed)
 
                             # Send serial_data event to frontend (event-driven)
-                            # NOTE: Send RAW data, let frontend calculate world coordinates
-                            # This avoids theta lag issue (backend theta is 1 cycle behind)
+                            # Backend calculates world coordinates using realtime theta
                             if self.event_callback:
                                 try:
-                                    # Include sequence number for matching
-                                    # Send raw displacement values - frontend will calculate world velocity
+                                    # Send calculated velocity and deltaTheta
                                     data_to_send = {
-                                        'seq': self._serial_seq,  # Sequence number for matching
-                                        'x': parsed.get('x', 0),  # Raw X displacement
-                                        'y': parsed.get('y', 0),  # Raw Y displacement  
-                                        'theta': parsed.get('theta', 0),  # Raw theta displacement
+                                        'seq': self._serial_seq,
+                                        'velocity': standardized_data['velocity'],
+                                        'deltaTheta': standardized_data['deltaTheta'],
                                         'timestamp': parsed.get('timestamp'),
                                         'water': parsed.get('water', 0),
                                         'frameCount': parsed.get('frameCount', 0)
@@ -337,7 +344,8 @@ class Experiment:
                                         self._serial_data_count = 0
 
                                     if self._serial_data_count < 5:
-                                        logger.info(f"[{self.experiment_id}] Sending serial_data seq={self._serial_seq}")
+                                        vel = standardized_data['velocity']
+                                        logger.info(f"[{self.experiment_id}] Sending serial_data seq={self._serial_seq}: vel={{x:{vel['x']:.4f}, z:{vel['z']:.4f}}}, theta={self.realtime_theta:.4f}")
                                         self._serial_data_count += 1
 
                                     await self.event_callback('serial_data', data_to_send)
@@ -470,9 +478,11 @@ class Experiment:
         # Check for fall condition (Vue-style)
         current_height = self.position[2]
 
-        # Use a forgiving threshold to avoid false positives from physics engine settling
-        FALL_THRESHOLD = self.PLAYER_RADIUS * 0.8  # 80% of player radius (0.4m for 0.5m radius)
-        RECOVERY_THRESHOLD = self.PLAYER_RADIUS * 0.85  # Recover at 85% (0.425m) to add hysteresis
+        # Use a very forgiving threshold to avoid false positives from physics engine jitter
+        # Normal physics oscillation is ~0.35-0.45m, so we use 0.2m as threshold
+        # Only detect real falls (player went through floor or fell off edge)
+        FALL_THRESHOLD = self.PLAYER_RADIUS * 0.4  # 40% of player radius (0.2m for 0.5m radius)
+        RECOVERY_THRESHOLD = self.PLAYER_RADIUS * 0.5  # Recover at 50% (0.25m) to add hysteresis
 
         if current_height < FALL_THRESHOLD and self.fall_start_time is None:
             # Start tracking fall
@@ -488,21 +498,36 @@ class Experiment:
 
         # Check fall timeout and reset if needed
         need_reset = False
+        fall_timeout_triggered = False
         if self.fall_start_time is not None:
             fall_duration = (datetime.now() - self.fall_start_time).total_seconds() * 1000
             if fall_duration > self.FALL_RESET_TIME:
                 logger.info(f"[{self.experiment_id}] Fall timeout ({fall_duration:.0f}ms) - resetting player")
+                fall_timeout_triggered = True
                 need_reset = True
 
         # Check for trial end condition
+        trial_end_triggered = False
         if abs(self.position[1]) >= self.TRIAL_END_Y:
             logger.info(f"[{self.experiment_id}] Trial end detected (Y={self.position[1]:.2f})")
-            await self._handle_trial_end()
+            trial_end_triggered = True
             need_reset = True
 
         # EVENT-DRIVEN: Log data here using frontend position (single source of truth)
-        if not need_reset and self.last_sensor_data:
-            self._log_data()
+        # IMPORTANT: Always log the current position BEFORE reset
+        # This ensures we capture the exact position that triggered trial end/fall reset
+        if self.last_sensor_data:
+            if trial_end_triggered:
+                # Log the position that triggered trial end WITH water reward marker
+                self._log_data(water_delivered=True)
+                # Handle trial end (deliver water, increment counters) AFTER logging
+                await self._handle_trial_end()
+            elif fall_timeout_triggered:
+                # Log the position when fall timeout triggered (before reset)
+                self._log_data()
+            elif not need_reset:
+                # Normal frame: log without water
+                self._log_data()
 
         # Flush data file periodically on important events
         if self.data_file and (need_reset or self.is_falling):
@@ -515,7 +540,7 @@ class Experiment:
         # Return position with action, lock flag, and current velocity
         if need_reset:
             self._reset_player()
-            # Log the reset position
+            # Log the reset position (starting point of new trial)
             self._log_data()
             
             return {
@@ -542,18 +567,18 @@ class Experiment:
                 **data
             }
 
-    def _calculate_standardized_motion(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _calculate_standardized_motion_realtime(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Calculate standardized motion data from serial input.
+        Calculate standardized motion data using REALTIME theta (no lag).
+        
+        Key difference from _calculate_standardized_motion:
+        - Uses self.realtime_theta instead of self.position[3]
+        - self.realtime_theta is accumulated in _serial_read_loop BEFORE this call
+        - This eliminates the 50ms theta lag that caused stuttering
         
         Performs ALL conversions so frontend can directly apply the values:
         - velocity: world coordinates (m/s), directly apply to physics engine
         - deltaTheta: rotation increment (radians), directly add to current theta
-        
-        This matches the conversion logic from PythonCustomScene.vue:
-        - vx = raw_x * 0.0364 / DT
-        - worldVx = vx * cos(theta) - vy * sin(theta)
-        - deltaTheta = raw_theta * 0.05
 
         Args:
             data: Parsed serial data with x, y, theta
@@ -572,7 +597,6 @@ class Experiment:
             raw_theta = float(data.get('theta', 0))
 
             # Convert displacement to velocity (matches frontend: raw * 0.0364 / DT)
-            # Result is in some internal velocity unit, will be used as m/s by frontend
             vx = np.clip(
                 raw_x * self.ENCODER_TO_CM / self.DT,
                 -self.MAX_LINEAR_VELOCITY,
@@ -584,15 +608,15 @@ class Experiment:
                 self.MAX_LINEAR_VELOCITY
             )
 
-            # Get current theta for world transformation
-            theta = self.position[3]
+            # Use REALTIME theta for world transformation (no lag!)
+            # self.realtime_theta was already updated in _serial_read_loop
+            theta = self.realtime_theta
 
-            # World coordinate transformation
-            # Negating world_vx to correct left/right direction
-            world_vx = -(vx * np.cos(theta) - vy * np.sin(theta))
-            world_vz = -vx * np.sin(theta) - vy * np.cos(theta)
+            # World coordinate transformation (matches NewSerialHallwayScene.vue)
+            world_vx = -vx * np.cos(theta) - vy * np.sin(theta)
+            world_vz = vx * np.sin(theta) - vy * np.cos(theta)
 
-            # Calculate deltaTheta (matches frontend: raw_theta * 0.05)
+            # Calculate deltaTheta (already computed in _serial_read_loop, but return it here)
             delta_theta = raw_theta * 0.05
 
             # Lock movement when falling
@@ -617,6 +641,58 @@ class Experiment:
                 'deltaTheta': 0.0
             }
 
+    def _calculate_standardized_motion(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        DEPRECATED: Use _calculate_standardized_motion_realtime instead.
+        
+        This method uses self.position[3] which has ~50ms lag, causing stuttering.
+        Kept for reference only.
+        """
+        try:
+            raw_x = float(data.get('x', 0))
+            raw_y = float(data.get('y', 0))
+            raw_theta = float(data.get('theta', 0))
+
+            vx = np.clip(
+                raw_x * self.ENCODER_TO_CM / self.DT,
+                -self.MAX_LINEAR_VELOCITY,
+                self.MAX_LINEAR_VELOCITY
+            )
+            vy = np.clip(
+                raw_y * self.ENCODER_TO_CM / self.DT,
+                -self.MAX_LINEAR_VELOCITY,
+                self.MAX_LINEAR_VELOCITY
+            )
+
+            # DEPRECATED: This theta is lagged by ~50ms
+            theta = self.position[3]
+
+            world_vx = -(vx * np.cos(theta) - vy * np.sin(theta))
+            world_vz = -vx * np.sin(theta) - vy * np.cos(theta)
+
+            delta_theta = raw_theta * 0.05
+
+            if self.is_falling:
+                world_vx = 0.0
+                world_vz = 0.0
+                delta_theta = 0.0
+
+            return {
+                'velocity': {
+                    'x': world_vx,
+                    'y': None,
+                    'z': world_vz
+                },
+                'deltaTheta': delta_theta
+            }
+
+        except Exception as e:
+            logger.error(f"[{self.experiment_id}] Error calculating standardized motion: {e}")
+            return {
+                'velocity': {'x': 0.0, 'y': None, 'z': 0.0},
+                'deltaTheta': 0.0
+            }
+
     # NOTE: The following methods have been removed in the event-driven architecture:
     # - _update_position_from_standardized(): No longer needed, position comes from frontend
     # - _update_position_from_velocities(): No longer needed, position comes from frontend
@@ -624,12 +700,17 @@ class Experiment:
 
     async def _handle_trial_end(self):
         """
-        Handle trial completion: deliver reward and reset position.
+        Handle trial completion: deliver reward only.
+        
+        NOTE: Position reset and data logging are handled by caller (process_position_update).
+        This method only:
+        - Increments trial counter
+        - Delivers water reward
+        - Logs timing info
+        - Resets trial timer
 
         VUE-STYLE (NewSerialHallwayScene.vue:195-220):
-        - Reset position first
-        - Then deliver water
-        - Log trial timing (MATCHES ELECTRON)
+        - Water delivery happens after position is logged
         """
         self.trial_number += 1
 
@@ -639,18 +720,12 @@ class Experiment:
 
         logger.info(f"[{self.experiment_id}] Trial {self.trial_number} completed at Y={self.position[1]:.2f}")
 
-        # Reset position first (Vue does this before water delivery, line 197-204)
-        self._reset_player()
-
-        # Then deliver water reward (Vue:208)
+        # Deliver water reward
         success = await self._deliver_water()
 
         if success:
             # Log timing info (MATCHES ELECTRON console output, line 738)
             logger.info(f"[{self.experiment_id}] Reward #{self.num_rewards} delivered! Trial time: {trial_time:.2f} seconds")
-
-            # Log water delivery event to data file (matches NewSerialHallwayScene.vue)
-            self._log_data(water_delivered=True)
         else:
             logger.warning(f"[{self.experiment_id}] Water delivery failed")
 
@@ -697,6 +772,9 @@ class Experiment:
 
         # Reset position
         self.position = np.array([0.0, 0.0, self.PLAYER_RADIUS, 0.0])
+
+        # Reset realtime theta (used for velocity calculation)
+        self.realtime_theta = 0.0
 
         # Reset velocity
         self.velocity = [0.0, 0.0, 0.0, 0.0]
