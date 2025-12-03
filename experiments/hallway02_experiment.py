@@ -3,38 +3,6 @@ EXPERIMENT_ID: vue_style_hallway
 EXPERIMENT_NAME: Vue-Style Hallway Experiment (Event-Driven Architecture)
 HARDWARE_MODE: standalone
 
-vue_style_hallway_experiment.py
-
-Standalone experiment using EVENT-DRIVEN architecture with single position source.
-
-EVENT-DRIVEN ARCHITECTURE:
-- Serial data read in background loop -> send to frontend -> frontend processes physics
-- Frontend sends position update back -> backend logs data and checks events
-- Single position source: frontend physics engine (Rapier)
-- Data logging happens in process_position_update() using frontend position
-
-Data Flow:
-1. Background _serial_read_loop() reads serial port continuously (1ms poll)
-2. When data arrives -> parse -> calculate velocity -> send to frontend (serial_data event)
-3. Frontend applies velocity to physics engine -> sends position back (position_update)
-4. Backend receives position -> checks trial end/fall -> logs data -> confirms position
-
-Key Features:
-- Serial data format: 13 fields from Teensy (timestamp, leftSensor, rightSensor, combined values)
-- Conversion factor: 0.0364 (Vue standard)
-- World coordinate transformation: Vue sign conventions
-- Water delivery: 5V pulse, 17ms duration (Electron standard)
-- Fall detection: PLAYER_RADIUS threshold with 5000ms timeout, synced with frontend physics
-- Data logging: EVENT-DRIVEN, uses frontend physics position (single source of truth)
-
-Hardware Management: Direct
-- User directly initializes pyserial for serial communication
-- User directly initializes nidaqmx with persistent task
-- User directly manages file I/O for data logging
-
-Data Logging:
-- Logs position, velocity, raw sensor data, timestamps
-- Separate log for trial timing and rewards
 
 Usage:
     experiment = Experiment("vue_style_hallway", config)
@@ -47,7 +15,7 @@ Usage:
         'daqDevice': 'Dev1',         # NI-DAQ device
         'daqChannel': 'ao0',         # Water delivery channel
         'trialEndY': 70.0,           # Trial end position
-        'waterVoltagе': 5.0,         # Water solenoid voltage
+        'waterVoltage': 5.0,         # Water solenoid voltage
         'waterDurationMs': 17        # Water pulse duration (Electron default: 17ms)
     }
 """
@@ -110,7 +78,7 @@ class Experiment:
         self.DT = 1.0 / 20.0  # 20Hz
 
         # Conversion factor (matches frontend PythonCustomScene.vue)
-        self.ENCODER_TO_CM = 0.0364  # Frontend uses 0.0364
+        self.ENCODER_TO_CM = 0.0349
 
         # Trial parameters
         self.TRIAL_END_Y = 70.0
@@ -243,15 +211,15 @@ class Experiment:
         # === 3. OPEN DATA FILES (DUAL LOGS) ===
         try:
             # Create logs directory (like Electron creates VirmenData)
-            os.makedirs("logs", exist_ok=True)
+            os.makedirs(r"D:\VirmenData", exist_ok=True)
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
             # Main data log (matches NewSerialHallwayScene.vue format)
-            self.data_file_path = f"logs/{self.experiment_id}-{timestamp}-data.tsv"
+            self.data_file_path = f"D:\\VirmenData\\{self.experiment_id}-{timestamp}.txt"
             self.data_file = open(self.data_file_path, 'w')
             # Format: x, -y, theta, raw_x, raw_y, water, timestamp, scene_name
-            data_header = "x\t-y\ttheta\traw_x\traw_y\twater\ttimestamp\tscene_name\n"
-            self.data_file.write(data_header)
+            # data_header = "x\t-y\ttheta\traw_x\traw_y\twater\ttimestamp\tscene_name\n"
+            # self.data_file.write(data_header)
 
             logger.info(f"[{self.experiment_id}] Data file opened: {self.data_file_path}")
 
