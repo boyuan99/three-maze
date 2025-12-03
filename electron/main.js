@@ -71,9 +71,7 @@ async function createMainWindow() {
 }
 
 async function createSceneWindow(sceneName) {
-  console.log('Main: Creating window for scene:', sceneName)
-  const hasConfig = sceneConfigs.has(sceneName)
-  console.log('Main: Has config:', hasConfig)
+  console.log('Main: Creating window for:', sceneName)
 
   if (sceneWindows.has(sceneName)) {
     const existingWindow = sceneWindows.get(sceneName)
@@ -136,7 +134,6 @@ async function createSceneWindow(sceneName) {
       ? `${VITE_DEV_SERVER_URL}/#/${scenePath}`
       : `file://${join(__dirname, '../dist/index.html')}#/${scenePath}`
 
-    console.log('Main: Loading scene URL:', url)
     await sceneWindow.loadURL(url)
   } catch (e) {
     console.error('Main: Failed to load scene:', e)
@@ -254,11 +251,11 @@ app.on('activate', async () => {
 })
 
 ipcMain.on('open-scene', async (event, sceneName, sceneData) => {
-  console.log('Main: Received open-scene request for:', sceneName)
+  console.log('Main: Opening scene:', sceneName)
 
   if (sceneData) {
-    console.log('Main: Storing data for scene:', sceneName)
-    console.log('Main: Scene data:', sceneData)
+    // Store scene data (config and experiment file)
+    // console.log('Main: Scene data:', sceneData)  // Too verbose
 
     // Handle both old format (just config) and new format (config + experimentFile)
     if (sceneData.config || sceneData.experimentFile) {
@@ -291,12 +288,10 @@ ipcMain.handle('get-ws-port', () => {
 
 ipcMain.handle('get-scene-config', async (event) => {
   const windowId = event.sender.id
-  console.log('Main: Received config request from window:', windowId)
 
   for (const [sceneName, window] of sceneWindows.entries()) {
     if (window.webContents.id === windowId) {
       const sceneData = sceneConfigs.get(sceneName)
-      console.log('Main: Found data for scene:', sceneName)
 
       // Return the full scene data (config + experimentFile if available)
       if (sceneData && sceneData.config) {
