@@ -58,8 +58,6 @@ class ExperimentLoader:
             logger.warning(f"Experiments directory not found: {self.experiments_dir}")
             return
 
-        logger.info(f"Scanning experiments directory: {self.experiments_dir}")
-
         for file_path in self.experiments_dir.glob("*.py"):
             if file_path.name.startswith("_"):
                 continue  # Skip __init__.py and private files
@@ -73,9 +71,7 @@ class ExperimentLoader:
                 "class": None
             }
 
-            logger.info(f"  Found experiment file: {filename}")
-
-        logger.info(f"Discovered {len(self.available_experiments)} experiment files")
+        logger.info(f"Found {len(self.available_experiments)} experiments in {self.experiments_dir}")
 
     def get_available_experiments(self) -> list:
         """

@@ -51,7 +51,6 @@ def find_available_port(start_port: int = 8765, max_attempts: int = 10) -> Optio
                 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 s.bind(('localhost', port))
                 # If successful, port is available
-                logger.info(f"Found available port: {port}")
                 return port
         except OSError:
             logger.debug(f"Port {port} is already in use, trying next...")
@@ -894,15 +893,9 @@ class BackendServer:
             logger.warning(f"Port {self.port} is in use, using port {available_port} instead")
             self.port = available_port
 
-        logger.info(f"Starting WebSocket server on ws://{self.host}:{self.port}")
-
         async with websockets.serve(self.handle_client, self.host, self.port):
-            # Print clear success message with port info for start-dev.js to parse
-            logger.info("=" * 60)
+            # Print success message with port info for Electron to parse
             logger.info(f"WebSocket server ready on port {self.port}")
-            logger.info(f"  -> ws://{self.host}:{self.port}")
-            logger.info("=" * 60)
-            logger.info("Waiting for client connections...")
 
             # If in replay mode, start web dashboard
             if self.replay_mode and self.replayer:

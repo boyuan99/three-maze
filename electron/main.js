@@ -441,7 +441,6 @@ const startPythonBackend = async () => {
 
       pythonProcess.stdout.on('data', (data) => {
         const message = data.toString()
-        console.log('Python output:', message)
 
         // Look for pattern: "WebSocket server ready on port 8765"
         const portMatch = message.match(/WebSocket server ready on port (\d+)/i)
@@ -451,7 +450,7 @@ const startPythonBackend = async () => {
           if (port >= 8765 && port <= 8775) {
             detectedWsPort = port.toString()
             serverStarted = true
-            console.log(`✓ Python WebSocket backend ready on port ${detectedWsPort}`)
+            console.log(`Python WebSocket backend ready on port ${detectedWsPort}`)
             resolve()
           }
         }
@@ -466,8 +465,10 @@ const startPythonBackend = async () => {
 
       pythonProcess.stderr.on('data', (data) => {
         const message = data.toString()
-        // Python logging goes to stderr by default
-        console.log('Python:', message)
+        // Only log errors/warnings, not routine INFO messages
+        if (message.includes('ERROR') || message.includes('WARNING') || message.includes('Traceback')) {
+          console.log('Python:', message)
+        }
 
         // Look for port in stderr too
         const portMatch = message.match(/WebSocket server ready on port (\d+)/i)
@@ -476,7 +477,7 @@ const startPythonBackend = async () => {
           if (port >= 8765 && port <= 8775) {
             detectedWsPort = port.toString()
             serverStarted = true
-            console.log(`✓ Python WebSocket backend ready on port ${detectedWsPort}`)
+            console.log(`Python WebSocket backend ready on port ${detectedWsPort}`)
             resolve()
           }
         }
@@ -497,7 +498,7 @@ const startPythonBackend = async () => {
       }, 30000)
     })
 
-    console.log('✓ Python backend started successfully')
+    console.log('Python backend started successfully')
     return true
   } catch (error) {
     console.error('Failed to start Python backend:', error)
