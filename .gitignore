@@ -10,4 +10,9 @@ __pycache__/
 /src/test/
 *.log
 .claude
-CLAUDE.md
+**/test/
+
+*.md
+!README.md
+
+virtual_sensor/
