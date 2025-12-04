@@ -43,8 +43,44 @@ onMounted(async () => {
   }
 })
 
-const handleLoadScene = () => {
-  fileInput.value.click()
+const handleLoadScene = async () => {
+  // Use Electron dialog if available (with default mazes folder)
+  if (window.electron?.selectMazeFile) {
+    loadingScene.value = true
+    error.value = null
+
+    try {
+      const fileData = await window.electron.selectMazeFile()
+
+      if (!fileData) {
+        // User cancelled
+        loadingScene.value = false
+        return
+      }
+
+      console.log('PhysicsMazesScene: Loading custom scene file:', fileData.name)
+
+      // Create a File-like object from the data
+      const file = new File([fileData.content], fileData.name, { type: 'application/json' })
+      const customScene = await loadCustomScene(file, 'physics_custom_')
+      console.log('PhysicsMazesScene: Custom scene loaded:', customScene)
+
+      previews.value[customScene.id] = await customScene.previewGenerator()
+
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Open the scene
+      handleSceneSelect(customScene.id)
+    } catch (err) {
+      console.error('PhysicsMazesScene: Error loading custom scene:', err)
+      error.value = err.message
+    } finally {
+      loadingScene.value = false
+    }
+  } else {
+    // Fall back to file input for web mode
+    fileInput.value.click()
+  }
 }
 
 const handleFileSelect = async (event) => {

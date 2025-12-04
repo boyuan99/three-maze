@@ -36,8 +36,46 @@ onMounted(async () => {
 })
 
 
-const handleLoadScene = () => {
-  fileInput.value.click()
+const handleLoadScene = async () => {
+  // Use Electron dialog if available (with default mazes folder)
+  if (window.electron?.selectMazeFile) {
+    loadingScene.value = true
+    error.value = null
+
+    try {
+      const fileData = await window.electron.selectMazeFile()
+
+      if (!fileData) {
+        // User cancelled
+        loadingScene.value = false
+        return
+      }
+
+      console.log('EntranceScene: Loading custom scene file:', fileData.name)
+
+      // Create a File-like object from the data
+      const file = new File([fileData.content], fileData.name, { type: 'application/json' })
+      const customScene = await loadCustomScene(file)
+      console.log('EntranceScene: Custom scene loaded:', customScene)
+
+      // Generate preview
+      previews.value[customScene.id] = await customScene.previewGenerator()
+
+      // Ensure scene is registered before opening
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      // Open the scene
+      handleSceneSelect(customScene.id)
+    } catch (err) {
+      console.error('EntranceScene: Error loading custom scene:', err)
+      error.value = err.message
+    } finally {
+      loadingScene.value = false
+    }
+  } else {
+    // Fall back to file input for web mode
+    fileInput.value.click()
+  }
 }
 
 const handleSceneSelect = (sceneId) => {
