@@ -1,6 +1,6 @@
 {
-  "name": "3D Hallway Scene",
-  "description": "A long hallway with textured walls and blue ends",
+  "name": "Hallway Scene V1",
+  "description": "A long hallway with physics-based player controls",
   "camera": {
     "position": {"x": 0, "y": 2.0, "z": 0},
     "fov": 75,
