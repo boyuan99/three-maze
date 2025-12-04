@@ -9,7 +9,7 @@ def setup_task():
     task.timing.samp_timing_type = nidaqmx.constants.SampleTimingType.ON_DEMAND
     return task
 
-def deliver_water(task, voltage=5.0, duration_ms=17):
+def deliver_water(task, voltage=5.0, duration_ms=70):
     duration_s = duration_ms / 1000.0  # Convert milliseconds to seconds
     # Send the voltage pulse
     task.write([voltage], auto_start=True)
