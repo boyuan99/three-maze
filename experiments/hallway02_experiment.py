@@ -254,7 +254,7 @@ class Experiment:
 
     async def _serial_read_loop(self):
         """Background task to read serial data and send to frontend.
-        
+
         EVENT-DRIVEN ARCHITECTURE:
         - Read serial data -> parse -> calculate velocity -> send to frontend
         - DO NOT update position here (frontend physics is the single source)
@@ -457,7 +457,7 @@ class Experiment:
             self.fall_start_time = datetime.now()
             self.is_falling = True
             self.fall_count += 1
-            logger.info(f"[{self.experiment_id}] Fall detected! Total falls: {self.fall_count} (height: {current_height:.2f}m)")
+            logger.info(f"[{self.experiment_id}] Fall detected! Total falls: {self.fall_count}")
         elif current_height >= RECOVERY_THRESHOLD and self.is_falling:
             # Reset fall tracking when recovered
             self.fall_start_time = None
@@ -736,8 +736,6 @@ class Experiment:
         VUE-STYLE (NewSerialHallwayScene.vue:183-188):
         - Reset position, rotation, and velocity
         """
-        logger.info(f"[{self.experiment_id}] Resetting player to start position")
-
         # Reset position
         self.position = np.array([0.0, 0.0, self.PLAYER_RADIUS, 0.0])
 
@@ -808,11 +806,6 @@ class Experiment:
 
     async def terminate(self) -> Dict[str, Any]:
         """Clean up all hardware resources."""
-        logger.info(f"[{self.experiment_id}] ========== STARTING CLEANUP ==========")
-        logger.info(f"[{self.experiment_id}] Total trials: {self.trial_number}")
-        logger.info(f"[{self.experiment_id}] Total rewards: {self.num_rewards}")
-        logger.info(f"[{self.experiment_id}] Total falls: {self.fall_count}")
-
         # === 1. STOP SERIAL PORT ===
         try:
             if self.serial_port and self.serial_port.is_open:
@@ -852,8 +845,18 @@ class Experiment:
             logger.error(f"[{self.experiment_id}] Error closing data file: {e}")
 
         elapsed = self._get_elapsed_time()
-        logger.info(f"[{self.experiment_id}] Total duration: {elapsed:.1f} seconds")
-        logger.info(f"[{self.experiment_id}] ========== CLEANUP COMPLETE ==========")
+
+        # Print summary to console
+        print("\n" + "=" * 50, flush=True)
+        print("EXPERIMENT SUMMARY", flush=True)
+        print("=" * 50, flush=True)
+        print(f"  Total Trials:   {self.trial_number}", flush=True)
+        print(f"  Total Rewards:  {self.num_rewards}", flush=True)
+        print(f"  Total Falls:    {self.fall_count}", flush=True)
+        print(f"  Duration:       {elapsed:.1f} seconds", flush=True)
+        if elapsed > 0:
+            print(f"  Reward Rate:    {self.num_rewards / elapsed * 60:.2f} rewards/min", flush=True)
+        print("=" * 50 + "\n", flush=True)
 
         self.is_active = False
 
