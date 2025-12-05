@@ -435,7 +435,12 @@ const startPythonBackend = async () => {
       let serverStarted = false;
 
       pythonProcess.stdout.on('data', (data) => {
-        const message = data.toString()
+        const message = data.toString().trim()
+
+        // Forward all Python stdout to console
+        if (message) {
+          console.log('Python:', message)
+        }
 
         // Look for pattern: "WebSocket server ready on port 8765"
         const portMatch = message.match(/WebSocket server ready on port (\d+)/i)
@@ -459,9 +464,9 @@ const startPythonBackend = async () => {
       })
 
       pythonProcess.stderr.on('data', (data) => {
-        const message = data.toString()
-        // Only log errors/warnings, not routine INFO messages
-        if (message.includes('ERROR') || message.includes('WARNING') || message.includes('Traceback')) {
+        const message = data.toString().trim()
+        // Forward all Python stderr to console
+        if (message) {
           console.log('Python:', message)
         }
 
