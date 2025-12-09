@@ -3,6 +3,7 @@
 # ========================
 .idea/
 .vscode/
+.claude/
 *.swp
 *.swo
 *~
@@ -67,10 +68,3 @@ ref/
 # Documentation (except README)
 *.md
 !README.md
-
-# Configuration files (except package files)
-*.json
-!package.json
-!package-lock.json
-!tsconfig*.json
-!jsconfig*.json
