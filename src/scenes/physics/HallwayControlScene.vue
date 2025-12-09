@@ -342,7 +342,7 @@ function animate() {
   fixedCam.update({
     position: new THREE.Vector3(
       playerPosition.x,
-      playerPosition.y + 2,
+      playerPosition.y + 1.6,
       playerPosition.z
     )
   })

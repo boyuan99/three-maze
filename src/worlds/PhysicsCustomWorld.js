@@ -82,7 +82,7 @@ export class PhysicsCustomWorld extends CustomWorld {
     this.fixedCam.update({
       position: new THREE.Vector3(
         playerPos.x,
-        playerPos.y + 2, // Eye height
+        playerPos.y + 1.6, // Eye height
         playerPos.z
       )
     })
@@ -178,7 +178,7 @@ export class PhysicsCustomWorld extends CustomWorld {
     this.fixedCam.update({
       position: new THREE.Vector3(
         playerPosition.x,
-        playerPosition.y + 2, // Match HallwayControlScene's height
+        playerPosition.y + 1.6, // Eye height
         playerPosition.z
       )
     })

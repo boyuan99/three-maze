@@ -404,7 +404,7 @@ function animate() {
     fixedCam.update({
         position: new THREE.Vector3(
             bodyPosition.x,
-            bodyPosition.y + 2,
+            bodyPosition.y + 1.6,
             bodyPosition.z
         )
     });
@@ -413,7 +413,7 @@ function animate() {
     fixedCam.update({
         position: new THREE.Vector3(
             position.value.x, // frozen x
-            bodyPosition.y + 2, // live y (if you want the vertical fall to be reflected)
+            bodyPosition.y + 1.6, // live y (if you want the vertical fall to be reflected)
             position.value.y  // frozen z (note: position.value.y is storing the physics z)
         )
     });
