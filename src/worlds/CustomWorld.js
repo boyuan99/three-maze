@@ -12,6 +12,7 @@ export class CustomWorld extends BaseWorld {
       rendererConfig: sceneConfig.renderer || {
         shadows: true
       },
+      fogConfig: sceneConfig.fog || null,
       useOrbitControls: true,
       lights: sceneConfig.lights || [
         {
