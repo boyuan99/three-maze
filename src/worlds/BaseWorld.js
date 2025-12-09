@@ -173,6 +173,11 @@ export class BaseWorld {
   initControls() {
     this.controls = new OrbitControls(this.camera, this.canvas)
     Object.assign(this.controls, this.options.controlsConfig)
+    // Set OrbitControls target to match camera target
+    if (this.options.cameraConfig.target) {
+      this.controls.target.copy(this.options.cameraConfig.target)
+      this.controls.update()
+    }
   }
 
   setupLights() {
