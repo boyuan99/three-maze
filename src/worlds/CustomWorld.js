@@ -4,14 +4,25 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js'
 
 export class CustomWorld extends BaseWorld {
   constructor(canvas, sceneConfig) {
+    // Calculate camera position and target for horizontal forward view
+    const cameraPos = sceneConfig.camera?.position
+      ? new THREE.Vector3(sceneConfig.camera.position.x, sceneConfig.camera.position.y, sceneConfig.camera.position.z)
+      : new THREE.Vector3(0, 1.6, 8)
+    // Target is at same height, looking forward along -Z
+    const cameraTarget = new THREE.Vector3(cameraPos.x, cameraPos.y, cameraPos.z - 10)
+
     super(canvas, {
-      cameraConfig: sceneConfig.camera || {
-        position: new THREE.Vector3(8, 8, 8),
-        fov: 75
+      cameraConfig: {
+        position: cameraPos,
+        target: cameraTarget,
+        fov: sceneConfig.camera?.fov || 75,
+        near: sceneConfig.camera?.near || 0.1,
+        far: sceneConfig.camera?.far || 1000
       },
       rendererConfig: sceneConfig.renderer || {
         shadows: true
       },
+      fogConfig: sceneConfig.fog || null,
       useOrbitControls: true,
       lights: sceneConfig.lights || [
         {

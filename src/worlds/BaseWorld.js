@@ -54,6 +54,16 @@ export class BaseWorld {
           castShadow: true
         }
       ],
+
+      // Fog settings
+      fogConfig: {
+        enabled: false,
+        type: 'linear',  // 'linear' or 'exponential'
+        color: 0xffffff,
+        near: 10,
+        far: 100,
+        density: 0.01,   // Only used for exponential type
+      },
     }
 
     this.options = this.deepMerge(defaultOptions, options)
@@ -143,6 +153,8 @@ export class BaseWorld {
       this.setupLights()
     }
 
+    this.setupFog()
+
     await this.setupScene()
 
     if (this.canvas) {
@@ -161,6 +173,11 @@ export class BaseWorld {
   initControls() {
     this.controls = new OrbitControls(this.camera, this.canvas)
     Object.assign(this.controls, this.options.controlsConfig)
+    // Set OrbitControls target to match camera target
+    if (this.options.cameraConfig.target) {
+      this.controls.target.copy(this.options.cameraConfig.target)
+      this.controls.update()
+    }
   }
 
   setupLights() {
@@ -212,6 +229,17 @@ export class BaseWorld {
         this.scene.add(lightObject)
       }
     })
+  }
+
+  setupFog() {
+    const fogConfig = this.options.fogConfig
+    if (!fogConfig || !fogConfig.enabled) return
+
+    if (fogConfig.type === 'exponential') {
+      this.scene.fog = new THREE.FogExp2(fogConfig.color, fogConfig.density)
+    } else {
+      this.scene.fog = new THREE.Fog(fogConfig.color, fogConfig.near, fogConfig.far)
+    }
   }
 
   createObject({

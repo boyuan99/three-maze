@@ -16,7 +16,7 @@ Usage:
         'daqChannel': 'ao0',         # Water delivery channel
         'trialEndY': 70.0,           # Trial end position
         'waterVoltage': 5.0,         # Water solenoid voltage
-        'waterDurationMs': 17        # Water pulse duration (Electron default: 17ms)
+        'waterDurationMs': 50        # Water pulse duration (Electron default: 50ms)
     }
 """
 
@@ -86,7 +86,7 @@ class Experiment:
 
         # Water delivery parameters (MATCHES ELECTRON)
         self.WATER_VOLTAGE = 5.0      # Electron default: 5.0V
-        self.WATER_DURATION_MS = 17   # Electron default: 17ms
+        self.WATER_DURATION_MS = 50   # Electron default: 50ms
 
         # State tracking
         self.position = np.array([0.0, 0.0, self.PLAYER_RADIUS, 0.0])  # [x, z, y(height), theta]
@@ -706,7 +706,7 @@ class Experiment:
 
         ELECTRON STYLE (water_delivery.py:12-18):
         - 5V pulse (configurable)
-        - 17ms duration (Electron default, configurable)
+        - 50ms duration (Electron default, configurable)
         - Uses persistent DAQ task
         """
         if not self.daq_task:
