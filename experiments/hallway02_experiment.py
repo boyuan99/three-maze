@@ -113,6 +113,7 @@ class Experiment:
 
         # Raw sensor data tracking
         self.last_sensor_data = None
+        self._last_logged_timestamp = None  # Track last logged timestamp to prevent duplicates
 
         # Position update tracking
         self.position_update_count = 0
@@ -275,7 +276,7 @@ class Experiment:
                             
                             # Store as latest data (for logging when position comes back)
                             self.last_sensor_data = parsed
-                            
+
                             # Store in pending map for sequence matching
                             self.pending_serial_data[self._serial_seq] = parsed
                             
@@ -484,18 +485,22 @@ class Experiment:
         # EVENT-DRIVEN: Log data here using frontend position (single source of truth)
         # IMPORTANT: Always log the current position BEFORE reset
         # This ensures we capture the exact position that triggered trial end/fall reset
+        # Only log if we have NEW sensor data (check timestamp to avoid duplicates)
         if self.last_sensor_data:
-            if trial_end_triggered:
-                # Log the position that triggered trial end WITH water reward marker
-                self._log_data(water_delivered=True)
-                # Handle trial end (deliver water, increment counters) AFTER logging
-                await self._handle_trial_end()
-            elif fall_timeout_triggered:
-                # Log the position when fall timeout triggered (before reset)
-                self._log_data()
-            elif not need_reset:
-                # Normal frame: log without water
-                self._log_data()
+            current_timestamp = self.last_sensor_data.get('timestamp')
+            if current_timestamp != self._last_logged_timestamp:
+                if trial_end_triggered:
+                    # Log the position that triggered trial end WITH water reward marker
+                    self._log_data(water_delivered=True)
+                    # Handle trial end (deliver water, increment counters) AFTER logging
+                    await self._handle_trial_end()
+                elif fall_timeout_triggered:
+                    # Log the position when fall timeout triggered (before reset)
+                    self._log_data()
+                elif not need_reset:
+                    # Normal frame: log without water
+                    self._log_data()
+                self._last_logged_timestamp = current_timestamp  # Update to prevent duplicates
 
         # Flush data file periodically on important events
         if self.data_file and (need_reset or self.is_falling):
@@ -509,8 +514,11 @@ class Experiment:
         if need_reset:
             self._reset_player()
             # Log the reset position (starting point of new trial)
-            self._log_data()
-            
+            if self.last_sensor_data:
+                self._log_data()
+                # Reset timestamp tracker so next sensor data will be logged
+                self._last_logged_timestamp = None
+
             return {
                 'action': 'set',
                 'lockMovement': False,  # Unlock after teleport
@@ -753,11 +761,11 @@ class Experiment:
         """
         Write current state to data file.
 
-        Matches NewSerialHallwayScene.vue format:
+        Format matches NewSerialHallwayScene.vue (8 columns):
         x, -y, theta, raw_x, raw_y, water, timestamp, scene_name
 
         Args:
-            water_delivered: Whether water reward was just delivered
+            water_delivered: Not used, kept for API compatibility
         """
         if self.data_file and self.last_sensor_data:
             # Use Teensy timestamp from serial data (not Python timestamp)
@@ -771,7 +779,7 @@ class Experiment:
                 f"{self.position[3]:.3f}\t"           # theta
                 f"{self.last_sensor_data.get('x', 0)}\t"  # raw_x
                 f"{self.last_sensor_data.get('y', 0)}\t"  # raw_y
-                f"{1 if water_delivered else 0}\t"   # water
+                f"{self.last_sensor_data.get('water', 0)}\t"  # water (hardware lick signal from sensor)
                 f"{timestamp}\t"                       # Teensy timestamp (microseconds)
                 f"{self.experiment_id}\n"              # scene_name
             )
