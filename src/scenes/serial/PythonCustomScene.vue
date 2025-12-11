@@ -190,6 +190,10 @@ function animate() {
       }
       
       console.log('Player reset to:', backend.x, backend.y, backend.z)
+
+      // Clear any pending serial data to prevent stale position updates
+      // This fixes the race condition where old position data triggers false trial ends
+      pendingSerialData = null
     }
     // action === 'update' means normal confirmation, no action needed
 
