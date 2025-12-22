@@ -1,17 +1,20 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { 
-  galleryScenes, 
+import { VueDraggable } from 'vue-draggable-plus'
+import {
+  galleryScenes,
   physicsMazeScenes,
   serialControlScenes,
-  generatePreviews, 
-  loadCustomScene, 
-  removeCustomScene, 
-  loadStoredScenes 
+  generatePreviews,
+  loadCustomScene,
+  removeCustomScene,
+  loadStoredScenes
 } from '@/scenes'
 import { physicsMazeScenes as mazeScenesList } from '@/scenes'
 import NavigationBar from '@/components/NavigationBar.vue'
+
+const STORAGE_KEY = 'physicsMazeSceneOrder'
 
 const router = useRouter()
 const previews = ref({})
@@ -19,20 +22,66 @@ const previewsLoaded = ref(false)
 const loadingScene = ref(false)
 const error = ref(null)
 const fileInput = ref(null)
+const orderedScenes = ref([])
 
-const availableMazeScenes = computed(() => {
-  return [...mazeScenesList, ...physicsMazeCustomScenes.value]
+// Get all scenes (predefined + custom)
+const allScenes = computed(() => {
+  const predefined = mazeScenesList.filter(s => !s.id.startsWith('physics_custom_'))
+  const custom = mazeScenesList.filter(s => s.id.startsWith('physics_custom_'))
+  return [...predefined, ...custom]
 })
 
-const physicsMazeCustomScenes = computed(() => {
-  return mazeScenesList.filter(scene => scene.id.startsWith('physics_custom_'))
-})
+// Load and apply saved order
+const loadSavedOrder = () => {
+  const savedOrder = localStorage.getItem(STORAGE_KEY)
+  const currentScenes = allScenes.value
+
+  if (savedOrder) {
+    try {
+      const orderIds = JSON.parse(savedOrder)
+      const sorted = []
+      const remaining = [...currentScenes]
+
+      for (const id of orderIds) {
+        const index = remaining.findIndex(s => s.id === id)
+        if (index !== -1) {
+          sorted.push(remaining.splice(index, 1)[0])
+        }
+      }
+      sorted.push(...remaining)
+      orderedScenes.value = sorted
+    } catch (e) {
+      orderedScenes.value = currentScenes
+    }
+  } else {
+    orderedScenes.value = currentScenes
+  }
+}
+
+// Save order to localStorage
+const saveOrder = () => {
+  const orderIds = orderedScenes.value.map(s => s.id)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(orderIds))
+}
+
+// Handle drag end
+const onDragEnd = () => {
+  saveOrder()
+}
+
+// Watch for scene changes and update order
+watch(allScenes, () => {
+  loadSavedOrder()
+}, { deep: true })
 
 onMounted(async () => {
   try {
     // First load stored scenes
     await loadStoredScenes()
-    
+
+    // Load saved order
+    loadSavedOrder()
+
     // Then generate previews
     const result = await generatePreviews()
     previews.value = result
@@ -155,8 +204,9 @@ const handleSceneSelect = (sceneId) => {
           </div>
         </div>
         
+        <!-- Scene Grid -->
         <div class="scene-grid">
-          <!-- Load Scene Card -->
+          <!-- Load Scene Card (Fixed, Not Draggable) -->
           <div
             class="scene-card load-scene-card"
             @click="handleLoadScene"
@@ -182,65 +232,48 @@ const handleSceneSelect = (sceneId) => {
               @change="handleFileSelect"
             >
           </div>
-          
-          <!-- Regular maze scenes -->
-          <div 
-            v-for="scene in mazeScenesList.filter(s => !s.id.startsWith('physics_custom_'))" 
-            :key="scene.id"
-            class="scene-card"
-            @click="handleSceneSelect(scene.id)"
+
+          <!-- Draggable Scene Cards -->
+          <VueDraggable
+              v-model="orderedScenes"
+              class="draggable-container"
+              animation="150"
+              ghostClass="ghost-card"
+              @end="onDragEnd"
           >
-            <div class="scene-preview">
-              <div v-if="!previewsLoaded || !previews[scene.id]" class="preview-loading">
-                Loading preview...
+            <div
+                v-for="scene in orderedScenes"
+                :key="scene.id"
+                class="scene-card"
+                @click="handleSceneSelect(scene.id)"
+            >
+              <div class="scene-preview">
+                <div v-if="!previewsLoaded || !previews[scene.id]" class="preview-loading">
+                  Loading preview...
+                </div>
+                <img
+                    v-else
+                    :src="previews[scene.id]"
+                    :alt="scene.name"
+                    class="preview-image"
+                />
               </div>
-              <img
-                v-else
-                :src="previews[scene.id]"
-                :alt="scene.name"
-                class="preview-image"
-              />
-            </div>
-            <div class="scene-info">
-              <div class="scene-header">
-                <h2 class="scene-title">{{ scene.name }}</h2>
+              <div class="scene-info">
+                <div class="scene-header">
+                  <h2 class="scene-title">{{ scene.name }}</h2>
+                  <button
+                      v-if="scene.id.startsWith('physics_custom_')"
+                      class="delete-button"
+                      @click.stop="handleDeleteScene(scene.id, $event)"
+                      title="Delete custom scene"
+                  >
+                    ×
+                  </button>
+                </div>
+                <p class="scene-description">{{ scene.description }}</p>
               </div>
-              <p class="scene-description">{{ scene.description }}</p>
             </div>
-          </div>
-          
-          <!-- Custom maze scenes -->
-          <div 
-            v-for="scene in mazeScenesList.filter(s => s.id.startsWith('physics_custom_'))" 
-            :key="scene.id"
-            class="scene-card"
-            @click="handleSceneSelect(scene.id)"
-          >
-            <div class="scene-preview">
-              <div v-if="!previewsLoaded || !previews[scene.id]" class="preview-loading">
-                Loading preview...
-              </div>
-              <img
-                v-else
-                :src="previews[scene.id]"
-                :alt="scene.name"
-                class="preview-image"
-              />
-            </div>
-            <div class="scene-info">
-              <div class="scene-header">
-                <h2 class="scene-title">{{ scene.name }}</h2>
-                <button
-                  class="delete-button"
-                  @click="(event) => handleDeleteScene(scene.id, event)"
-                  title="Delete custom scene"
-                >
-                  ×
-                </button>
-              </div>
-              <p class="scene-description">{{ scene.description }}</p>
-            </div>
-          </div>
+          </VueDraggable>
         </div>
         
         <!-- Loading overlay -->
@@ -507,5 +540,27 @@ const handleSceneSelect = (sceneId) => {
 
 .entrance-wrapper::-webkit-scrollbar-thumb:hover {
   background: #4a4a4a;
+}
+
+/* Drag and drop styles */
+.draggable-container {
+  display: contents;
+}
+
+.ghost-card {
+  opacity: 0.5;
+  background: #3a3a3a !important;
+}
+
+.scene-card {
+  cursor: grab;
+}
+
+.scene-card:active {
+  cursor: grabbing;
+}
+
+.load-scene-card {
+  cursor: pointer;
 }
 </style>
