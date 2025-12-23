@@ -1,22 +1,15 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, toRaw } from 'vue'
 import { useRouter } from 'vue-router'
 import { VueDraggable } from 'vue-draggable-plus'
-import {
-  galleryScenes,
-  physicsMazeScenes,
-  serialControlScenes,
-  generatePreviews,
-  loadCustomScene,
-  removeCustomScene,
-  loadStoredScenes
-} from '@/scenes'
+import { useScenesStore } from '@/stores/scenes'
 import { storageService } from '@/storage.js'
 import NavigationBar from '@/components/NavigationBar.vue'
 
 const STORAGE_KEY = 'serialControlSceneOrder'
 
 const router = useRouter()
+const scenesStore = useScenesStore()
 const previews = ref({})
 const previewsLoaded = ref(false)
 const loadingScene = ref(false)
@@ -27,12 +20,8 @@ const selectedSceneForExperiment = ref(null)
 const sceneExperimentFiles = ref({})
 const orderedScenes = ref([])
 
-// Get all scenes (predefined + custom)
-const allScenes = computed(() => {
-  const predefined = serialControlScenes.filter(s => !s.id.startsWith('serial_custom_'))
-  const custom = serialControlScenes.filter(s => s.id.startsWith('serial_custom_'))
-  return [...predefined, ...custom]
-})
+// Get all serial control scenes from store (reactive)
+const allScenes = computed(() => scenesStore.serialControlScenes)
 
 // Load and apply saved order
 const loadSavedOrder = () => {
@@ -72,26 +61,25 @@ const onDragEnd = () => {
   saveOrder()
 }
 
-// Watch for scene changes and update order
+// Watch for scene changes and update order (Pinia store is reactive)
 watch(allScenes, () => {
   loadSavedOrder()
 }, { deep: true })
 
 onMounted(async () => {
   try {
-    await loadStoredScenes()
-
     // Load saved order
     loadSavedOrder()
 
-    const result = await generatePreviews()
+    // Generate previews using store
+    const result = await scenesStore.generatePreviews()
     previews.value = result
     previewsLoaded.value = true
 
     // Load stored experiment file associations
     await loadStoredExperimentFiles()
-  } catch (error) {
-    console.error('Error generating previews:', error)
+  } catch (err) {
+    console.error('Error generating previews:', err)
     previewsLoaded.value = true
   }
 })
@@ -132,7 +120,7 @@ const handleLoadScene = async () => {
 
       // Create a File-like object from the data
       const file = new File([fileData.content], fileData.name, { type: 'application/json' })
-      const customScene = await loadCustomScene(file, 'serial_custom_')
+      const customScene = await scenesStore.loadCustomScene(file, 'serial_custom_')
       console.log('Custom scene loaded:', customScene)
 
       previews.value[customScene.id] = await customScene.previewGenerator()
@@ -161,7 +149,7 @@ const handleFileSelect = async (event) => {
 
   try {
     console.log('Loading custom scene file:', file.name)
-    const customScene = await loadCustomScene(file, 'serial_custom_')
+    const customScene = await scenesStore.loadCustomScene(file, 'serial_custom_')
     console.log('Custom scene loaded:', customScene)
 
     previews.value[customScene.id] = await customScene.previewGenerator()
@@ -181,7 +169,7 @@ const handleFileSelect = async (event) => {
 const handleDeleteScene = async (sceneId, event) => {
   event.stopPropagation()
   if (confirm('Are you sure you want to delete this custom scene?')) {
-    const removed = await removeCustomScene(sceneId)
+    const removed = await scenesStore.removeCustomScene(sceneId)
     if (removed) {
       delete previews.value[sceneId]
 
@@ -205,11 +193,11 @@ const handleSceneSelect = (sceneId, shouldOpen = false) => {
   }
 
   // Find the scene configuration
-  const scene = [...galleryScenes, ...physicsMazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
+  const scene = scenesStore.getSceneById(sceneId)
 
   // Prepare scene data with config and experiment file info
   const sceneData = {
-    config: scene?.config || null,
+    config: scene?.config ? toRaw(scene.config) : null,
     experimentFile: sceneExperimentFiles.value[sceneId]?.filename || null
   }
 

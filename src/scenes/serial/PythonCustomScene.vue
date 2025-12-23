@@ -53,7 +53,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, shallowRef } from 'vue'
 import { useRoute } from 'vue-router'
-import { scenes } from '@/scenes'
+import { useScenesStore } from '@/stores/scenes'
 import * as THREE from 'three'
 import { FixedFollowCam } from '@/utils/FixedFollowCam.js'
 import RAPIER from '@dimforge/rapier3d-compat'
@@ -61,6 +61,7 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader'
 import { MinimalBackendClient } from '@/services/MinimalBackendClient'
 
 const route = useRoute()
+const scenesStore = useScenesStore()
 const canvas = ref(null)
 const error = ref(null)
 const isActive = ref(true)
@@ -470,7 +471,7 @@ onMounted(async () => {
         sceneDescription.value = sceneConfig.description || 'Custom scene with Python backend'
       }
     } else {
-      const scene = scenes.find(s => s.id === sceneId)
+      const scene = scenesStore.getSceneById(sceneId)
       sceneConfig = scene?.config
       const storedFile = sessionStorage.getItem(`experimentFile_${sceneId}`)
       if (storedFile) {

@@ -1,22 +1,14 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, toRaw } from 'vue'
 import { useRouter } from 'vue-router'
 import { VueDraggable } from 'vue-draggable-plus'
-import {
-  galleryScenes,
-  physicsMazeScenes,
-  serialControlScenes,
-  generatePreviews,
-  loadCustomScene,
-  removeCustomScene,
-  loadStoredScenes
-} from '@/scenes'
-import { physicsMazeScenes as mazeScenesList } from '@/scenes'
+import { useScenesStore } from '@/stores/scenes'
 import NavigationBar from '@/components/NavigationBar.vue'
 
 const STORAGE_KEY = 'physicsMazeSceneOrder'
 
 const router = useRouter()
+const scenesStore = useScenesStore()
 const previews = ref({})
 const previewsLoaded = ref(false)
 const loadingScene = ref(false)
@@ -24,12 +16,8 @@ const error = ref(null)
 const fileInput = ref(null)
 const orderedScenes = ref([])
 
-// Get all scenes (predefined + custom)
-const allScenes = computed(() => {
-  const predefined = mazeScenesList.filter(s => !s.id.startsWith('physics_custom_'))
-  const custom = mazeScenesList.filter(s => s.id.startsWith('physics_custom_'))
-  return [...predefined, ...custom]
-})
+// Get all physics maze scenes from store (reactive)
+const allScenes = computed(() => scenesStore.physicsMazeScenes)
 
 // Load and apply saved order
 const loadSavedOrder = () => {
@@ -69,25 +57,22 @@ const onDragEnd = () => {
   saveOrder()
 }
 
-// Watch for scene changes and update order
+// Watch for scene changes and update order (Pinia store is reactive)
 watch(allScenes, () => {
   loadSavedOrder()
 }, { deep: true })
 
 onMounted(async () => {
   try {
-    // First load stored scenes
-    await loadStoredScenes()
-
     // Load saved order
     loadSavedOrder()
 
-    // Then generate previews
-    const result = await generatePreviews()
+    // Generate previews using store
+    const result = await scenesStore.generatePreviews()
     previews.value = result
     previewsLoaded.value = true
-  } catch (error) {
-    console.error('Error generating previews:', error)
+  } catch (err) {
+    console.error('Error generating previews:', err)
     previewsLoaded.value = true
   }
 })
@@ -111,7 +96,7 @@ const handleLoadScene = async () => {
 
       // Create a File-like object from the data
       const file = new File([fileData.content], fileData.name, { type: 'application/json' })
-      const customScene = await loadCustomScene(file, 'physics_custom_')
+      const customScene = await scenesStore.loadCustomScene(file, 'physics_custom_')
       console.log('PhysicsMazesScene: Custom scene loaded:', customScene)
 
       previews.value[customScene.id] = await customScene.previewGenerator()
@@ -142,7 +127,7 @@ const handleFileSelect = async (event) => {
   try {
     console.log('PhysicsMazesScene: Loading custom scene file:', file.name)
     // Override the ID prefix to use physics_custom_
-    const customScene = await loadCustomScene(file, 'physics_custom_')
+    const customScene = await scenesStore.loadCustomScene(file, 'physics_custom_')
     console.log('PhysicsMazesScene: Custom scene loaded:', customScene)
 
     // Generate preview
@@ -167,7 +152,7 @@ const handleFileSelect = async (event) => {
 const handleDeleteScene = async (sceneId, event) => {
   event.stopPropagation()
   if (confirm('Are you sure you want to delete this custom scene?')) {
-    const removed = await removeCustomScene(sceneId)
+    const removed = await scenesStore.removeCustomScene(sceneId)
     if (removed) {
       delete previews.value[sceneId]
     }
@@ -175,10 +160,10 @@ const handleDeleteScene = async (sceneId, event) => {
 }
 
 const handleSceneSelect = (sceneId) => {
-  const scene = [...galleryScenes, ...physicsMazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
-  
+  const scene = scenesStore.getSceneById(sceneId)
+
   if (window.electron) {
-    window.electron.openScene(sceneId, scene?.config)
+    window.electron.openScene(sceneId, scene?.config ? toRaw(scene.config) : null)
   } else {
     const path = sceneId.startsWith('physics_custom_')
         ? `/scene/custom/${sceneId}`

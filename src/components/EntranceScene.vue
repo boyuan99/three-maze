@@ -1,20 +1,14 @@
 <script setup>
-import {ref, onMounted, computed, watch} from 'vue'
+import {ref, onMounted, computed, watch, toRaw} from 'vue'
 import {useRouter} from 'vue-router'
 import {VueDraggable} from 'vue-draggable-plus'
-import {
-  scenes,
-  galleryScenes,
-  generatePreviews,
-  loadCustomScene,
-  removeCustomScene,
-  loadStoredScenes
-} from '@/scenes'
+import {useScenesStore} from '@/stores/scenes'
 import NavigationBar from '@/components/NavigationBar.vue'
 
 const STORAGE_KEY = 'gallerySceneOrder'
 
 const router = useRouter()
+const scenesStore = useScenesStore()
 const previews = ref({})
 const previewsLoaded = ref(false)
 const loadingScene = ref(false)
@@ -22,12 +16,8 @@ const error = ref(null)
 const fileInput = ref(null)
 const orderedScenes = ref([])
 
-// Get all scenes (predefined + custom)
-const allScenes = computed(() => {
-  const predefined = galleryScenes.filter(s => !s.id.startsWith('gallery_custom_'))
-  const custom = [...scenes].filter(s => s.id.startsWith('gallery_custom_'))
-  return [...predefined, ...custom]
-})
+// Get all gallery scenes from store (reactive)
+const allScenes = computed(() => scenesStore.galleryScenes)
 
 // Load and apply saved order
 const loadSavedOrder = () => {
@@ -69,7 +59,7 @@ const onDragEnd = () => {
   saveOrder()
 }
 
-// Watch for scene changes and update order
+// Watch for scene changes and update order (Pinia store is reactive)
 watch(allScenes, () => {
   loadSavedOrder()
 }, { deep: true })
@@ -77,18 +67,15 @@ watch(allScenes, () => {
 // Load previews when component mounts
 onMounted(async () => {
   try {
-    // First load stored scenes
-    await loadStoredScenes()
-
     // Load saved order
     loadSavedOrder()
 
-    // Then generate previews
-    const result = await generatePreviews()
+    // Generate previews using store
+    const result = await scenesStore.generatePreviews()
     previews.value = result
     previewsLoaded.value = true
-  } catch (error) {
-    console.error('Error loading scenes and previews:', error)
+  } catch (err) {
+    console.error('Error loading scenes and previews:', err)
     previewsLoaded.value = true
   }
 })
@@ -113,7 +100,7 @@ const handleLoadScene = async () => {
 
       // Create a File-like object from the data
       const file = new File([fileData.content], fileData.name, { type: 'application/json' })
-      const customScene = await loadCustomScene(file)
+      const customScene = await scenesStore.loadCustomScene(file, 'gallery_custom_')
       console.log('EntranceScene: Custom scene loaded:', customScene)
 
       // Generate preview
@@ -138,11 +125,11 @@ const handleLoadScene = async () => {
 
 const handleSceneSelect = (sceneId) => {
   console.log('EntranceScene: Selecting scene:', sceneId)
-  const scene = [...scenes].find(s => s.id === sceneId)
+  const scene = scenesStore.getSceneById(sceneId)
 
   if (window.electron) {
     console.log('EntranceScene: Opening in Electron:', sceneId)
-    window.electron.openScene(sceneId, scene?.config)
+    window.electron.openScene(sceneId, scene?.config ? toRaw(scene.config) : null)
   } else {
     const path = sceneId.startsWith('gallery_custom_')
         ? `/scene/custom/${sceneId}`
@@ -161,7 +148,7 @@ const handleFileSelect = async (event) => {
 
   try {
     console.log('EntranceScene: Loading custom scene file:', file.name)
-    const customScene = await loadCustomScene(file)
+    const customScene = await scenesStore.loadCustomScene(file, 'gallery_custom_')
     console.log('EntranceScene: Custom scene loaded:', customScene)
 
     // Generate preview
@@ -186,7 +173,7 @@ const handleFileSelect = async (event) => {
 
 const handleDeleteScene = async (sceneId) => {
   if (confirm('Are you sure you want to delete this custom scene?')) {
-    const removed = removeCustomScene(sceneId)
+    const removed = await scenesStore.removeCustomScene(sceneId)
     if (removed) {
       delete previews.value[sceneId]
     }
