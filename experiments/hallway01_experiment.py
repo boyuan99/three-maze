@@ -88,7 +88,7 @@ class Experiment:
 
         # Water delivery parameters (MATCHES ELECTRON)
         self.WATER_VOLTAGE = 5.0      # Electron default: 5.0V
-        self.WATER_DURATION_MS = 50   # Electron default: 50ms
+        self.WATER_DURATION_MS = 70   # Electron default: 50ms
 
         # State tracking
         self.position = np.array([0.0, 0.0, self.PLAYER_HEIGHT, 0.0])  # [x, z, y(height), theta]

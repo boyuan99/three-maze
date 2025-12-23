@@ -63,7 +63,7 @@ class Experiment:
             config: Configuration dictionary from frontend
             hardware_manager: Not used in standalone mode (always None)
             event_callback: Callback function for sending events to frontend (callable)
-        """
+        """   
         self.experiment_id = experiment_id
         self.config = config
         self.event_callback = event_callback  # Callback for sending events to frontend
@@ -88,7 +88,7 @@ class Experiment:
 
         # Water delivery parameters (MATCHES ELECTRON)
         self.WATER_VOLTAGE = 5.0      # Electron default: 5.0V
-        self.WATER_DURATION_MS = 50   # Electron default: 50ms
+        self.WATER_DURATION_MS = 70   # Electron default: 50ms
 
         # State tracking
         self.position = np.array([0.0, 0.0, self.PLAYER_HEIGHT, 0.0])  # [x, z, y(height), theta]
