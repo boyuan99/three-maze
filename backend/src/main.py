@@ -577,10 +577,35 @@ class BackendServer:
             }
 
     async def _handle_position_update(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle position update from frontend physics engine"""
+        """Handle position update from frontend physics engine.
+
+        Includes stale position filtering: after a reset (action='set'),
+        ignore position updates that are clearly from before the reset.
+        """
         if self.active_experiment and hasattr(self.active_experiment, 'process_position_update'):
+            # Check if we're waiting for reset confirmation
+            if getattr(self, '_awaiting_reset_confirm', False):
+                # Check if incoming position is near the reset position (confirming frontend received reset)
+                incoming_y = abs(data.get('z', 0))  # Frontend Z = game Y (forward/back)
+                reset_threshold = 10.0  # Must be within 10m of origin to confirm reset
+
+                if incoming_y < reset_threshold:
+                    # Position is near origin - reset confirmed, resume normal processing
+                    self._awaiting_reset_confirm = False
+                    logger.debug(f"Reset confirmed, position near origin (Y={incoming_y:.1f})")
+                else:
+                    # Stale position update from before reset - silently ignore it
+                    # Don't send response to avoid overwriting the pending action='set' on frontend
+                    logger.debug(f"Ignoring stale position update (Y={incoming_y:.1f}, awaiting reset)")
+                    return None
+
             # Pass position to experiment and get response position
             response_position = await self.active_experiment.process_position_update(data)
+
+            # Check if response is a reset command - track state for filtering
+            if response_position.get('action') == 'set':
+                self._awaiting_reset_confirm = True
+                logger.debug("Reset command issued, will filter stale position updates")
 
             return {
                 "type": "position_confirm",
@@ -689,6 +714,10 @@ class BackendServer:
             if msg_type in self.message_handlers:
                 handler = self.message_handlers[msg_type]
                 response = await handler(data.get("data", {}))
+
+                # Handler may return None to indicate no response needed (e.g., filtered stale data)
+                if response is None:
+                    return
 
                 # Add request ID if present
                 if request_id:

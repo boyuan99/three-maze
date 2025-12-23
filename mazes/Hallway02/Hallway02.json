@@ -1,0 +1,119 @@
+{
+  "name": "Hallway Scene V3",
+  "description": "A long hallway with physics-based player controls, wider layout, and falling features",
+  "camera": {
+    "position": {"x": 0, "y": 5, "z": 0},
+    "fov": 75,
+    "near": 0.1,
+    "far": 1000
+  },
+  "renderer": {
+    "shadows": true,
+    "physicallyCorrectLights": true
+  },
+  "skybox": "/src/assets/evening_road_01_puresky_1k.exr",
+  "lights": [
+    {
+      "type": "ambient",
+      "color": 16777215,
+      "intensity": 0.6
+    },
+    {
+      "type": "directional",
+      "color": 16777215,
+      "intensity": 1.0,
+      "position": {"x": 10, "y": 20, "z": 10},
+      "castShadow": true
+    },
+    {
+      "type": "point",
+      "color": 16777215,
+      "intensity": 1.0,
+      "position": {"x": 0, "y": 5, "z": 0},
+      "distance": 50,
+      "decay": 2
+    }
+  ],
+  "objects": [
+    {
+      "name": "mainFloor",
+      "geometry": {
+        "type": "box",
+        "width": 40,
+        "height": 1,
+        "depth": 140
+      },
+      "material": {
+        "map": "/src/assets/Chess_Pattern.jpg",
+        "repeat": {"x": 0.4, "y": 1.4},
+        "roughness": 0.8
+      },
+      "position": {"x": 0, "y": -0.5, "z": 0},
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      }
+    },
+    {
+      "name": "frontBlueFloor",
+      "geometry": {
+        "type": "box",
+        "width": 40,
+        "height": 1,
+        "depth": 30
+      },
+      "material": {
+        "color": 255,
+        "roughness": 0.7,
+        "metalness": 0.2
+      },
+      "position": {"x": 0, "y": -0.5, "z": 85},
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      }
+    },
+    {
+      "name": "backBlueFloor",
+      "geometry": {
+        "type": "box",
+        "width": 40,
+        "height": 1,
+        "depth": 30
+      },
+      "material": {
+        "color": 255,
+        "roughness": 0.7,
+        "metalness": 0.2
+      },
+      "position": {"x": 0, "y": -0.5, "z": -85},
+      "receiveShadow": true,
+      "physics": {
+        "enabled": true,
+        "type": "static"
+      }
+    }
+  ],
+  "player": {
+    "type": "sphere",
+    "radius": 0.5,
+    "position": {"x": 0, "y": 0.5, "z": 0},
+    "physics": {
+      "enabled": true,
+      "type": "dynamic",
+      "mass": 1,
+      "linearDamping": 0.9,
+      "angularDamping": 0.9,
+      "restitution": 0,
+      "friction": 1
+    }
+  },
+  "controls": {
+    "type": "firstPerson",
+    "speed": 35,
+    "jumpForce": 10,
+    "mouseSensitivity": 0.002
+  }
+} 

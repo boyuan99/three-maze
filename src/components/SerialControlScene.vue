@@ -1,19 +1,15 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch, toRaw } from 'vue'
 import { useRouter } from 'vue-router'
-import { 
-  galleryScenes, 
-  physicsMazeScenes, 
-  serialControlScenes,
-  generatePreviews, 
-  loadCustomScene, 
-  removeCustomScene, 
-  loadStoredScenes 
-} from '@/scenes'
+import { VueDraggable } from 'vue-draggable-plus'
+import { useScenesStore } from '@/stores/scenes'
 import { storageService } from '@/storage.js'
 import NavigationBar from '@/components/NavigationBar.vue'
 
+const STORAGE_KEY = 'serialControlSceneOrder'
+
 const router = useRouter()
+const scenesStore = useScenesStore()
 const previews = ref({})
 const previewsLoaded = ref(false)
 const loadingScene = ref(false)
@@ -22,25 +18,68 @@ const fileInput = ref(null)
 const experimentFileInput = ref(null)
 const selectedSceneForExperiment = ref(null)
 const sceneExperimentFiles = ref({})
+const orderedScenes = ref([])
 
-const availableSerialScenes = computed(() => {
-  // Show both predefined and custom scenes
-  return [...serialControlScenes.filter(s => !s.id.startsWith('serial_custom_')),
-          ...serialControlScenes.filter(s => s.id.startsWith('serial_custom_'))]
-})
+// Get all serial control scenes from store (reactive)
+const allScenes = computed(() => scenesStore.serialControlScenes)
+
+// Load and apply saved order
+const loadSavedOrder = () => {
+  const savedOrder = localStorage.getItem(STORAGE_KEY)
+  const currentScenes = allScenes.value
+
+  if (savedOrder) {
+    try {
+      const orderIds = JSON.parse(savedOrder)
+      const sorted = []
+      const remaining = [...currentScenes]
+
+      for (const id of orderIds) {
+        const index = remaining.findIndex(s => s.id === id)
+        if (index !== -1) {
+          sorted.push(remaining.splice(index, 1)[0])
+        }
+      }
+      sorted.push(...remaining)
+      orderedScenes.value = sorted
+    } catch (e) {
+      orderedScenes.value = currentScenes
+    }
+  } else {
+    orderedScenes.value = currentScenes
+  }
+}
+
+// Save order to localStorage
+const saveOrder = () => {
+  const orderIds = orderedScenes.value.map(s => s.id)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(orderIds))
+}
+
+// Handle drag end
+const onDragEnd = () => {
+  saveOrder()
+}
+
+// Watch for scene changes and update order (Pinia store is reactive)
+watch(allScenes, () => {
+  loadSavedOrder()
+}, { deep: true })
 
 onMounted(async () => {
   try {
-    await loadStoredScenes()
+    // Load saved order
+    loadSavedOrder()
 
-    const result = await generatePreviews()
+    // Generate previews using store
+    const result = await scenesStore.generatePreviews()
     previews.value = result
     previewsLoaded.value = true
 
     // Load stored experiment file associations
     await loadStoredExperimentFiles()
-  } catch (error) {
-    console.error('Error generating previews:', error)
+  } catch (err) {
+    console.error('Error generating previews:', err)
     previewsLoaded.value = true
   }
 })
@@ -81,7 +120,7 @@ const handleLoadScene = async () => {
 
       // Create a File-like object from the data
       const file = new File([fileData.content], fileData.name, { type: 'application/json' })
-      const customScene = await loadCustomScene(file, 'serial_custom_')
+      const customScene = await scenesStore.loadCustomScene(file, 'serial_custom_')
       console.log('Custom scene loaded:', customScene)
 
       previews.value[customScene.id] = await customScene.previewGenerator()
@@ -110,7 +149,7 @@ const handleFileSelect = async (event) => {
 
   try {
     console.log('Loading custom scene file:', file.name)
-    const customScene = await loadCustomScene(file, 'serial_custom_')
+    const customScene = await scenesStore.loadCustomScene(file, 'serial_custom_')
     console.log('Custom scene loaded:', customScene)
 
     previews.value[customScene.id] = await customScene.previewGenerator()
@@ -130,7 +169,7 @@ const handleFileSelect = async (event) => {
 const handleDeleteScene = async (sceneId, event) => {
   event.stopPropagation()
   if (confirm('Are you sure you want to delete this custom scene?')) {
-    const removed = await removeCustomScene(sceneId)
+    const removed = await scenesStore.removeCustomScene(sceneId)
     if (removed) {
       delete previews.value[sceneId]
 
@@ -154,11 +193,11 @@ const handleSceneSelect = (sceneId, shouldOpen = false) => {
   }
 
   // Find the scene configuration
-  const scene = [...galleryScenes, ...physicsMazeScenes, ...serialControlScenes].find(s => s.id === sceneId)
+  const scene = scenesStore.getSceneById(sceneId)
 
   // Prepare scene data with config and experiment file info
   const sceneData = {
-    config: scene?.config || null,
+    config: scene?.config ? toRaw(scene.config) : null,
     experimentFile: sceneExperimentFiles.value[sceneId]?.filename || null
   }
 
@@ -307,8 +346,9 @@ const canOpenScene = (sceneId) => {
           </div>
         </div>
         
+        <!-- Scene Grid -->
         <div class="scene-grid">
-          <!-- Load Custom Scene Card -->
+          <!-- Load Custom Scene Card (Fixed, Not Draggable) -->
           <div
             class="scene-card load-scene-card"
             @click="handleLoadScene"
@@ -335,89 +375,74 @@ const canOpenScene = (sceneId) => {
             >
           </div>
 
-          <!-- Predefined Scenes -->
-          <div
-            v-for="scene in serialControlScenes.filter(s => !s.id.startsWith('serial_custom_'))"
-            :key="scene.id"
-            class="scene-card"
+          <!-- Draggable Scene Cards -->
+          <VueDraggable
+              v-model="orderedScenes"
+              class="draggable-container"
+              animation="150"
+              ghostClass="ghost-card"
+              @end="onDragEnd"
           >
-            <div class="scene-preview">
-              <div v-if="!previewsLoaded || !previews[scene.id]" class="preview-loading">
-                Loading preview...
+            <div
+                v-for="scene in orderedScenes"
+                :key="scene.id"
+                class="scene-card"
+            >
+              <div class="scene-preview">
+                <div v-if="!previewsLoaded || !previews[scene.id]" class="preview-loading">
+                  Loading preview...
+                </div>
+                <img
+                    v-else
+                    :src="previews[scene.id]"
+                    :alt="scene.name"
+                    class="preview-image"
+                />
               </div>
-              <img
-                v-else
-                :src="previews[scene.id]"
-                :alt="scene.name"
-                class="preview-image"
-              />
-            </div>
-            <div class="scene-info">
-              <div class="scene-header">
-                <h2 class="scene-title">{{ scene.name }}</h2>
-              </div>
-              <p class="scene-description">{{ scene.description }}</p>
+              <div class="scene-info">
+                <div class="scene-header">
+                  <h2 class="scene-title">{{ scene.name }}</h2>
+                  <button
+                      v-if="scene.id.startsWith('serial_custom_')"
+                      class="delete-button"
+                      @click.stop="handleDeleteScene(scene.id, $event)"
+                      title="Delete custom scene"
+                  >
+                    ×
+                  </button>
+                </div>
+                <p class="scene-description">{{ scene.description }}</p>
 
-              <div class="scene-actions">
-                <button class="action-button open-button" @click="handleOpenScene(scene.id)">
-                  Open Scene
-                </button>
-              </div>
-            </div>
-          </div>
+                <!-- Experiment file info for custom scenes -->
+                <template v-if="scene.id.startsWith('serial_custom_')">
+                  <div v-if="sceneExperimentFiles[scene.id]" class="control-file-info">
+                    <p>✓ Experiment: {{ sceneExperimentFiles[scene.id].name }}</p>
+                  </div>
+                  <div v-else class="control-file-info">
+                    <p style="color: #ff6b6b;">⚠ No Python experiment selected</p>
+                  </div>
+                </template>
 
-          <!-- Custom Scenes -->
-          <div
-            v-for="scene in serialControlScenes.filter(s => s.id.startsWith('serial_custom_'))"
-            :key="scene.id"
-            class="scene-card"
-          >
-            <div class="scene-preview">
-              <div v-if="!previewsLoaded || !previews[scene.id]" class="preview-loading">
-                Loading preview...
-              </div>
-              <img
-                v-else
-                :src="previews[scene.id]"
-                :alt="scene.name"
-                class="preview-image"
-              />
-            </div>
-            <div class="scene-info">
-              <div class="scene-header">
-                <h2 class="scene-title">{{ scene.name }}</h2>
-                <button
-                  class="delete-button"
-                  @click.stop="handleDeleteScene(scene.id, $event)"
-                  title="Delete custom scene"
-                >
-                  ×
-                </button>
-              </div>
-              <p class="scene-description">{{ scene.description }}</p>
-
-              <div v-if="sceneExperimentFiles[scene.id]" class="control-file-info">
-                <p>✓ Experiment: {{ sceneExperimentFiles[scene.id].name }}</p>
-              </div>
-              <div v-else class="control-file-info">
-                <p style="color: #ff6b6b;">⚠ No Python experiment selected</p>
-              </div>
-
-              <div class="scene-actions">
-                <button
-                  class="action-button open-button"
-                  @click="handleOpenScene(scene.id)"
-                  :disabled="!canOpenScene(scene.id)"
-                  :class="{ 'disabled': !canOpenScene(scene.id) }"
-                >
-                  Open Scene
-                </button>
-                <button class="action-button code-button" @click="selectExperimentFile(scene.id)">
-                  Select Experiment
-                </button>
+                <div class="scene-actions">
+                  <button
+                      class="action-button open-button"
+                      @click="handleOpenScene(scene.id)"
+                      :disabled="!canOpenScene(scene.id)"
+                      :class="{ 'disabled': !canOpenScene(scene.id) }"
+                  >
+                    Open Scene
+                  </button>
+                  <button
+                      v-if="scene.id.startsWith('serial_custom_')"
+                      class="action-button code-button"
+                      @click="selectExperimentFile(scene.id)"
+                  >
+                    Select Experiment
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          </VueDraggable>
         </div>
 
         <input
@@ -457,7 +482,7 @@ const canOpenScene = (sceneId) => {
 
 .entrance-content {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1700px;
   position: relative;
 }
 
@@ -760,7 +785,25 @@ const canOpenScene = (sceneId) => {
   background: #666;
 }
 
+/* Drag and drop styles */
+.draggable-container {
+  display: contents;
+}
 
+.ghost-card {
+  opacity: 0.5;
+  background: #3a3a3a !important;
+}
 
+.scene-card {
+  cursor: grab;
+}
 
+.scene-card:active {
+  cursor: grabbing;
+}
+
+.load-scene-card {
+  cursor: pointer;
+}
 </style>

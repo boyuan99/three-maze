@@ -88,7 +88,7 @@ class Experiment:
 
         # Water delivery parameters (MATCHES ELECTRON)
         self.WATER_VOLTAGE = 5.0      # Electron default: 5.0V
-        self.WATER_DURATION_MS = 50   # Electron default: 50ms
+        self.WATER_DURATION_MS = 70   # Electron default: 50ms
 
         # State tracking
         self.position = np.array([0.0, 0.0, self.PLAYER_HEIGHT, 0.0])  # [x, z, y(height), theta]
@@ -111,6 +111,7 @@ class Experiment:
 
         # Raw sensor data tracking
         self.last_sensor_data = None
+        self._last_logged_timestamp = None  # Track last logged timestamp to prevent duplicates
 
         # Position update tracking
         self.position_update_count = 0
@@ -451,15 +452,19 @@ class Experiment:
         # EVENT-DRIVEN: Log data here using frontend position (single source of truth)
         # IMPORTANT: Always log the current position BEFORE reset
         # This ensures we capture the exact position that triggered trial end
+        # Only log if we have NEW sensor data (check timestamp to avoid duplicates)
         if self.last_sensor_data:
-            if trial_end_triggered:
-                # Log the position that triggered trial end WITH water reward marker
-                self._log_data(water_delivered=True)
-                # Handle trial end (deliver water, increment counters) AFTER logging
-                await self._handle_trial_end()
-            else:
-                # Normal frame: log without water
-                self._log_data()
+            current_timestamp = self.last_sensor_data.get('timestamp')
+            if current_timestamp != self._last_logged_timestamp:
+                if trial_end_triggered:
+                    # Log the position that triggered trial end WITH water reward marker
+                    self._log_data(water_delivered=True)
+                    # Handle trial end (deliver water, increment counters) AFTER logging
+                    await self._handle_trial_end()
+                else:
+                    # Normal frame: log without water
+                    self._log_data()
+                self._last_logged_timestamp = current_timestamp  # Update to prevent duplicates
 
         # Flush data file periodically on important events
         if self.data_file and need_reset:
@@ -473,7 +478,10 @@ class Experiment:
         if need_reset:
             self._reset_player()
             # Log the reset position (starting point of new trial)
-            self._log_data()
+            if self.last_sensor_data:
+                self._log_data()
+                # Reset timestamp tracker so next sensor data will be logged
+                self._last_logged_timestamp = None
 
             return {
                 'action': 'set',
@@ -639,17 +647,17 @@ class Experiment:
         """
         Write current state to data file.
 
-        Matches JsSerialHallwayScene.vue format:
+        Format matches NewSerialHallwayScene.vue (8 columns):
         x, -y, theta, raw_x, raw_y, water, timestamp, scene_name
 
         Args:
-            water_delivered: Whether water reward was just delivered
+            water_delivered: Not used, kept for API compatibility
         """
         if self.data_file and self.last_sensor_data:
             # Use Teensy timestamp from serial data (not Python timestamp)
             timestamp = self.last_sensor_data.get('timestamp', 0)
 
-            # Format matches JsSerialHallwayScene.vue line 136
+            # Format matches NewSerialHallwayScene.vue line 159
             # x (3 decimals), -y (3 decimals, negated), theta (3 decimals), raw_x, raw_y, water (0/1), timestamp, scene_name
             line = (
                 f"{self.position[0]:.3f}\t"           # x
@@ -657,9 +665,9 @@ class Experiment:
                 f"{self.position[3]:.3f}\t"           # theta
                 f"{self.last_sensor_data.get('x', 0)}\t"  # raw_x
                 f"{self.last_sensor_data.get('y', 0)}\t"  # raw_y
-                f"{1 if water_delivered else 0}\t"   # water
+                f"{self.last_sensor_data.get('water', 0)}\t"  # water (hardware lick signal from sensor)
                 f"{timestamp}\t"                       # Teensy timestamp (microseconds)
-                f"straight70\n"                        # scene_name (matches JsSerialHallwayScene.vue)
+                f"straight70\n"                        # scene_name
             )
             self.data_file.write(line)
             # No flush here - will be flushed periodically by caller for better performance

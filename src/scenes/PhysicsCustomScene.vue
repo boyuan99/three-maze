@@ -1,10 +1,11 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, shallowRef } from 'vue'
 import { useRoute } from 'vue-router'
-import { scenes } from '@/scenes'
+import { useScenesStore } from '@/stores/scenes'
 import { PhysicsCustomWorld } from '@/worlds/PhysicsCustomWorld'
 
 const route = useRoute()
+const scenesStore = useScenesStore()
 const canvas = ref(null)
 const world = shallowRef(null)
 const showInfo = ref(true)
@@ -16,7 +17,6 @@ const isPointerLocked = ref(false)
 onMounted(async () => {
   console.log('PhysicsCustomScene: Mounting component')
   console.log('PhysicsCustomScene: Route params:', route.params)
-  console.log('PhysicsCustomScene: Available scenes:', scenes)
 
   if (!canvas.value) {
     console.error('PhysicsCustomScene: Canvas not found')
@@ -48,7 +48,7 @@ onMounted(async () => {
     }
   } else {
     console.log('PhysicsCustomScene: Running in browser mode')
-    const scene = scenes.find(s => s.id === sceneId)
+    const scene = scenesStore.getSceneById(sceneId)
     console.log('PhysicsCustomScene: Found scene:', scene)
     sceneConfig = scene?.config
   }

@@ -1,36 +1,81 @@
 <script setup>
-import {ref, onMounted} from 'vue'
+import {ref, onMounted, computed, watch, toRaw} from 'vue'
 import {useRouter} from 'vue-router'
-import {
-  scenes,
-  galleryScenes,
-  generatePreviews, 
-  loadCustomScene, 
-  removeCustomScene, 
-  loadStoredScenes 
-} from '@/scenes'
+import {VueDraggable} from 'vue-draggable-plus'
+import {useScenesStore} from '@/stores/scenes'
 import NavigationBar from '@/components/NavigationBar.vue'
 
+const STORAGE_KEY = 'gallerySceneOrder'
+
 const router = useRouter()
+const scenesStore = useScenesStore()
 const previews = ref({})
 const previewsLoaded = ref(false)
-const customScenes = ref([])
 const loadingScene = ref(false)
 const error = ref(null)
 const fileInput = ref(null)
+const orderedScenes = ref([])
+
+// Get all gallery scenes from store (reactive)
+const allScenes = computed(() => scenesStore.galleryScenes)
+
+// Load and apply saved order
+const loadSavedOrder = () => {
+  const savedOrder = localStorage.getItem(STORAGE_KEY)
+  const currentScenes = allScenes.value
+
+  if (savedOrder) {
+    try {
+      const orderIds = JSON.parse(savedOrder)
+      // Sort scenes by saved order, new scenes go to the end
+      const sorted = []
+      const remaining = [...currentScenes]
+
+      for (const id of orderIds) {
+        const index = remaining.findIndex(s => s.id === id)
+        if (index !== -1) {
+          sorted.push(remaining.splice(index, 1)[0])
+        }
+      }
+      // Add any new scenes not in saved order
+      sorted.push(...remaining)
+      orderedScenes.value = sorted
+    } catch (e) {
+      orderedScenes.value = currentScenes
+    }
+  } else {
+    orderedScenes.value = currentScenes
+  }
+}
+
+// Save order to localStorage
+const saveOrder = () => {
+  const orderIds = orderedScenes.value.map(s => s.id)
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(orderIds))
+}
+
+// Handle drag end
+const onDragEnd = () => {
+  saveOrder()
+}
+
+// Watch for scene changes and update order (Pinia store is reactive)
+watch(allScenes, () => {
+  loadSavedOrder()
+}, { deep: true })
 
 // Load previews when component mounts
 onMounted(async () => {
   try {
-    // First load stored scenes
-    await loadStoredScenes()
+    // Load saved order
+    loadSavedOrder()
 
-    // Then generate previews
-    const result = await generatePreviews()
+    // Generate previews using store
+    const result = await scenesStore.generatePreviews()
     previews.value = result
     previewsLoaded.value = true
-  } catch (error) {
-    console.error('Error loading scenes and previews:', error)
+  } catch (err) {
+    console.error('Error loading scenes and previews:', err)
     previewsLoaded.value = true
   }
 })
@@ -55,7 +100,7 @@ const handleLoadScene = async () => {
 
       // Create a File-like object from the data
       const file = new File([fileData.content], fileData.name, { type: 'application/json' })
-      const customScene = await loadCustomScene(file)
+      const customScene = await scenesStore.loadCustomScene(file, 'gallery_custom_')
       console.log('EntranceScene: Custom scene loaded:', customScene)
 
       // Generate preview
@@ -80,11 +125,11 @@ const handleLoadScene = async () => {
 
 const handleSceneSelect = (sceneId) => {
   console.log('EntranceScene: Selecting scene:', sceneId)
-  const scene = [...scenes].find(s => s.id === sceneId)
+  const scene = scenesStore.getSceneById(sceneId)
 
   if (window.electron) {
     console.log('EntranceScene: Opening in Electron:', sceneId)
-    window.electron.openScene(sceneId, scene?.config)
+    window.electron.openScene(sceneId, scene?.config ? toRaw(scene.config) : null)
   } else {
     const path = sceneId.startsWith('gallery_custom_')
         ? `/scene/custom/${sceneId}`
@@ -103,7 +148,7 @@ const handleFileSelect = async (event) => {
 
   try {
     console.log('EntranceScene: Loading custom scene file:', file.name)
-    const customScene = await loadCustomScene(file)
+    const customScene = await scenesStore.loadCustomScene(file, 'gallery_custom_')
     console.log('EntranceScene: Custom scene loaded:', customScene)
 
     // Generate preview
@@ -128,7 +173,7 @@ const handleFileSelect = async (event) => {
 
 const handleDeleteScene = async (sceneId) => {
   if (confirm('Are you sure you want to delete this custom scene?')) {
-    const removed = removeCustomScene(sceneId)
+    const removed = await scenesStore.removeCustomScene(sceneId)
     if (removed) {
       delete previews.value[sceneId]
     }
@@ -152,8 +197,9 @@ const handleDeleteScene = async (sceneId) => {
           </div>
         </div>
 
+        <!-- Scene Grid -->
         <div class="scene-grid">
-          <!-- Load Scene Card -->
+          <!-- Load Scene Card (Fixed, Not Draggable) -->
           <div
               class="scene-card load-scene-card"
               @click="handleLoadScene"
@@ -180,62 +226,47 @@ const handleDeleteScene = async (sceneId) => {
             >
           </div>
 
-          <!-- Gallery Scenes -->
-          <div
-              v-for="scene in galleryScenes"
-              :key="scene.id"
-              class="scene-card"
-              @click="handleSceneSelect(scene.id)"
+          <!-- Draggable Scene Cards -->
+          <VueDraggable
+              v-model="orderedScenes"
+              class="draggable-container"
+              animation="150"
+              ghostClass="ghost-card"
+              @end="onDragEnd"
           >
-            <div class="scene-preview">
-              <div v-if="!previewsLoaded || !previews[scene.id]" class="preview-loading">
-                Loading preview...
-              </div>
-              <img
-                  v-else
-                  :src="previews[scene.id]"
-                  :alt="scene.name"
-                  class="preview-image"
-              >
-            </div>
-            <div class="scene-info">
-              <h2 class="scene-title">{{ scene.name }}</h2>
-              <p class="scene-description">{{ scene.description }}</p>
-            </div>
-          </div>
-
-          <!-- Custom Scenes -->
-          <div
-              v-for="scene in scenes.filter(s => s.id.startsWith('gallery_custom_'))"
-              :key="scene.id"
-              class="scene-card"
-              @click="handleSceneSelect(scene.id)"
-          >
-            <div class="scene-preview">
-              <div v-if="!previewsLoaded || !previews[scene.id]" class="preview-loading">
-                Loading preview...
-              </div>
-              <img
-                  v-else
-                  :src="previews[scene.id]"
-                  :alt="scene.name"
-                  class="preview-image"
-              >
-            </div>
-            <div class="scene-info">
-              <div class="scene-header">
-                <h2 class="scene-title">{{ scene.name }}</h2>
-                <button
-                    class="delete-button"
-                    @click.stop="handleDeleteScene(scene.id)"
-                    title="Delete custom scene"
+            <div
+                v-for="scene in orderedScenes"
+                :key="scene.id"
+                class="scene-card"
+                @click="handleSceneSelect(scene.id)"
+            >
+              <div class="scene-preview">
+                <div v-if="!previewsLoaded || !previews[scene.id]" class="preview-loading">
+                  Loading preview...
+                </div>
+                <img
+                    v-else
+                    :src="previews[scene.id]"
+                    :alt="scene.name"
+                    class="preview-image"
                 >
-                  ×
-                </button>
               </div>
-              <p class="scene-description">{{ scene.description }}</p>
+              <div class="scene-info">
+                <div class="scene-header">
+                  <h2 class="scene-title">{{ scene.name }}</h2>
+                  <button
+                      v-if="scene.id.startsWith('gallery_custom_')"
+                      class="delete-button"
+                      @click.stop="handleDeleteScene(scene.id)"
+                      title="Delete custom scene"
+                  >
+                    ×
+                  </button>
+                </div>
+                <p class="scene-description">{{ scene.description }}</p>
+              </div>
             </div>
-          </div>
+          </VueDraggable>
         </div>
 
         <!-- Loading overlay -->
@@ -268,7 +299,7 @@ const handleDeleteScene = async (sceneId) => {
 
 .entrance-content {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1700px;
   position: relative;
 }
 
@@ -502,5 +533,27 @@ const handleDeleteScene = async (sceneId) => {
 
 .entrance-wrapper::-webkit-scrollbar-thumb:hover {
   background: #4a4a4a;
+}
+
+/* Drag and drop styles */
+.draggable-container {
+  display: contents;
+}
+
+.ghost-card {
+  opacity: 0.5;
+  background: #3a3a3a !important;
+}
+
+.scene-card {
+  cursor: grab;
+}
+
+.scene-card:active {
+  cursor: grabbing;
+}
+
+.load-scene-card {
+  cursor: pointer;
 }
 </style>
