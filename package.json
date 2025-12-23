@@ -1,6 +1,6 @@
 {
   "name": "three-maze",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A VR environment designed for animal behavior research.",
   "main": "electron/main.js",
   "type": "module",
