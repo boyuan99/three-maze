@@ -116,11 +116,11 @@ const handleLoadScene = async () => {
         return
       }
 
-      console.log('Loading custom scene file:', fileData.name)
+      console.log('Loading custom scene file:', fileData.name, 'from:', fileData.mazeDir)
 
       // Create a File-like object from the data
       const file = new File([fileData.content], fileData.name, { type: 'application/json' })
-      const customScene = await scenesStore.loadCustomScene(file, 'serial_custom_')
+      const customScene = await scenesStore.loadCustomScene(file, 'serial_custom_', fileData.mazeDir)
       console.log('Custom scene loaded:', customScene)
 
       previews.value[customScene.id] = await customScene.previewGenerator()
@@ -195,9 +195,10 @@ const handleSceneSelect = (sceneId, shouldOpen = false) => {
   // Find the scene configuration
   const scene = scenesStore.getSceneById(sceneId)
 
-  // Prepare scene data with config and experiment file info
+  // Prepare scene data with config, mazeDir, and experiment file info
   const sceneData = {
     config: scene?.config ? toRaw(scene.config) : null,
+    mazeDir: scene?.config?._mazeDir || null,
     experimentFile: sceneExperimentFiles.value[sceneId]?.filename || null
   }
 

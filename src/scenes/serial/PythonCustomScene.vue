@@ -59,6 +59,7 @@ import { FixedFollowCam } from '@/utils/FixedFollowCam.js'
 import RAPIER from '@dimforge/rapier3d-compat'
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader'
 import { MinimalBackendClient } from '@/services/MinimalBackendClient'
+import { AssetResolver } from '@/utils/assetResolver.js'
 
 const route = useRoute()
 const scenesStore = useScenesStore()
@@ -294,6 +295,7 @@ function onWindowResize() {
 // Create scene geometry from config
 async function createSceneFromConfig(scene, sceneConfig) {
   const textureLoader = new THREE.TextureLoader()
+  const assetResolver = AssetResolver.fromConfig(sceneConfig)
 
   console.log('Creating scene from config, object count:', sceneConfig.objects?.length || 0)
 
@@ -340,14 +342,18 @@ async function createSceneFromConfig(scene, sceneConfig) {
       // Load texture if specified
       if (objConfig.material?.map) {
         try {
-          // Use texture path directly from JSON (should already be in standard format)
-          const texturePath = objConfig.material.map
+          // Resolve texture path using asset resolver
+          const resolvedPath = await assetResolver.resolve(objConfig.material.map)
+          if (!resolvedPath) {
+            console.warn(`Could not resolve texture: ${objConfig.material.map}`)
+            continue
+          }
 
-          console.log('Loading texture:', texturePath)
+          console.log('Loading texture:', resolvedPath)
 
           const texture = await new Promise((resolve, reject) => {
             textureLoader.load(
-              texturePath,
+              resolvedPath,
               resolve,
               undefined,
               reject
@@ -494,17 +500,22 @@ onMounted(async () => {
     if (sceneConfig.skybox) {
       try {
         const exrLoader = new EXRLoader()
-        // Use skybox path directly from JSON (should already be in standard format)
-        const skyboxPath = sceneConfig.skybox
+        const assetResolver = AssetResolver.fromConfig(sceneConfig)
 
-        console.log('Loading skybox from:', skyboxPath)
-        const texture = await new Promise(resolve =>
-          exrLoader.load(skyboxPath, resolve)
-        )
-        texture.mapping = THREE.EquirectangularReflectionMapping
-        scene.background = texture
-        scene.environment = texture
-        console.log('Skybox loaded successfully')
+        // Resolve skybox path using asset resolver
+        const skyboxPath = await assetResolver.resolve(sceneConfig.skybox)
+        if (!skyboxPath) {
+          console.warn(`Could not resolve skybox: ${sceneConfig.skybox}`)
+        } else {
+          console.log('Loading skybox from:', skyboxPath)
+          const texture = await new Promise(resolve =>
+            exrLoader.load(skyboxPath, resolve)
+          )
+          texture.mapping = THREE.EquirectangularReflectionMapping
+          scene.background = texture
+          scene.environment = texture
+          console.log('Skybox loaded successfully')
+        }
       } catch (err) {
         console.warn('Failed to load skybox, continuing without background:', err.message)
         // Continue without skybox - not a critical error

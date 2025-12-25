@@ -96,11 +96,11 @@ const handleLoadScene = async () => {
         return
       }
 
-      console.log('EntranceScene: Loading custom scene file:', fileData.name)
+      console.log('EntranceScene: Loading custom scene file:', fileData.name, 'from:', fileData.mazeDir)
 
       // Create a File-like object from the data
       const file = new File([fileData.content], fileData.name, { type: 'application/json' })
-      const customScene = await scenesStore.loadCustomScene(file, 'gallery_custom_')
+      const customScene = await scenesStore.loadCustomScene(file, 'gallery_custom_', fileData.mazeDir)
       console.log('EntranceScene: Custom scene loaded:', customScene)
 
       // Generate preview
@@ -129,7 +129,11 @@ const handleSceneSelect = (sceneId) => {
 
   if (window.electron) {
     console.log('EntranceScene: Opening in Electron:', sceneId)
-    window.electron.openScene(sceneId, scene?.config ? toRaw(scene.config) : null)
+    const sceneData = {
+      config: scene?.config ? toRaw(scene.config) : null,
+      mazeDir: scene?.config?._mazeDir || null
+    }
+    window.electron.openScene(sceneId, sceneData)
   } else {
     const path = sceneId.startsWith('gallery_custom_')
         ? `/scene/custom/${sceneId}`

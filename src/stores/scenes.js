@@ -263,12 +263,17 @@ export const useScenesStore = defineStore('scenes', {
     },
 
     // Load a custom scene from file
-    async loadCustomScene(file, prefix = 'gallery_custom_') {
+    async loadCustomScene(file, prefix = 'gallery_custom_', mazeDir = null) {
       try {
         const content = await file.text()
         const sceneConfig = JSON.parse(content)
 
         validateSceneConfig(sceneConfig)
+
+        // Store the maze directory in the config for texture resolution
+        if (mazeDir) {
+          sceneConfig._mazeDir = mazeDir
+        }
 
         const timestamp = Date.now()
         const sceneId = `${prefix}${timestamp}`
@@ -312,7 +317,8 @@ export const useScenesStore = defineStore('scenes', {
         // Store using storage service
         await storageService.storeScene({
           id: sceneId,
-          config: sceneConfig
+          config: sceneConfig,
+          mazeDir: mazeDir
         })
 
         return customScene

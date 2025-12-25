@@ -92,11 +92,11 @@ const handleLoadScene = async () => {
         return
       }
 
-      console.log('PhysicsMazesScene: Loading custom scene file:', fileData.name)
+      console.log('PhysicsMazesScene: Loading custom scene file:', fileData.name, 'from:', fileData.mazeDir)
 
       // Create a File-like object from the data
       const file = new File([fileData.content], fileData.name, { type: 'application/json' })
-      const customScene = await scenesStore.loadCustomScene(file, 'physics_custom_')
+      const customScene = await scenesStore.loadCustomScene(file, 'physics_custom_', fileData.mazeDir)
       console.log('PhysicsMazesScene: Custom scene loaded:', customScene)
 
       previews.value[customScene.id] = await customScene.previewGenerator()
@@ -163,7 +163,11 @@ const handleSceneSelect = (sceneId) => {
   const scene = scenesStore.getSceneById(sceneId)
 
   if (window.electron) {
-    window.electron.openScene(sceneId, scene?.config ? toRaw(scene.config) : null)
+    const sceneData = {
+      config: scene?.config ? toRaw(scene.config) : null,
+      mazeDir: scene?.config?._mazeDir || null
+    }
+    window.electron.openScene(sceneId, sceneData)
   } else {
     const path = sceneId.startsWith('physics_custom_')
         ? `/scene/custom/${sceneId}`
