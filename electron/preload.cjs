@@ -49,6 +49,9 @@ contextBridge.exposeInMainWorld('electron', {
   selectMazeFile: () => ipcRenderer.invoke('select-maze-file'),
   selectExperimentFile: () => ipcRenderer.invoke('select-experiment-file'),
 
+  // Resolve local maze asset paths to file:// URLs
+  resolveMazeAsset: (mazeDir, assetPath) => ipcRenderer.invoke('resolve-maze-asset', mazeDir, assetPath),
+
   // Get WebSocket port
   getWsPort: () => ipcRenderer.invoke('get-ws-port'),
 
