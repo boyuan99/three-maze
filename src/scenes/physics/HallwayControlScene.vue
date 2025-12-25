@@ -1,8 +1,10 @@
 <script setup>
 import { ref, onMounted, onUnmounted, shallowRef } from 'vue'
 import * as THREE from 'three'
-import wallTextureUrl from '@/assets/Chess_Pattern.jpg'
 import { FixedCam } from '@/utils/FixedCam.js'
+
+// Use public asset path (served from public/assets/)
+const wallTextureUrl = '/assets/Chess_Pattern.jpg'
 import { KeyboardController } from '@/utils/KeyboardController.js'
 import { RapierDebugRenderer } from "@/utils/RapierDebugRenderer.js"
 import RAPIER from '@dimforge/rapier3d-compat'

@@ -37,13 +37,15 @@
 <script setup>
 import { ref, onMounted, onUnmounted, shallowRef } from 'vue'
 import * as THREE from 'three'
-import wallTextureUrl from '@/assets/Chess_Pattern.jpg'
 import { FixedCam } from '@/utils/FixedCam.js'
 import { KeyboardController } from '@/utils/KeyboardController.js'
 import { RapierDebugRenderer } from "@/utils/RapierDebugRenderer.js"
 import RAPIER from '@dimforge/rapier3d-compat'
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js'
-import skyboxUrl from '@/assets/evening_road_01_puresky_1k.exr'
+
+// Use public asset paths (served from public/assets/)
+const wallTextureUrl = '/assets/Chess_Pattern.jpg'
+const skyboxUrl = '/assets/evening_road_01_puresky_1k.exr'
 
 defineOptions({
   name: 'NewHallwayControlScene'

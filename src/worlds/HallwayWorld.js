@@ -1,6 +1,8 @@
 import { BaseWorld } from './BaseWorld'
 import * as THREE from 'three'
-import wallTextureUrl from '@/assets/Chess_Pattern.jpg'
+
+// Use public asset path (served from public/assets/)
+const wallTextureUrl = '/assets/Chess_Pattern.jpg'
 
 const FAR = 1000
 

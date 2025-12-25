@@ -1,6 +1,7 @@
 import { BaseWorld } from './BaseWorld'
 import * as THREE from 'three'
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js'
+import { AssetResolver } from '@/utils/assetResolver.js'
 
 export class CustomWorld extends BaseWorld {
   constructor(canvas, sceneConfig) {
@@ -41,6 +42,7 @@ export class CustomWorld extends BaseWorld {
     })
     this.sceneConfig = sceneConfig
     this.textureCache = new Map()
+    this.assetResolver = AssetResolver.fromConfig(sceneConfig)
   }
 
   async loadTexture(path) {
@@ -48,16 +50,22 @@ export class CustomWorld extends BaseWorld {
       return this.textureCache.get(path).clone()
     }
 
+    // Resolve the path using the asset resolver
+    const resolvedPath = await this.assetResolver.resolve(path)
+    if (!resolvedPath) {
+      throw new Error(`Could not resolve texture path: ${path}`)
+    }
+
     const textureLoader = new THREE.TextureLoader()
     const texture = await new Promise((resolve, reject) => {
       textureLoader.load(
-        path.replace('@/', '/'),
+        resolvedPath,
         resolve,
         undefined,
         reject
       )
     })
-    
+
     this.textureCache.set(path, texture)
     return texture.clone()
   }
@@ -66,14 +74,18 @@ export class CustomWorld extends BaseWorld {
     if (!path) return
 
     try {
-      const fileName = path.split('/').pop()
-      const assetUrl = `/src/assets/${fileName}`
-      
+      // Resolve the path using the asset resolver
+      const resolvedPath = await this.assetResolver.resolve(path)
+      if (!resolvedPath) {
+        console.warn(`Could not resolve skybox path: ${path}`)
+        return
+      }
+
       const exrLoader = new EXRLoader()
-      const texture = await new Promise((resolve) => 
-        exrLoader.load(assetUrl, resolve)
+      const texture = await new Promise((resolve) =>
+        exrLoader.load(resolvedPath, resolve)
       )
-      
+
       texture.mapping = THREE.EquirectangularReflectionMapping
       this.scene.background = texture
       this.scene.environment = texture
