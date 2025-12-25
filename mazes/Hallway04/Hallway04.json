@@ -55,7 +55,7 @@
         "depth": 140
       },
       "material": {
-        "map": "/src/assets/Chess_Pattern.jpg",
+        "map": "assets/Chess_Pattern.jpg",
         "repeat": {"x": 0.4, "y": 1.4},
         "metalness": 0,
         "roughness": 1
@@ -116,7 +116,7 @@
         "depth": 140
       },
       "material": {
-        "map": "/src/assets/Chess_Pattern.jpg",
+        "map": "assets/Chess_Pattern.jpg",
         "repeat": {"x": 1.4, "y": 0.1},
         "metalness": 0,
         "roughness": 1
@@ -138,7 +138,7 @@
         "depth": 140
       },
       "material": {
-        "map": "/src/assets/Chess_Pattern.jpg",
+        "map": "assets/Chess_Pattern.jpg",
         "repeat": {"x": 1.4, "y": 0.1},
         "metalness": 0,
         "roughness": 1
