@@ -1,7 +1,7 @@
 import { BaseWorld } from './BaseWorld'
 import * as THREE from 'three'
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js'
-import { AssetResolver } from '@/utils/assetResolver.js'
+import { resolveAssetPath } from '@/utils/resolveAssetPath.js'
 
 export class CustomWorld extends BaseWorld {
   constructor(canvas, sceneConfig) {
@@ -42,44 +42,29 @@ export class CustomWorld extends BaseWorld {
     })
     this.sceneConfig = sceneConfig
     this.textureCache = new Map()
-    this.assetResolver = AssetResolver.fromConfig(sceneConfig)
   }
 
-  async loadTexture(path) {
-    if (this.textureCache.has(path)) {
-      return this.textureCache.get(path).clone()
-    }
+  async loadTexture(texturePath) {
+    const resolvedPath = resolveAssetPath(texturePath, this.sceneConfig._basePath)
 
-    // Resolve the path using the asset resolver
-    const resolvedPath = await this.assetResolver.resolve(path)
-    if (!resolvedPath) {
-      throw new Error(`Could not resolve texture path: ${path}`)
+    if (this.textureCache.has(resolvedPath)) {
+      return this.textureCache.get(resolvedPath).clone()
     }
 
     const textureLoader = new THREE.TextureLoader()
     const texture = await new Promise((resolve, reject) => {
-      textureLoader.load(
-        resolvedPath,
-        resolve,
-        undefined,
-        reject
-      )
+      textureLoader.load(resolvedPath, resolve, undefined, reject)
     })
 
-    this.textureCache.set(path, texture)
+    this.textureCache.set(resolvedPath, texture)
     return texture.clone()
   }
 
-  async loadSkybox(path) {
-    if (!path) return
+  async loadSkybox(skyboxPath) {
+    if (!skyboxPath) return
 
     try {
-      // Resolve the path using the asset resolver
-      const resolvedPath = await this.assetResolver.resolve(path)
-      if (!resolvedPath) {
-        console.warn(`Could not resolve skybox path: ${path}`)
-        return
-      }
+      const resolvedPath = resolveAssetPath(skyboxPath, this.sceneConfig._basePath)
 
       const exrLoader = new EXRLoader()
       const texture = await new Promise((resolve) =>
