@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import wallTextureUrl from '../assets/Chess_Pattern.jpg';
+const wallTextureUrl = '/assets/Chess_Pattern.jpg'
 
 export function createTexturedHallway() {
     const group = new THREE.Group();

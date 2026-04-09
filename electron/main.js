@@ -271,8 +271,7 @@ ipcMain.on('open-scene', async (event, sceneName, sceneData) => {
       const storedScenes = loadStoredScenes()
       storedScenes[sceneName] = {
         id: sceneName,
-        config: sceneData.config || sceneData,
-        mazeDir: sceneData.mazeDir || null
+        config: sceneData.config || sceneData
       }
       saveStoredScenes(storedScenes)
     }
@@ -294,16 +293,11 @@ ipcMain.handle('get-scene-config', async (event) => {
     if (window.webContents.id === windowId) {
       const sceneData = sceneConfigs.get(sceneName)
 
-      // Return the full scene data (config + experimentFile + mazeDir if available)
+      // Return the full scene data (config + experimentFile)
       if (sceneData && sceneData.config) {
-        // New format - add mazeDir to config for texture resolution
-        const configWithMazeDir = { ...sceneData.config }
-        if (sceneData.mazeDir) {
-          configWithMazeDir._mazeDir = sceneData.mazeDir
-        }
         return {
           sceneName,
-          config: configWithMazeDir,
+          config: sceneData.config,
           experimentFile: sceneData.experimentFile || null
         }
       } else if (sceneData) {
@@ -539,7 +533,9 @@ ipcMain.handle('get-preferred-display', () => {
 // File dialog handlers with default paths
 ipcMain.handle('select-maze-file', async () => {
   const projectRoot = isDevelopment ? process.cwd() : path.join(process.resourcesPath, 'app')
-  const defaultPath = path.join(projectRoot, 'mazes')
+  const defaultPath = isDevelopment
+    ? path.join(projectRoot, 'public', 'mazes')
+    : path.join(projectRoot, 'mazes')
 
   const result = await dialog.showOpenDialog({
     title: 'Select Maze JSON File',
@@ -556,13 +552,20 @@ ipcMain.handle('select-maze-file', async () => {
 
   const filePath = result.filePaths[0]
   const fileName = path.basename(filePath)
-  const mazeDir = path.dirname(filePath)
   const content = fs.readFileSync(filePath, 'utf8')
+
+  // Derive basePath relative to the served root so relative asset paths resolve correctly
+  const servedRoot = isDevelopment
+    ? path.join(projectRoot, 'public')
+    : projectRoot
+  const mazeDir = path.dirname(filePath)
+  const relativePath = path.relative(servedRoot, mazeDir)
+  const basePath = relativePath.replace(/\\/g, '/') + '/'
 
   return {
     name: fileName,
     path: filePath,
-    mazeDir: mazeDir,
+    basePath: basePath,
     content: content
   }
 })
@@ -595,51 +598,4 @@ ipcMain.handle('select-experiment-file', async () => {
   }
 })
 
-// Resolve local maze asset paths to data URLs (base64 encoded)
-// This is necessary because file:// URLs are blocked in HTTP-loaded pages
-ipcMain.handle('resolve-maze-asset', async (event, mazeDir, assetPath) => {
-  try {
-    // If it's already an absolute path starting with / or a URL, return as-is
-    if (assetPath.startsWith('/') || assetPath.startsWith('http') || assetPath.startsWith('data:')) {
-      return assetPath
-    }
-
-    // Handle relative paths (./assets/..., assets/..., or just filename)
-    let normalizedPath = assetPath
-    if (assetPath.startsWith('./')) {
-      normalizedPath = assetPath.slice(2)
-    }
-
-    // Construct full path to the asset
-    const fullAssetPath = path.join(mazeDir, normalizedPath)
-
-    // Check if file exists
-    if (!fs.existsSync(fullAssetPath)) {
-      console.warn(`Maze asset not found: ${fullAssetPath}`)
-      return null
-    }
-
-    // Read file and convert to base64 data URL
-    const fileBuffer = fs.readFileSync(fullAssetPath)
-    const base64 = fileBuffer.toString('base64')
-
-    // Determine MIME type based on extension
-    const ext = path.extname(fullAssetPath).toLowerCase()
-    const mimeTypes = {
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.gif': 'image/gif',
-      '.webp': 'image/webp',
-      '.exr': 'image/x-exr',
-      '.hdr': 'image/vnd.radiance'
-    }
-    const mimeType = mimeTypes[ext] || 'application/octet-stream'
-
-    return `data:${mimeType};base64,${base64}`
-  } catch (error) {
-    console.error('Error resolving maze asset:', error)
-    return null
-  }
-})
 
