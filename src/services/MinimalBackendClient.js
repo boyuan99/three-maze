@@ -172,7 +172,7 @@ export class MinimalBackendClient {
 
         // Check for errors
         if (type === 'error' || type.endsWith('_error')) {
-          request.reject(new Error(data.error || 'Unknown error'));
+          request.reject(new Error(data.error || data.message || 'Unknown error'));
         } else {
           request.resolve(data);
         }
@@ -211,9 +211,10 @@ export class MinimalBackendClient {
    * Send a request and wait for response
    * @param {string} type - Message type
    * @param {Object} data - Message payload
+   * @param {number} [timeoutMs] - Override the default request timeout
    * @returns {Promise<Object>} Response data
    */
-  request(type, data = {}) {
+  request(type, data = {}, timeoutMs = this.requestTimeout) {
     return new Promise((resolve, reject) => {
       if (!this.connected || !this.ws) {
         reject(new Error('Not connected to backend'));
@@ -228,7 +229,7 @@ export class MinimalBackendClient {
           this.pendingRequests.delete(requestId);
           reject(new Error(`Request timeout: ${type}`));
         }
-      }, this.requestTimeout);
+      }, timeoutMs);
 
       // Store pending request
       this.pendingRequests.set(requestId, { resolve, reject, timeout });

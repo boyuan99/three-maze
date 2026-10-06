@@ -706,6 +706,7 @@ class BackendServer:
 
     async def handle_message(self, websocket: Any, message: str):
         """Handle incoming message from client"""
+        request_id = None
         try:
             data = json.loads(message)
             msg_type = data.get("type")
@@ -760,6 +761,8 @@ class BackendServer:
                     "code": "INTERNAL_ERROR",
                     "message": str(e)
                 },
+                # Echo the request ID so request() callers fail fast instead of timing out
+                "requestId": request_id,
                 "timestamp": time.time() * 1000
             }))
 

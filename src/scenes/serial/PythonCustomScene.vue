@@ -108,6 +108,9 @@ const pendingBackendPosition = ref(null)
 
 // Event-driven position update: send position after processing serial data
 let pendingSerialData = null  // Holds serial data until position is sent
+
+// Experiment registration opens the serial port and waits for the firmware, so allow longer than the default
+const EXPERIMENT_REGISTER_TIMEOUT_MS = 30000
 const POSITION_RESET_THRESHOLD = 0.5  // 0.5m difference triggers reset
 
 // Animation loop
@@ -639,11 +642,7 @@ onMounted(async () => {
         console.error('[ERROR] Backend error:', data)
         error.value = `Backend error: ${data.message || JSON.stringify(data)}`
       })
-      backendClient.on('experiment_registered', (data) => {
-        experimentRunning.value = true
-      })
       backendClient.on('experiment_started', (data) => {
-        experimentRunning.value = true
         if (data.serial_port) {
           serialPort.value = data.serial_port
         }
@@ -652,18 +651,18 @@ onMounted(async () => {
         }
       })
 
-      // Register (load) experiment if specified
+      // Register (load) experiment if specified. Wait for the reply: if loading fails
+      // (missing file, busy serial port, missing data folder...) the session must not look like it is running
       if (experimentFile.value) {
-        const registerResponse = await backendClient.send('experiment_register', {
-          filename: experimentFile.value,
-          config: {}
-        })
-
-        if (registerResponse && registerResponse.type === 'experiment_registered') {
+        try {
+          await backendClient.request('experiment_register', {
+            filename: experimentFile.value,
+            config: {}
+          }, EXPERIMENT_REGISTER_TIMEOUT_MS)
           experimentRunning.value = true
-        } else if (registerResponse && registerResponse.type === 'experiment_error') {
-          console.error('[ERROR] Failed to register experiment:', registerResponse.data.error)
-          error.value = `Failed to load experiment: ${registerResponse.data.error}`
+        } catch (err) {
+          console.error('[ERROR] Failed to register experiment:', err.message)
+          error.value = `Failed to load experiment: ${err.message}`
           return
         }
       }
