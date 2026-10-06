@@ -21,6 +21,8 @@ let mainWindow = null
 const sceneWindows = new Map()
 const sceneConfigs = new Map()
 let pythonProcess = null
+let backendStopping = null  // Promise while a graceful backend shutdown is in progress
+let quitAfterBackendStop = false
 let detectedWsPort = null  // Dynamically detected WebSocket port
 let preferredDisplayId = null
 
@@ -234,13 +236,47 @@ app.whenReady().then(async () => {
   }
 })
 
-app.on('window-all-closed', () => {
-  if (pythonProcess) {
-    pythonProcess.kill()
+// Ask the backend to stop its experiment (valve to 0 V, files closed) before the app exits.
+// Killing the process directly would skip that cleanup on Windows.
+function stopPythonBackend(timeoutMs = 4000) {
+  if (backendStopping) return backendStopping
+  const proc = pythonProcess
+  if (!proc || proc.exitCode !== null) {
     pythonProcess = null
+    return Promise.resolve()
   }
+
+  backendStopping = new Promise(resolve => {
+    const timer = setTimeout(() => {
+      console.warn('Python backend did not exit in time; killing it')
+      proc.kill()
+      resolve()
+    }, timeoutMs)
+    proc.once('exit', () => {
+      clearTimeout(timer)
+      resolve()
+    })
+    proc.stdin.end('shutdown')
+  }).finally(() => {
+    pythonProcess = null
+    backendStopping = null
+  })
+  return backendStopping
+}
+
+app.on('before-quit', (event) => {
+  if (pythonProcess && !quitAfterBackendStop) {
+    event.preventDefault()
+    quitAfterBackendStop = true
+    stopPythonBackend().finally(() => app.quit())
+  }
+})
+
+app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    app.quit()
+    app.quit()  // before-quit shuts the backend down gracefully
+  } else {
+    stopPythonBackend()
   }
 })
 
@@ -422,11 +458,21 @@ const startPythonBackend = async () => {
     // Start the Python WebSocket backend
     pythonProcess = spawn(config.interpreter, ['-m', 'backend.src.main'], {
       cwd: scriptPath,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      // stdin stays open so the backend can be asked to shut down gracefully;
+      // it also reaches EOF if Electron dies, which makes the backend clean up and exit
+      stdio: ['pipe', 'pipe', 'pipe'],
       env: {
         ...process.env,
-        PYTHONUNBUFFERED: '1'  // Disable Python output buffering
+        PYTHONUNBUFFERED: '1',  // Disable Python output buffering
+        THREEMAZE_PARENT_PIPE: '1'
       }
+    })
+    const spawnedProcess = pythonProcess
+    spawnedProcess.stdin.on('error', (error) => {
+      console.error('Python backend stdin error:', error.message)
+    })
+    spawnedProcess.once('exit', () => {
+      if (pythonProcess === spawnedProcess) pythonProcess = null
     })
 
     // Wait for the WebSocket server to start and capture the port

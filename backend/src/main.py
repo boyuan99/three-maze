@@ -22,6 +22,7 @@ import websockets
 from datetime import datetime
 import os
 import socket
+import threading
 
 # Configure basic logging
 logging.basicConfig(
@@ -72,6 +73,7 @@ class BackendServer:
         self.data_logger = None
         self.replayer = None  # DataReplayer instance if in replay mode
         self.active_experiment = None  # Active Python experiment instance
+        self._shutting_down = False  # Set once Electron asks the backend to shut down
 
         # Event-driven serial data queue (one queue per client)
         self.client_queues: Dict[Any, asyncio.Queue] = {}
@@ -885,28 +887,88 @@ class BackendServer:
             self.active_clients.remove(websocket)
             serial_task.cancel()
 
-            # Cleanup if last client disconnected
-            if len(self.active_clients) == 0:
+            # Cleanup if last client disconnected (the shutdown path cleans up itself)
+            if len(self.active_clients) == 0 and not self._shutting_down:
                 logger.info("No active clients, cleaning up hardware")
+                await self._release_session("client disconnect")
 
-                # Clean up active experiment (CRITICAL!)
-                if self.active_experiment:
-                    logger.info("Cleaning up active experiment due to client disconnect")
-                    try:
-                        # Terminate experiment
-                        summary = await self.active_experiment.terminate()
-                        experiment_id = self.active_experiment.experiment_id
-                        self.active_experiment = None
-                        logger.info(f"Experiment terminated: {experiment_id}")
-                        logger.info(f"Experiment summary: {summary}")
-                    except Exception as e:
-                        logger.error(f"Error terminating experiment during cleanup: {e}", exc_info=True)
+    async def _release_session(self, reason: str):
+        """Terminate the active experiment (which zeroes its outputs and closes its files)
+        and release shared hardware."""
+        # Clean up active experiment (CRITICAL!)
+        if self.active_experiment:
+            logger.info(f"Cleaning up active experiment due to {reason}")
+            experiment = self.active_experiment
+            try:
+                summary = await experiment.terminate()
+                logger.info(f"Experiment terminated: {experiment.experiment_id}")
+                logger.info(f"Experiment summary: {summary}")
+            except Exception as e:
+                logger.error(f"Error terminating experiment during cleanup: {e}", exc_info=True)
+            finally:
+                self.active_experiment = None
 
-                # Clean up shared hardware
-                if self.hardware_manager:
-                    await self.hardware_manager.cleanup()
-                if self.data_logger:
-                    await self.data_logger.stop_logging()
+        # Clean up shared hardware
+        if self.hardware_manager:
+            await self.hardware_manager.cleanup()
+        if self.data_logger:
+            await self.data_logger.stop_logging()
+
+    @staticmethod
+    def _watch_parent_pipe(loop: asyncio.AbstractEventLoop, shutdown_requested: asyncio.Event):
+        """Wait until Electron sends 'shutdown' or closes the pipe (Electron exited),
+        then ask the event loop to shut down."""
+        try:
+            if sys.platform == "win32":
+                if not BackendServer._poll_parent_pipe_windows():
+                    return
+            else:
+                for line in sys.stdin:
+                    if line.strip() == "shutdown":
+                        break
+        except Exception as e:
+            logger.error(f"Error reading parent pipe: {e}")
+        loop.call_soon_threadsafe(shutdown_requested.set)
+
+    @staticmethod
+    def _poll_parent_pipe_windows() -> bool:
+        """Poll stdin with PeekNamedPipe until 'shutdown' arrives or the pipe closes.
+
+        A blocking read is not safe on Windows: while one thread has a synchronous read pending
+        on stdin, other threads hang when they touch the standard handles (e.g. while loading
+        numpy's DLL during a lazy import), which froze the event loop on the first client.
+        Returns False if stdin is not a pipe, in which case it is not watched at all.
+        """
+        import ctypes
+        import msvcrt
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.GetFileType.argtypes = [wintypes.HANDLE]
+        kernel32.GetFileType.restype = wintypes.DWORD
+        kernel32.PeekNamedPipe.argtypes = [
+            wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD,
+            ctypes.POINTER(wintypes.DWORD), ctypes.POINTER(wintypes.DWORD), ctypes.POINTER(wintypes.DWORD),
+        ]
+        kernel32.PeekNamedPipe.restype = wintypes.BOOL
+        FILE_TYPE_PIPE = 3
+
+        fd = sys.stdin.fileno()
+        handle = msvcrt.get_osfhandle(fd)
+        if kernel32.GetFileType(handle) != FILE_TYPE_PIPE:
+            logger.warning("THREEMAZE_PARENT_PIPE is set but stdin is not a pipe; not watching it")
+            return False
+
+        available = wintypes.DWORD()
+        received = b""
+        while True:
+            if not kernel32.PeekNamedPipe(handle, None, 0, None, ctypes.byref(available), None):
+                return True  # pipe closed: Electron exited
+            if available.value:
+                received += os.read(fd, available.value)  # data is waiting, so this returns at once
+                if b"shutdown" in received:
+                    return True
+            time.sleep(0.2)
 
     async def start(self):
         """Start the WebSocket server with automatic port selection"""
@@ -922,7 +984,19 @@ class BackendServer:
             logger.warning(f"Port {self.port} is in use, using port {available_port} instead")
             self.port = available_port
 
-        async with websockets.serve(self.handle_client, self.host, self.port):
+        shutdown_requested = asyncio.Event()
+        if os.environ.get("THREEMAZE_PARENT_PIPE") == "1":
+            # Electron writes "shutdown" to stdin before it quits, and stdin reaches EOF if Electron
+            # dies, so the experiment always gets to zero its outputs and close its files.
+            threading.Thread(
+                target=self._watch_parent_pipe,
+                args=(asyncio.get_running_loop(), shutdown_requested),
+                name="parent-pipe",
+                daemon=True,
+            ).start()
+
+        # close_timeout bounds how long shutdown waits for clients to finish the closing handshake
+        async with websockets.serve(self.handle_client, self.host, self.port, close_timeout=2):
             # Print success message with port info for Electron to parse
             logger.info(f"WebSocket server ready on port {self.port}")
 
@@ -936,7 +1010,10 @@ class BackendServer:
                 logger.info("Open this URL in your browser to control playback")
                 logger.info("=" * 60)
 
-            await asyncio.Future()  # Run forever
+            await shutdown_requested.wait()
+            logger.info("Shutdown requested; releasing experiment and hardware")
+            self._shutting_down = True
+            await self._release_session("backend shutdown")
 
 
 def main():
