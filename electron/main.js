@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, screen, dialog, powerSaveBlocker } from 'electron'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import fs from 'fs'
@@ -104,7 +104,9 @@ async function createSceneWindow(sceneName) {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: join(__dirname, 'preload.cjs')
+      preload: join(__dirname, 'preload.cjs'),
+      // Keep rendering (and the closed loop it drives) running when the window is occluded
+      backgroundThrottling: false
     },
     backgroundColor: '#1a1a1a',
     titleBarStyle: 'default'
@@ -145,8 +147,15 @@ async function createSceneWindow(sceneName) {
 
   sceneWindows.set(sceneName, sceneWindow)
 
+  // Keep the displays awake while a scene is shown: if the OS turns a monitor off,
+  // the stimulus goes dark and Chromium falls back to a ~56.5 Hz timer-driven frame clock
+  const displaySleepBlockerId = powerSaveBlocker.start('prevent-display-sleep')
+
   sceneWindow.on('closed', () => {
     console.log(`Scene window for ${sceneName} has been closed`);
+    if (powerSaveBlocker.isStarted(displaySleepBlockerId)) {
+      powerSaveBlocker.stop(displaySleepBlockerId)
+    }
     sceneWindows.delete(sceneName)
     sceneConfigs.delete(sceneName)
   })
