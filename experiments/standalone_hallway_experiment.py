@@ -539,8 +539,11 @@ class Experiment:
         try:
             # Send 5V pulse for 25ms
             self.daq_task.write(5.0)
-            await asyncio.sleep(0.025)
-            self.daq_task.write(0.0)
+            try:
+                await asyncio.sleep(0.025)
+            finally:
+                # Always return to 0V so the valve can never be left open
+                self.daq_task.write(0.0)
 
             self.num_rewards += 1
             return True
