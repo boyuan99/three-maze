@@ -86,6 +86,7 @@ contextBridge.exposeInMainWorld('electron', {
   getDisplays: () => ipcRenderer.invoke('get-displays'),
   setPreferredDisplay: (displayId) => ipcRenderer.send('set-preferred-display', displayId),
   getPreferredDisplay: () => ipcRenderer.invoke('get-preferred-display'),
+  getWindowDisplayInfo: () => ipcRenderer.invoke('get-window-display-info'),
   onDisplayChanged: (callback) => {
     ipcRenderer.on('display-changed', (_, displayId) => callback(displayId))
   }

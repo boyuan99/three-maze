@@ -121,6 +121,8 @@ class BackendServer:
             "experiment_list": self._handle_experiment_list,
             "experiment_unregister": self._handle_experiment_unregister,
             "position_update": self._handle_position_update,
+            # Renderer health reports (frame-clock checks)
+            "renderer_status": self._handle_renderer_status,
         }
 
     async def _handle_ping(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -703,6 +705,22 @@ class BackendServer:
             status = self.replayer.get_status()
             return {"type": "replay_status", "data": status}
         return {"type": "error", "data": {"error": "No replayer available"}}
+
+    async def _handle_renderer_status(self, data: Dict[str, Any]) -> None:
+        """Log renderer health reports (e.g. frame-clock checks). No reply is sent."""
+        level = data.get("level", "info")
+        message = data.get("message", "")
+        details = data.get("details", {})
+        log = logger.warning if level == "warning" else logger.info
+        log(f"[renderer] {message} {json.dumps(details)}")
+
+        handler = getattr(self.active_experiment, "on_renderer_status", None)
+        if handler:
+            try:
+                handler(data)
+            except Exception as e:
+                logger.error(f"Experiment failed to handle renderer status: {e}")
+        return None
 
     async def handle_message(self, websocket: Any, message: str):
         """Handle incoming message from client"""

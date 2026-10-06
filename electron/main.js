@@ -344,6 +344,24 @@ ipcMain.handle('get-ws-port', () => {
   return detectedWsPort || '8765'
 })
 
+// Report the display a window is on, so the renderer can check its frame clock against it
+ipcMain.handle('get-window-display-info', (event) => {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  if (!window) return null
+  const display = screen.getDisplayMatching(window.getBounds())
+  const primary = screen.getPrimaryDisplay()
+  return {
+    id: display.id,
+    label: display.label,
+    displayFrequency: display.displayFrequency,
+    scaleFactor: display.scaleFactor,
+    bounds: display.bounds,
+    isPrimary: display.id === primary.id,
+    primaryDisplayFrequency: primary.displayFrequency,
+    displayCount: screen.getAllDisplays().length
+  }
+})
+
 ipcMain.handle('get-scene-config', async (event) => {
   const windowId = event.sender.id
 

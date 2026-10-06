@@ -14,6 +14,9 @@
       <div class="info-panel">
         <h3>{{ sceneName }}</h3>
         <p>{{ sceneDescription }}</p>
+        <div v-if="clockWarnings.length" class="clock-warning">
+          <p v-for="warning in clockWarnings" :key="warning">⚠ {{ warning }}</p>
+        </div>
         <div v-if="connected">
           <p><strong>Backend:</strong> <span style="color: #4ade80;">● Connected</span></p>
           <p v-if="experimentFile"><strong>Experiment:</strong> {{ experimentFile }}</p>
@@ -111,13 +114,26 @@ let pendingSerialData = null  // Holds serial data until position is sent
 
 // Experiment registration opens the serial port and waits for the firmware, so allow longer than the default
 const EXPERIMENT_REGISTER_TIMEOUT_MS = 30000
+
+// Frame-clock self-check. Physics advances a fixed 1/60 s per rendered frame, so the translational
+// VR gain equals (frame rate / 60): any rate other than 60 Hz silently changes the gain.
+const CLOCK_WINDOW_FRAMES = 300      // frames per check (~5 s at 60 Hz)
+const CLOCK_WARMUP_FRAMES = 60       // skip start-up hitches (shader compilation, texture uploads)
+const CLOCK_TOLERANCE = 0.01         // 1 %
+const frameIntervals = new Float64Array(CLOCK_WINDOW_FRAMES)
+let clockFrameCount = 0
+let lastRafTime = null
+let lastClockReport = null
+let windowDisplay = null             // display the scene window is on (refresh rate, primary flag)
+const clockWarnings = ref([])
 const POSITION_RESET_THRESHOLD = 0.5  // 0.5m difference triggers reset
 
 // Animation loop
-function animate() {
+function animate(tRaf) {
   if (!isActive.value) return
 
   requestAnimationFrame(animate)
+  trackFrameClock(tRaf)
 
   const { scene, camera, renderer, world, playerBody, fixedCam } = state.value
 
@@ -243,6 +259,68 @@ function animate() {
 
   // === 7. Render ===
   renderer.render(scene, camera)
+}
+
+// Record rAF intervals and run the frame-clock check once per window
+function trackFrameClock(tRaf) {
+  if (tRaf === undefined) return  // first call is made directly, not by rAF
+  if (lastRafTime !== null) {
+    clockFrameCount++
+    if (clockFrameCount > CLOCK_WARMUP_FRAMES) {
+      const i = (clockFrameCount - CLOCK_WARMUP_FRAMES - 1) % CLOCK_WINDOW_FRAMES
+      frameIntervals[i] = tRaf - lastRafTime
+      if (i === CLOCK_WINDOW_FRAMES - 1) checkFrameClock()
+    }
+  }
+  lastRafTime = tRaf
+}
+
+function checkFrameClock() {
+  const sorted = Array.from(frameIntervals).sort((a, b) => a - b)
+  const medianMs = sorted[Math.floor(sorted.length / 2)]
+  const rafHz = 1000 / medianMs
+  const displayHz = windowDisplay?.displayFrequency
+  const warnings = []
+
+  if (Math.abs(rafHz / 60 - 1) > CLOCK_TOLERANCE) {
+    warnings.push(`Frame rate ${rafHz.toFixed(1)} Hz is not 60 Hz: VR gain is ${(rafHz / 60).toFixed(3)}x`)
+  }
+  if (displayHz && Math.abs(rafHz / displayHz - 1) > CLOCK_TOLERANCE) {
+    warnings.push(`Frame rate ${rafHz.toFixed(1)} Hz does not match the ${displayHz} Hz display: ` +
+      'make sure the rendering GPU drives the primary display and no monitor is asleep')
+  }
+  if (windowDisplay && !windowDisplay.isPrimary &&
+      windowDisplay.displayFrequency !== windowDisplay.primaryDisplayFrequency) {
+    warnings.push(`Stimulus display (${windowDisplay.displayFrequency} Hz) is not the primary display ` +
+      `(${windowDisplay.primaryDisplayFrequency} Hz); frames are paced by the primary display`)
+  }
+
+  // Report the first measurement of every session, then only changes
+  const report = warnings.join(' | ')
+  if (report === lastClockReport) return
+  lastClockReport = report
+  clockWarnings.value = warnings
+  warnings.forEach(warning => console.warn('[Frame clock]', warning))
+
+  if (backendClient.connected) {
+    try {
+      backendClient.send('renderer_status', {
+        level: warnings.length ? 'warning' : 'info',
+        message: warnings.length ? report : `Frame clock OK: ${rafHz.toFixed(2)} Hz`,
+        details: {
+          rafHz,
+          medianMs,
+          p5Ms: sorted[Math.floor(sorted.length * 0.05)],
+          p95Ms: sorted[Math.floor(sorted.length * 0.95)],
+          displayHz: displayHz ?? null,
+          isPrimaryDisplay: windowDisplay?.isPrimary ?? null,
+          v03Gain: rafHz / 60
+        }
+      })
+    } catch (err) {
+      console.error('Failed to report frame clock:', err)
+    }
+  }
 }
 
 // Handle incoming serial data from Python backend
@@ -621,6 +699,13 @@ onMounted(async () => {
     // Add window resize handler
     window.addEventListener('resize', onWindowResize)
 
+    // Display info for the frame-clock check (not available outside Electron)
+    try {
+      windowDisplay = await window.electron?.getWindowDisplayInfo?.() ?? null
+    } catch (err) {
+      console.warn('Could not query the display info:', err)
+    }
+
     // Start animation loop
     animate()
     console.log('PythonCustomScene: Animation loop started')
@@ -778,6 +863,11 @@ canvas {
   top: 20px;
   right: 20px;
   z-index: 100;
+}
+
+.clock-warning p {
+  color: #facc15;
+  font-size: 0.85em;
 }
 
 .info-panel {
