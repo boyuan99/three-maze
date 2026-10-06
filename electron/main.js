@@ -64,9 +64,22 @@ async function createMainWindow() {
   })
 
   mainWindow.webContents.on('before-input-event', (event, input) => {
-    if (input.key === 'Escape') {
-      app.quit()
+    if (input.type !== 'keyDown' || input.key !== 'Escape') return
+
+    // Quitting stops any running experiment, so ask first while a scene window is open
+    const sceneOpen = [...sceneWindows.values()].some(window => window && !window.isDestroyed())
+    if (sceneOpen) {
+      const choice = dialog.showMessageBoxSync(mainWindow, {
+        type: 'warning',
+        buttons: ['Cancel', 'Quit'],
+        defaultId: 0,
+        cancelId: 0,
+        title: 'Experiment window open',
+        message: 'A scene window is still open. Quit three-maze and stop the experiment?'
+      })
+      if (choice !== 1) return
     }
+    app.quit()
   })
 
   return mainWindow
