@@ -63,6 +63,7 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader'
 import { MinimalBackendClient } from '@/services/MinimalBackendClient'
 import { resolveAssetPath } from '@/utils/resolveAssetPath.js'
+import { FrameClockMonitor } from '@/utils/frameClock.js'
 
 const route = useRoute()
 const scenesStore = useScenesStore()
@@ -115,17 +116,12 @@ let pendingSerialData = null  // Holds serial data until position is sent
 // Experiment registration opens the serial port and waits for the firmware, so allow longer than the default
 const EXPERIMENT_REGISTER_TIMEOUT_MS = 30000
 
-// Frame-clock self-check. Physics advances a fixed 1/60 s per rendered frame, so the translational
-// VR gain equals (frame rate / 60): any rate other than 60 Hz silently changes the gain.
-const CLOCK_WINDOW_FRAMES = 300      // frames per check (~5 s at 60 Hz)
-const CLOCK_WARMUP_FRAMES = 60       // skip start-up hitches (shader compilation, texture uploads)
-const CLOCK_TOLERANCE = 0.01         // 1 %
-const frameIntervals = new Float64Array(CLOCK_WINDOW_FRAMES)
-let clockFrameCount = 0
-let lastRafTime = null
-let lastClockReport = null
+// Frame-clock self-check: the VR gain depends on the frame rate (see utils/frameClock.js)
+const frameClock = new FrameClockMonitor()
 let windowDisplay = null             // display the scene window is on (refresh rate, primary flag)
+let lastClockKinds = null            // warning kinds currently shown in the info panel
 const clockWarnings = ref([])
+
 const POSITION_RESET_THRESHOLD = 0.5  // 0.5m difference triggers reset
 
 // Animation loop
@@ -133,7 +129,8 @@ function animate(tRaf) {
   if (!isActive.value) return
 
   requestAnimationFrame(animate)
-  trackFrameClock(tRaf)
+  const clockReport = frameClock.addFrame(tRaf, windowDisplay)
+  if (clockReport) reportFrameClock(clockReport)
 
   const { scene, camera, renderer, world, playerBody, fixedCam } = state.value
 
@@ -261,65 +258,40 @@ function animate(tRaf) {
   renderer.render(scene, camera)
 }
 
-// Record rAF intervals and run the frame-clock check once per window
-function trackFrameClock(tRaf) {
-  if (tRaf === undefined) return  // first call is made directly, not by rAF
-  if (lastRafTime !== null) {
-    clockFrameCount++
-    if (clockFrameCount > CLOCK_WARMUP_FRAMES) {
-      const i = (clockFrameCount - CLOCK_WARMUP_FRAMES - 1) % CLOCK_WINDOW_FRAMES
-      frameIntervals[i] = tRaf - lastRafTime
-      if (i === CLOCK_WINDOW_FRAMES - 1) checkFrameClock()
-    }
-  }
-  lastRafTime = tRaf
-}
+// Show frame-clock warnings and send every window's numbers to the backend, which keeps them
+// with the session data
+function reportFrameClock(report) {
+  const kinds = report.warnings.map(warning => warning.kind)
+  const texts = report.warnings.map(warning => warning.text)
 
-function checkFrameClock() {
-  const sorted = Array.from(frameIntervals).sort((a, b) => a - b)
-  const medianMs = sorted[Math.floor(sorted.length / 2)]
-  const rafHz = 1000 / medianMs
-  const displayHz = windowDisplay?.displayFrequency
-  const warnings = []
-
-  if (Math.abs(rafHz / 60 - 1) > CLOCK_TOLERANCE) {
-    warnings.push(`Frame rate ${rafHz.toFixed(1)} Hz is not 60 Hz: VR gain is ${(rafHz / 60).toFixed(3)}x`)
-  }
-  if (displayHz && Math.abs(rafHz / displayHz - 1) > CLOCK_TOLERANCE) {
-    warnings.push(`Frame rate ${rafHz.toFixed(1)} Hz does not match the ${displayHz} Hz display: ` +
-      'make sure the rendering GPU drives the primary display and no monitor is asleep')
-  }
-  if (windowDisplay && !windowDisplay.isPrimary &&
-      windowDisplay.displayFrequency !== windowDisplay.primaryDisplayFrequency) {
-    warnings.push(`Stimulus display (${windowDisplay.displayFrequency} Hz) is not the primary display ` +
-      `(${windowDisplay.primaryDisplayFrequency} Hz); frames are paced by the primary display`)
+  // Update the panel only when the set of warnings changes, so its text does not flicker
+  if (kinds.join(',') !== lastClockKinds) {
+    lastClockKinds = kinds.join(',')
+    clockWarnings.value = texts
+    texts.forEach(text => console.warn('[Frame clock]', text))
   }
 
-  // Report the first measurement of every session, then only changes
-  const report = warnings.join(' | ')
-  if (report === lastClockReport) return
-  lastClockReport = report
-  clockWarnings.value = warnings
-  warnings.forEach(warning => console.warn('[Frame clock]', warning))
-
-  if (backendClient.connected) {
-    try {
-      backendClient.send('renderer_status', {
-        level: warnings.length ? 'warning' : 'info',
-        message: warnings.length ? report : `Frame clock OK: ${rafHz.toFixed(2)} Hz`,
-        details: {
-          rafHz,
-          medianMs,
-          p5Ms: sorted[Math.floor(sorted.length * 0.05)],
-          p95Ms: sorted[Math.floor(sorted.length * 0.95)],
-          displayHz: displayHz ?? null,
-          isPrimaryDisplay: windowDisplay?.isPrimary ?? null,
-          v03Gain: rafHz / 60
-        }
-      })
-    } catch (err) {
-      console.error('Failed to report frame clock:', err)
-    }
+  if (!backendClient.connected) return
+  try {
+    backendClient.send('renderer_status', {
+      level: kinds.length ? 'warning' : 'info',
+      kinds,
+      message: kinds.length ? texts.join(' | ') : `Frame clock OK: ${report.effectiveHz.toFixed(2)} Hz`,
+      details: {
+        effectiveHz: report.effectiveHz,
+        vsyncHz: report.vsyncHz,
+        vrGain: report.gain,
+        droppedFrames: report.droppedFrames,
+        medianMs: report.medianMs,
+        p5Ms: report.p5Ms,
+        p95Ms: report.p95Ms,
+        maxMs: report.maxMs,
+        displayHz: windowDisplay?.displayFrequency ?? null,
+        isPrimaryDisplay: windowDisplay?.isPrimary ?? null
+      }
+    })
+  } catch (err) {
+    console.error('Failed to report frame clock:', err)
   }
 }
 
