@@ -22,7 +22,7 @@ const sceneWindows = new Map()
 const sceneConfigs = new Map()
 let pythonProcess = null
 let backendStopping = null  // Promise while a graceful backend shutdown is in progress
-let quitAfterBackendStop = false
+let quitPromptOpen = false  // The ESC quit confirmation is showing
 let detectedWsPort = null  // Dynamically detected WebSocket port
 let preferredDisplayId = null
 
@@ -63,23 +63,36 @@ async function createMainWindow() {
     mainWindow = null
   })
 
+  // Windows shutdown, restart or log off does not emit before-quit: stop the backend here instead
+  mainWindow.on('session-end', () => {
+    stopPythonBackend()
+  })
+
   mainWindow.webContents.on('before-input-event', (event, input) => {
-    if (input.type !== 'keyDown' || input.key !== 'Escape') return
+    if (input.type !== 'keyDown' || input.key !== 'Escape' || input.isAutoRepeat) return
+    if (quitPromptOpen || backendStopping) return  // already asking, or already quitting
 
     // Quitting stops any running experiment, so ask first while a scene window is open
     const sceneOpen = [...sceneWindows.values()].some(window => window && !window.isDestroyed())
-    if (sceneOpen) {
-      const choice = dialog.showMessageBoxSync(mainWindow, {
-        type: 'warning',
-        buttons: ['Cancel', 'Quit'],
-        defaultId: 0,
-        cancelId: 0,
-        title: 'Experiment window open',
-        message: 'A scene window is still open. Quit three-maze and stop the experiment?'
-      })
-      if (choice !== 1) return
+    if (!sceneOpen) {
+      app.quit()
+      return
     }
-    app.quit()
+    // Not showMessageBoxSync: blocking the main process stops it from draining the backend's
+    // output, and the backend stalls once the pipe is full
+    quitPromptOpen = true
+    dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      buttons: ['Cancel', 'Quit'],
+      defaultId: 0,
+      cancelId: 0,
+      title: 'Experiment window open',
+      message: 'A scene window is still open. Quit three-maze and stop the experiment?'
+    }).then(({ response }) => {
+      if (response === 1) app.quit()
+    }).finally(() => {
+      quitPromptOpen = false
+    })
   })
 
   return mainWindow
@@ -286,12 +299,12 @@ function stopPythonBackend(timeoutMs = 4000) {
   return backendStopping
 }
 
+// Hold every quit until the backend has stopped: a second quit while it is still cleaning up
+// (ESC again, closing the last window) must not let Electron exit and kill it midway
 app.on('before-quit', (event) => {
-  if (pythonProcess && !quitAfterBackendStop) {
-    event.preventDefault()
-    quitAfterBackendStop = true
-    stopPythonBackend().finally(() => app.quit())
-  }
+  if (!pythonProcess && !backendStopping) return
+  event.preventDefault()
+  stopPythonBackend().finally(() => app.quit())
 })
 
 app.on('window-all-closed', () => {
