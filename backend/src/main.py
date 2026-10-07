@@ -970,21 +970,60 @@ class BackendServer:
             if self.data_logger:
                 await self.data_logger.stop_logging()
 
+    # Hard limit for a shutdown once it has been requested. If releasing the experiment hangs,
+    # the process exits anyway, so a backend that outlives Electron cannot hold the serial port
+    # or the DAQ forever
+    SHUTDOWN_DEADLINE_S = 10.0
+
     @staticmethod
     def _watch_parent_pipe(loop: asyncio.AbstractEventLoop, shutdown_requested: asyncio.Event):
-        """Wait until Electron sends 'shutdown' or closes the pipe (Electron exited),
-        then ask the event loop to shut down."""
+        """Wait until Electron sends 'shutdown' or the pipe breaks (Electron exited or crashed),
+        then ask the event loop to shut down, and exit if that takes longer than
+        SHUTDOWN_DEADLINE_S."""
         try:
             if sys.platform == "win32":
-                if not BackendServer._poll_parent_pipe_windows():
-                    return
+                watched = BackendServer._poll_parent_pipe_windows()
             else:
-                for line in sys.stdin:
-                    if line.strip() == "shutdown":
-                        break
+                watched = BackendServer._read_parent_pipe_posix()
         except Exception as e:
-            logger.error(f"Error reading parent pipe: {e}")
-        loop.call_soon_threadsafe(shutdown_requested.set)
+            # The pipe could not be watched at all: keep running rather than shut down by mistake
+            logger.error(f"Cannot watch the parent pipe: {e}")
+            return
+        if not watched:
+            return
+
+        try:
+            loop.call_soon_threadsafe(shutdown_requested.set)
+        except RuntimeError:
+            return  # the event loop has already stopped
+
+        time.sleep(BackendServer.SHUTDOWN_DEADLINE_S)
+        try:
+            os.write(2, b"Shutdown did not finish in time; exiting\n")
+        except OSError:
+            pass
+        os._exit(1)
+
+    @staticmethod
+    def _read_parent_pipe_posix() -> bool:
+        """Read stdin until 'shutdown' arrives or the pipe closes.
+
+        Returns False if stdin is neither a pipe nor a socket (Node gives a child a socket pair),
+        in which case it is not watched at all.
+        """
+        import stat
+
+        mode = os.fstat(sys.stdin.fileno()).st_mode
+        if not (stat.S_ISFIFO(mode) or stat.S_ISSOCK(mode)):
+            logger.warning("THREEMAZE_PARENT_PIPE is set but stdin is not a pipe; not watching it")
+            return False
+        try:
+            for line in sys.stdin:
+                if line.strip() == "shutdown":
+                    break
+        except OSError:
+            pass  # the pipe broke: Electron is gone
+        return True
 
     @staticmethod
     def _poll_parent_pipe_windows() -> bool:
@@ -1021,7 +1060,10 @@ class BackendServer:
             if not kernel32.PeekNamedPipe(handle, None, 0, None, ctypes.byref(available), None):
                 return True  # pipe closed: Electron exited
             if available.value:
-                received += os.read(fd, available.value)  # data is waiting, so this returns at once
+                try:
+                    received += os.read(fd, available.value)  # data is waiting, so this returns at once
+                except OSError:
+                    return True  # the pipe broke between the peek and the read
                 if b"shutdown" in received:
                     return True
             time.sleep(0.2)
@@ -1042,8 +1084,9 @@ class BackendServer:
 
         shutdown_requested = asyncio.Event()
         if os.environ.get("THREEMAZE_PARENT_PIPE") == "1":
-            # Electron writes "shutdown" to stdin before it quits, and stdin reaches EOF if Electron
-            # dies, so the experiment always gets to zero its outputs and close its files.
+            # Electron writes "shutdown" to stdin before it quits, and the pipe breaks if Electron
+            # dies (it spawns the backend detached, so the backend outlives a crash), so the
+            # experiment always gets to zero its outputs and close its files.
             threading.Thread(
                 target=self._watch_parent_pipe,
                 args=(asyncio.get_running_loop(), shutdown_requested),
@@ -1051,7 +1094,8 @@ class BackendServer:
                 daemon=True,
             ).start()
 
-        # close_timeout bounds how long shutdown waits for clients to finish the closing handshake
+        # close_timeout limits the closing handshake with each client. By then the experiment has
+        # already been released, so a slow client only delays the exit
         async with websockets.serve(self.handle_client, self.host, self.port, close_timeout=2):
             # Print success message with port info for Electron to parse
             logger.info(f"WebSocket server ready on port {self.port}")

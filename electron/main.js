@@ -494,6 +494,23 @@ if (isDevelopment) {
   app.commandLine.appendSwitch('ignore-certificate-errors')
 }
 
+// How to spawn the backend so that it can still stop the experiment if Electron crashes.
+// On Windows a child that is not detached is put in a kill-on-close job and dies the moment Electron
+// does. A detached python.exe, however, gets a new, visible console window, so the backend runs
+// detached under the venv's pythonw.exe, which has no console. Without pythonw.exe it falls back to
+// a python.exe that is not detached. Elsewhere a detached backend simply sees its stdin close.
+// Once the pipe breaks, the backend exits on its own within 10 s even if cleanup hangs.
+const getBackendLaunch = (config) => {
+  if (process.platform !== 'win32') {
+    return { interpreter: config.interpreter, detached: true }
+  }
+  const pythonw = path.join(path.dirname(config.interpreter), 'pythonw.exe')
+  if (fs.existsSync(pythonw)) {
+    return { interpreter: pythonw, detached: true }
+  }
+  return { interpreter: config.interpreter, detached: false }
+}
+
 const startPythonBackend = async () => {
   try {
     if (pythonProcess) {
@@ -509,11 +526,14 @@ const startPythonBackend = async () => {
     }
 
     // Start the Python WebSocket backend
-    pythonProcess = spawn(config.interpreter, ['-m', 'backend.src.main'], {
+    const launch = getBackendLaunch(config)
+    pythonProcess = spawn(launch.interpreter, ['-m', 'backend.src.main'], {
       cwd: scriptPath,
-      // stdin stays open so the backend can be asked to shut down gracefully;
-      // it also reaches EOF if Electron dies, which makes the backend clean up and exit
+      // stdin stays open as a control pipe: the backend shuts down gracefully when it reads
+      // "shutdown" or when the pipe breaks because Electron died
       stdio: ['pipe', 'pipe', 'pipe'],
+      detached: launch.detached,
+      windowsHide: true,
       env: {
         ...process.env,
         PYTHONUNBUFFERED: '1',  // Disable Python output buffering
