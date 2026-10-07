@@ -227,7 +227,9 @@ export class MinimalBackendClient {
       const timeout = setTimeout(() => {
         if (this.pendingRequests.has(requestId)) {
           this.pendingRequests.delete(requestId);
-          reject(new Error(`Request timeout: ${type}`));
+          const error = new Error(`Request timeout: ${type}`);
+          error.code = 'TIMEOUT';  // the backend may still handle the request later
+          reject(error);
         }
       }, timeoutMs);
 

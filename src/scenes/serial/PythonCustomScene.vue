@@ -720,6 +720,20 @@ onMounted(async () => {
         } catch (err) {
           console.error('[ERROR] Failed to register experiment:', err.message)
           error.value = `Failed to load experiment: ${err.message}`
+          if (err.code === 'TIMEOUT') {
+            // The backend may still finish loading the experiment and start it behind the error
+            // message: stop it as soon as the late reply arrives (it comes as a plain event)
+            const stopLateExperiment = (data) => {
+              if (data?.filename !== experimentFile.value) return
+              backendClient.off('experiment_registered', stopLateExperiment)
+              try {
+                backendClient.send('experiment_stop', {})
+              } catch (stopErr) {
+                console.error('[ERROR] Failed to stop the late experiment:', stopErr)
+              }
+            }
+            backendClient.on('experiment_registered', stopLateExperiment)
+          }
           return
         }
       }
