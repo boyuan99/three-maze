@@ -13,9 +13,11 @@ def deliver_water(task, voltage=5.0, duration_ms=17):
     duration_s = duration_ms / 1000.0  # Convert milliseconds to seconds
     # Send the voltage pulse
     task.write([voltage], auto_start=True)
-    time.sleep(duration_s)
-    # Reset to 0V
-    task.write([0], auto_start=True)
+    try:
+        time.sleep(duration_s)
+    finally:
+        # Reset to 0V, even if the pulse is interrupted, so the valve can never be left open
+        task.write([0], auto_start=True)
 
 def main():
     task = setup_task()

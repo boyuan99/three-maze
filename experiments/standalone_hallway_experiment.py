@@ -607,6 +607,9 @@ class Experiment:
         logger.info(f"[{self.experiment_id}] Total trials: {self.trial_number}")
         logger.info(f"[{self.experiment_id}] Total rewards: {self.num_rewards}")
 
+        # Stop handling position updates first, so no new reward pulse starts during cleanup
+        self.is_active = False
+
         # === 1. STOP SERIAL PORT ===
         try:
             if self.serial_port and self.serial_port.is_open:
@@ -631,6 +634,12 @@ class Experiment:
         # === 2. CLOSE DAQ TASK ===
         try:
             if self.daq_task:
+                # Return the output to 0V before closing: the analog output keeps its last value
+                # after the task is closed, so a pulse still in progress would leave the valve open
+                try:
+                    self.daq_task.write(0.0)
+                except Exception as e:
+                    logger.error(f"[{self.experiment_id}] Error zeroing DAQ output: {e}")
                 self.daq_task.close()
                 logger.info(f"[{self.experiment_id}] DAQ task closed")
         except Exception as e:
