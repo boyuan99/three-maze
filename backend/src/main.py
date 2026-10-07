@@ -74,6 +74,7 @@ class BackendServer:
         self.replayer = None  # DataReplayer instance if in replay mode
         self.active_experiment = None  # Active Python experiment instance
         self._shutting_down = False  # Set once Electron asks the backend to shut down
+        self._release_lock = asyncio.Lock()  # Serializes cleanup between disconnect and shutdown
 
         # Event-driven serial data queue (one queue per client)
         self.client_queues: Dict[Any, asyncio.Queue] = {}
@@ -350,11 +351,12 @@ class BackendServer:
         experiment_id = data.get("experimentId", "unknown")
         logger.info(f"Experiment stopped: {experiment_id}")
 
-        # If Python experiment is active, terminate it
-        if self.active_experiment:
+        # If Python experiment is active, terminate it. Take it out before awaiting terminate(),
+        # so no other path (disconnect, shutdown) terminates it a second time
+        experiment, self.active_experiment = self.active_experiment, None
+        if experiment:
             try:
-                summary = await self.active_experiment.terminate()
-                self.active_experiment = None
+                summary = await experiment.terminate()
                 logger.info(f"Python experiment terminated: {summary}")
             except Exception as e:
                 logger.error(f"Error terminating Python experiment: {e}")
@@ -530,12 +532,12 @@ class BackendServer:
         except Exception as e:
             logger.error(f"Error registering experiment: {e}", exc_info=True)
             # Cleanup if initialization failed
-            if self.active_experiment is not None:
+            experiment, self.active_experiment = self.active_experiment, None
+            if experiment is not None:
                 try:
-                    await self.active_experiment.terminate()
+                    await experiment.terminate()
                 except:
                     pass
-                self.active_experiment = None
             return {
                 "type": "experiment_error",
                 "data": {"error": str(e)}
@@ -553,11 +555,12 @@ class BackendServer:
 
     async def _handle_experiment_unregister(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle Python experiment unregistration"""
-        if self.active_experiment:
+        # Take the experiment out before awaiting terminate(), so it is terminated only once
+        experiment, self.active_experiment = self.active_experiment, None
+        if experiment:
             try:
-                summary = await self.active_experiment.terminate()
-                experiment_id = self.active_experiment.experiment_id
-                self.active_experiment = None
+                summary = await experiment.terminate()
+                experiment_id = experiment.experiment_id
 
                 logger.info(f"Python experiment unregistered: {experiment_id}")
 
@@ -915,25 +918,29 @@ class BackendServer:
 
     async def _release_session(self, reason: str):
         """Terminate the active experiment (which zeroes its outputs and closes its files)
-        and release shared hardware."""
-        # Clean up active experiment (CRITICAL!)
-        if self.active_experiment:
-            logger.info(f"Cleaning up active experiment due to {reason}")
-            experiment = self.active_experiment
-            try:
-                summary = await experiment.terminate()
-                logger.info(f"Experiment terminated: {experiment.experiment_id}")
-                logger.info(f"Experiment summary: {summary}")
-            except Exception as e:
-                logger.error(f"Error terminating experiment during cleanup: {e}", exc_info=True)
-            finally:
-                self.active_experiment = None
+        and release shared hardware.
 
-        # Clean up shared hardware
-        if self.hardware_manager:
-            await self.hardware_manager.cleanup()
-        if self.data_logger:
-            await self.data_logger.stop_logging()
+        The last client disconnecting and a shutdown can both call this at once: the calls are
+        serialized, and the experiment is terminated only once.
+        """
+        async with self._release_lock:
+            # Take the experiment out before awaiting terminate(), so no other path terminates it
+            # again and position updates stop reaching it during cleanup (CRITICAL!)
+            experiment, self.active_experiment = self.active_experiment, None
+            if experiment:
+                logger.info(f"Cleaning up active experiment due to {reason}")
+                try:
+                    summary = await experiment.terminate()
+                    logger.info(f"Experiment terminated: {experiment.experiment_id}")
+                    logger.info(f"Experiment summary: {summary}")
+                except Exception as e:
+                    logger.error(f"Error terminating experiment during cleanup: {e}", exc_info=True)
+
+            # Clean up shared hardware
+            if self.hardware_manager:
+                await self.hardware_manager.cleanup()
+            if self.data_logger:
+                await self.data_logger.stop_logging()
 
     @staticmethod
     def _watch_parent_pipe(loop: asyncio.AbstractEventLoop, shutdown_requested: asyncio.Event):
