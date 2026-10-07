@@ -236,6 +236,11 @@ class BackendServer:
 
     async def _handle_water_deliver(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle water delivery"""
+        if self._shutting_down:
+            return {
+                "type": "water_error",
+                "data": {"error": "Backend is shutting down"}
+            }
         try:
             if self.hardware_manager is None:
                 return {
@@ -391,6 +396,12 @@ class BackendServer:
                     "data": {"error": "No experiment ID or filename provided"}
                 }
 
+            if self._shutting_down:
+                return {
+                    "type": "experiment_error",
+                    "data": {"error": "Backend is shutting down"}
+                }
+
             # Check if another experiment is already active
             if self.active_experiment is not None:
                 return {
@@ -511,7 +522,24 @@ class BackendServer:
                 }
 
             # Initialize experiment
-            initial_state = await self.active_experiment.initialize(config)
+            experiment = self.active_experiment
+            initial_state = await experiment.initialize(config)
+
+            # A shutdown or stop may have released the experiment while it was initializing.
+            # Terminate it (again): initialize() may have opened the DAQ task or the data file after
+            # the first terminate() ran
+            if self._shutting_down or self.active_experiment is not experiment:
+                logger.warning(f"Experiment {experiment_id} was released while initializing; terminating it")
+                if self.active_experiment is experiment:
+                    self.active_experiment = None
+                try:
+                    await experiment.terminate()
+                except Exception as e:
+                    logger.error(f"Error terminating released experiment: {e}", exc_info=True)
+                return {
+                    "type": "experiment_error",
+                    "data": {"error": "Experiment was stopped while it was loading"}
+                }
 
             logger.info(f"Experiment initialized successfully: {experiment_id}")
 
