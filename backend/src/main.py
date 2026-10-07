@@ -13,6 +13,7 @@ Handles:
 
 import argparse
 import asyncio
+import inspect
 import json
 import logging
 import sys
@@ -75,6 +76,8 @@ class BackendServer:
         self.active_experiment = None  # Active Python experiment instance
         self._shutting_down = False  # Set once Electron asks the backend to shut down
         self._release_lock = asyncio.Lock()  # Serializes cleanup between disconnect and shutdown
+        self._last_renderer_kinds = None  # Renderer warning kinds last written to the log
+        self._failed_sidecar = None  # Renderer sidecar that could not be written (reported once)
 
         # Event-driven serial data queue (one queue per client)
         self.client_queues: Dict[Any, asyncio.Queue] = {}
@@ -738,17 +741,36 @@ class BackendServer:
         return {"type": "error", "data": {"error": "No replayer available"}}
 
     async def _handle_renderer_status(self, data: Dict[str, Any]) -> None:
-        """Log renderer health reports (e.g. frame-clock checks). No reply is sent."""
-        level = data.get("level", "info")
-        message = data.get("message", "")
-        details = data.get("details", {})
-        log = logger.warning if level == "warning" else logger.info
-        log(f"[renderer] {message} {json.dumps(details)}")
+        """Record renderer health reports (frame-clock checks). No reply is sent.
 
-        handler = getattr(self.active_experiment, "on_renderer_status", None)
+        The renderer reports every few seconds. Each report is appended to a sidecar of the
+        experiment's data file (<data file>.renderer.jsonl), so the session keeps a record of the
+        frame rate and hence of the VR gain; the log only shows changes in the warnings.
+        """
+        kinds = data.get("kinds")
+        if kinds != self._last_renderer_kinds:
+            self._last_renderer_kinds = kinds
+            log = logger.warning if data.get("level") == "warning" else logger.info
+            log(f"[renderer] {data.get('message', '')} {json.dumps(data.get('details', {}))}")
+
+        experiment = self.active_experiment
+        data_file_path = getattr(experiment, "data_file_path", None)
+        if data_file_path:
+            sidecar = os.path.splitext(data_file_path)[0] + ".renderer.jsonl"
+            try:
+                with open(sidecar, "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"time": time.time(), **data}) + "\n")
+            except OSError as e:
+                if sidecar != self._failed_sidecar:
+                    self._failed_sidecar = sidecar
+                    logger.error(f"Cannot write renderer status to {sidecar}: {e}")
+
+        handler = getattr(experiment, "on_renderer_status", None)
         if handler:
             try:
-                handler(data)
+                result = handler(data)
+                if inspect.isawaitable(result):
+                    await result
             except Exception as e:
                 logger.error(f"Experiment failed to handle renderer status: {e}")
         return None
