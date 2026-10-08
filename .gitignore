@@ -65,6 +65,7 @@ ref/
 # Deprecated scene files
 **/deprecated/
 
-# Documentation (except README)
+# Documentation (except README and the docs folder)
 *.md
 !README.md
+!docs/**/*.md
