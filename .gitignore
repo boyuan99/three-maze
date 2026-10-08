@@ -51,7 +51,6 @@ temp/
 # ========================
 # Testing
 # ========================
-**/test/
 coverage/
 .nyc_output/
 virtual_sensor/
@@ -65,7 +64,5 @@ ref/
 # Deprecated scene files
 **/deprecated/
 
-# Documentation (except README and the docs folder)
-*.md
-!README.md
-!docs/**/*.md
+# v0.3 agent prompts: kept out until they are rewritten for scene schema v1 (roadmap phase 1)
+prompts/
