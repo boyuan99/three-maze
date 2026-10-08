@@ -123,7 +123,9 @@ modes too (Known limits has the cases software rendering can hide).
   Server, no GPU) should work but has not been tried yet; CI runs the bench only when started by
   hand (`.github/workflows/ci.yml`, job `e2e`, with `--software-gl --ci` and the scenarios
   `sim,s2,lifecycle` by default; see Known limits for S1).
-- `npm ci` (Electron 33 and vite from `package.json`).
+- `npm ci` (Electron 44 and vite from `package.json`). Since Electron 42, `npm ci` does not download
+  the Electron binary: the runner downloads it into `node_modules/electron/dist` the first time it
+  starts (network needed), or run `npx --no install-electron` beforehand.
 - The repository venv `.venv` with `python.exe` and `pythonw.exe` (`.venv/Scripts`) and the backend
   packages of `requirements.txt` (websockets, pyserial, nidaqmx, numpy). `npm ci` creates it
   through `setup/setup-python.js`; the NI-DAQmx driver is not needed.
@@ -132,8 +134,10 @@ modes too (Known limits has the cases software rendering can hide).
 - Ports 8765 (the session backend) and 8795 (the lifecycle backend) free: close three-maze first.
   The runner checks them before it starts anything and exits with code 2 if one is taken, because
   on Windows a second backend on a taken port crashes on bind instead of moving to the next port.
-- A GPU is optional: without one, Chromium renders with SwiftShader (the harness allows that
-  fallback); `--software-gl` forces it.
+- A GPU is optional: without one, the bench renders with SwiftShader (the harness passes
+  `--enable-unsafe-swiftshader`); `--software-gl` forces it. The real app does not pass that
+  switch, so on Windows without a usable GPU Electron 44 falls back to WARP (Microsoft Basic Render
+  Driver) instead, which the bench does not exercise.
 
 ## How long
 

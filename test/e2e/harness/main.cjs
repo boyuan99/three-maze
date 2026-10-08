@@ -82,7 +82,8 @@ function defaultWindowId (id) {
 }
 
 // Lets WebGL fall back to SwiftShader on machines without a usable GPU (CI runners); it changes
-// nothing where a GPU is used. Chromium removes the automatic fallback without this switch.
+// nothing where a GPU is used. Without this switch Chromium no longer falls back to SwiftShader
+// (on Windows, Electron 44 uses WARP instead), so the real app, which does not pass it, can differ.
 app.commandLine.appendSwitch('enable-unsafe-swiftshader')
 if (SOFTWARE_GL) app.disableHardwareAcceleration()
 
@@ -513,6 +514,10 @@ async function openScene (sceneName, sceneData) {
   summary.window.primary_display_id = screen.getPrimaryDisplay().id
   summary.window.displays = screen.getAllDisplays().map(describe)
   summary.window.preferred_display_id = preferredDisplayId
+  // Electron 42+ paints offscreen pages at a scale factor of 1 unless told otherwise; before, it used
+  // the primary display's. Kept, so the canvas has as many device pixels as with Electron 33
+  const deviceScaleFactor = screen.getPrimaryDisplay().scaleFactor
+  summary.window.offscreen_device_scale_factor = deviceScaleFactor
 
   const win = new BrowserWindow({
     x: display.bounds.x,
@@ -525,7 +530,7 @@ async function openScene (sceneName, sceneData) {
     fullscreen: false,
     fullscreenable: false,
     webPreferences: {
-      offscreen: true,
+      offscreen: { deviceScaleFactor },
       backgroundThrottling: false,
       contextIsolation: true,
       nodeIntegration: false,
@@ -554,11 +559,15 @@ async function openScene (sceneName, sceneData) {
     const s = Math.floor((ms() - sceneOpenMs) / 1000)
     paintsPerSecond[s] = (paintsPerSecond[s] || 0) + 1
   })
-  wc.on('console-message', (event, level, message, line, sourceId) => {
-    if (typeof level !== 'number' && event && event.level !== undefined) { // newer Electron: details on the event
-      ({ level, message, lineNumber: line, sourceId } = event)
-    }
-    const lv = typeof level === 'number' ? (['verbose', 'info', 'warning', 'error'][level] || String(level)) : String(level)
+  // Electron 35+ puts the details on the event (level 'debug' | 'info' | 'warning' | 'error') and
+  // logs a deprecation warning when a listener declares the old positional arguments, so this one
+  // declares only the event and reads those arguments only from older Electron (level 0-3)
+  wc.on('console-message', function (event) {
+    let level, message, line, sourceId
+    if (event && typeof event.level === 'string') ({ level, message, lineNumber: line, sourceId } = event)
+    else [, level, message, line, sourceId] = arguments
+    // The same names as before: Chromium's level 0 ('verbose') is Electron 35's 'debug'
+    const lv = typeof level === 'number' ? (['verbose', 'info', 'warning', 'error'][level] || String(level)) : (level === 'debug' ? 'verbose' : String(level))
     const r = summary.renderer
     r.console_counts[lv] = (r.console_counts[lv] || 0) + 1
     const src = sourceId ? String(sourceId).replace(APP_URL, '') : ''
