@@ -48,8 +48,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      # --ignore-scripts: these steps need neither the Electron binary nor the Python venv,
-      # which the postinstall scripts would download and create
+      # --ignore-scripts: these steps need no Python venv, which the postinstall would create
+      # (the Electron binary is not downloaded by npm ci at all since Electron 42)
       - run: npm ci --ignore-scripts
       - run: npm test
       - run: npm run typecheck
@@ -88,8 +88,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: npm ci (downloads Electron, creates .venv)
+      - name: npm ci (creates .venv)
         run: npm ci
+      # Since Electron 42, npm ci no longer downloads the Electron binary
+      - name: Download the Electron binary
+        run: npx --no install-electron
       # The postinstall (setup/setup-python.js) already fails npm ci if the Python setup fails;
       # this step only confirms that the venv matches the pins
       - name: Check the venv

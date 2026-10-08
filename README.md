@@ -13,7 +13,7 @@ A VR environment designed for animal behavior research, built with Three.js, Vue
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/en) (Latest LTS version recommended)
+- [Node.js](https://nodejs.org/en) 22.12 or newer (an LTS version; Electron 44 needs at least 22.12)
 - [Python](https://www.python.org/downloads/) 3.11 or newer (3.12 recommended) for the backend, as
   `python` on the PATH (`python3` on macOS and Linux)
 - A modern web browser with WebGL support
@@ -39,6 +39,11 @@ npm install
 `python --version`. If that check, creating `.venv` or installing the Python packages fails,
 `npm install` fails with a "Python setup FAILED" box that says what to do; after fixing it, run
 `node setup/setup-python.js` to finish the Python part.
+
+`npm install` does not download the Electron binary (Electron 42 and later download it when it is
+first needed): the first `npm run electron:dev` or `npm run test:e2e` downloads it into
+`node_modules/electron/dist`, which needs network access. To download it right away, for example
+before the computer goes offline, run `npx --no install-electron`.
 
 ## Development
 
