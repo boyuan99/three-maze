@@ -77,7 +77,7 @@ A runtime in another language must pass the conformance suite (black-box tests a
 
 *Decided by the owner (2026-10-07):* the roadmap had scheduled the declarative layer (a P0, pre-submission item) in phase 2 (weeks 8–15), after the week-10 v1.0-rc freeze that starts paper data. A minimal declarative FSM (zone and timer events; reward, teleport, freeze, display) moves into phase 1 instead; the rest of the declarative layer stays in phase 2.
 
-*Follow-up:* phase 0, un-ignore the remaining `*.md` (`.gitignore:69`; `docs/` is already excepted). Phase 1: motion worker with zones and epochs; the minimal declarative FSM; rig runtime with Python task host and lockstep harness; hallway ports as declarative tasks, with Python versions kept for the parity test; protocol v1 with apply_seq. Phase 2: the full declarative layer, `threemaze.task` adapter, MATLAB client, conformance suite, world switching.
+*Follow-up:* phase 0 (done 2026-10-08): `*.md` no longer ignored. Phase 1: motion worker with zones and epochs; the minimal declarative FSM; rig runtime with Python task host and lockstep harness; hallway ports as declarative tasks, with Python versions kept for the parity test; protocol v1 with apply_seq. Phase 2: the full declarative layer, `threemaze.task` adapter, MATLAB client, conformance suite, world switching.
 
 ## Validation
 
