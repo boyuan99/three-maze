@@ -1,0 +1,141 @@
+{
+  "format": "three-maze-collider-manifest",
+  "version": 1,
+  "builder": "test fixture (test/frontend/motion)",
+  "rapierVersion": "0.14.0",
+  "colliders": [
+    {
+      "id": "floor",
+      "body": "fixed",
+      "layer": "world",
+      "shape": { "kind": "cuboid", "halfExtents": [60, 0.5, 60] },
+      "translation": [0, -0.5, 0],
+      "rotation": [0, 0, 0, 1],
+      "enabled": true,
+      "sources": ["floor"],
+      "why": "role floor"
+    },
+    {
+      "id": "wall30",
+      "body": "fixed",
+      "layer": "world",
+      "shape": { "kind": "cuboid", "halfExtents": [0.5, 5, 20] },
+      "translation": [20, 5, 0],
+      "rotation": [0, 0.25881904510252074, 0, 0.9659258262890683],
+      "enabled": true,
+      "sources": ["wall30"],
+      "why": "role wall",
+      "notes": ["turned 30 degrees about +Y"]
+    },
+    {
+      "id": "sideWall.1",
+      "body": "fixed",
+      "layer": "world",
+      "shape": { "kind": "cuboid", "halfExtents": [0.5, 5, 15] },
+      "translation": [-30, 5, 15],
+      "rotation": [0, 0, 0, 1],
+      "enabled": true,
+      "sources": ["sideWall"],
+      "why": "role wall",
+      "piece": [1, 2]
+    },
+    {
+      "id": "sideWall.2",
+      "body": "fixed",
+      "layer": "world",
+      "shape": { "kind": "cuboid", "halfExtents": [0.5, 5, 15] },
+      "translation": [-30, 5, -15],
+      "rotation": [0, 0, 0, 1],
+      "enabled": true,
+      "sources": ["sideWall"],
+      "why": "role wall",
+      "piece": [2, 2]
+    },
+    {
+      "id": "ramp",
+      "body": "fixed",
+      "layer": "world",
+      "shape": {
+        "kind": "trimesh",
+        "vertices": [-10, 0, 20, 10, 0, 20, 10, 3.6397023426620234, 30, -10, 3.6397023426620234, 30],
+        "indices": [0, 1, 2, 0, 2, 3],
+        "flags": ["FIX_INTERNAL_EDGES", "MERGE_DUPLICATE_VERTICES"]
+      },
+      "translation": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "enabled": true,
+      "sources": ["ramp"],
+      "why": "walkable region (20 degrees)"
+    },
+    {
+      "id": "post",
+      "body": "fixed",
+      "layer": "world",
+      "shape": {
+        "kind": "convexHull",
+        "points": [2.598076211353316, 0, 1.5, 0, 0, 3, -2.598076211353316, 0, 1.5, -2.598076211353316, 0, -1.5, 0, 0, -3, 2.598076211353316, 0, -1.5, 2.598076211353316, 4, 1.5, 0, 4, 3, -2.598076211353316, 4, 1.5, -2.598076211353316, 4, -1.5, 0, 4, -3, 2.598076211353316, 4, -1.5]
+      },
+      "translation": [-20, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "enabled": true,
+      "sources": ["post"],
+      "why": "hexagonal prism"
+    },
+    {
+      "id": "gate",
+      "body": "fixed",
+      "layer": "agentBarrier",
+      "shape": { "kind": "cuboid", "halfExtents": [5, 5, 0.25] },
+      "translation": [0, 5, -30],
+      "rotation": [0, 0, 0, 1],
+      "enabled": false,
+      "sources": ["gate"],
+      "why": "extraColliders"
+    }
+  ],
+  "zones": [
+    {
+      "id": "zoneReward",
+      "zone": "reward",
+      "tags": ["reward"],
+      "shape": { "kind": "cuboid", "halfExtents": [5, 3, 5] },
+      "translation": [0, 3, 40],
+      "rotation": [0, 0, 0, 1],
+      "enabled": true,
+      "sources": ["rewardZone"]
+    },
+    {
+      "id": "zoneEndA",
+      "zone": "end",
+      "tags": ["end"],
+      "shape": { "kind": "cuboid", "halfExtents": [2, 3, 2] },
+      "translation": [45, 3, -40],
+      "rotation": [0, 0, 0, 1],
+      "enabled": true,
+      "sources": ["endZone"]
+    },
+    {
+      "id": "zoneEndB",
+      "zone": "end",
+      "tags": ["end"],
+      "shape": { "kind": "cuboid", "halfExtents": [2, 3, 2] },
+      "translation": [45, 3, -36],
+      "rotation": [0, 0, 0, 1],
+      "enabled": true,
+      "sources": ["endZone"]
+    },
+    {
+      "id": "zoneVoid",
+      "zone": "void",
+      "tags": ["fall"],
+      "shape": {
+        "kind": "convexHull",
+        "points": [-60, -20, -60, -60, -20, 60, -60, -10, -60, -60, -10, 60, 60, -20, -60, 60, -20, 60, 60, -10, -60, 60, -10, 60]
+      },
+      "translation": [0, 0, 0],
+      "rotation": [0, 0, 0, 1],
+      "enabled": false,
+      "sources": ["voidZone"]
+    }
+  ]
+}
