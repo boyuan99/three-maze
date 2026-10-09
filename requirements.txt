@@ -31,7 +31,7 @@ nitypes==1.1.0
 packaging==25.0
 python-decouple==3.8
 requests==2.32.5
-typing_extensions==4.15.0
+typing_extensions==4.16.0
 tzdata==2025.2; sys_platform == "win32"
 tzlocal==5.3.1
 urllib3==2.5.0
