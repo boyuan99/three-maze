@@ -22,7 +22,7 @@ websockets==15.0.1    # WebSocket server for the renderer
 # Pulled in by nidaqmx
 certifi==2025.11.12
 charset-normalizer==3.4.4
-click==8.3.1
+click==8.5.0
 colorama==0.4.6; sys_platform == "win32"
 deprecation==2.1.0
 hightime==1.0.0
