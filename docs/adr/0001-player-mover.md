@@ -74,7 +74,7 @@ Adopt C, extended by a wall rule for faces steeper than 30° (R3, R4), so that i
 
 **Documentation:** explicit slope, step and skin limits instead of forces are how game-engine character controllers work (Unity, Unreal Engine, Godot and Rapier itself, whose default walkable angles are about 45°); three-maze's values are stricter where the experiment needs it. Scene authors find every limit, its reason and what can be changed in [movement-and-collision-limits.md](../movement-and-collision-limits.md) (owner, 2026-10-08).
 
-**Follow-up:** phase 0 (done 2026-10-08): `test/` and `*.md` no longer ignored, Vitest and TypeScript type checking on Windows CI (R7; owner, 2026-10-07), exact pin. Phase 1: motion-core module; compiler partitioning, lint and manifest; maze migrator (`public/mazes`: six walls over 40 units become 26 pieces; each hallway's three floor boxes, one); protocol v1 device samples, removing the backend's velocity, heading and stale-pose code; firmware v2 sequence numbers and microsecond timestamps.
+**Follow-up:** phase 0 (done 2026-10-08): `test/` and `*.md` no longer ignored, Vitest and TypeScript type checking on Windows CI (R7; owner, 2026-10-07), exact pin. Phase 1: motion-core module; compiler partitioning, lint and manifest; maze migrator (`public/mazes`: six walls over 40 units become 26 pieces; each hallway's three floor boxes, one); protocol v1 device samples, removing the backend's velocity, heading and stale-pose code; firmware v2 sequence numbers and microsecond timestamps; Rapier upgraded to the then-latest version, validated by this record's Validation suite, then pinned again ([ADR-0004](0004-dependency-versions.md)).
 
 ## Validation
 
