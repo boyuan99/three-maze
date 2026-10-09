@@ -105,7 +105,7 @@ CI on Windows unless stated; event logs are compared on seq, epoch, t_dev, type 
 
 ## Evidence
 
-One Windows 11 workstation (Node 22.16.0, rapier3d-compat 0.14.0, Python 3.12); confidence medium. Prototypes and raw outputs live outside the repository, in the gitignored design-review workspace (`.claude/paper-review/proto/`); the Validation tests will bring the relevant cases in.
+One Windows 11 workstation (Node 22.16.0, rapier3d-compat 0.14.0, Python 3.12); confidence medium. Prototypes and raw outputs live outside this repository, in the design-review workspace, the separate three-maze-notes repository (`proto/`; amended 2026-10-09); the Validation tests will bring the relevant cases in.
 
 | What and method | Result | Caveats |
 |---|---|---|
@@ -114,3 +114,5 @@ One Windows 11 workstation (Node 22.16.0, rapier3d-compat 0.14.0, Python 3.12); 
 | Latency, quoted | zone event to backend 1.4–1.8 ms after the crossing sample (motion-core simulation); loopback WebSocket round trip 0.1–0.2 ms median (0.094 ms re-measured); stdio task round trip 31 µs median | |
 
 No prototype runs the decided combination (FSM in a motion worker plus a Python code-task host); its parity is untested, and no equivalence is claimed until tests 1–3 pass against the real worker.
+
+**Amendment 2026-10-09 (evidence location).** "outside the repository, in the gitignored design-review workspace (`.claude/paper-review/proto/`)" is replaced by "outside this repository, in the design-review workspace, the separate three-maze-notes repository (`proto/`)". The project owner moved the design-review workspace on 2026-10-09 from a folder of the development checkout that git ignored into a repository of its own, three-maze-notes, so that the evidence has a version history. The files moved unchanged, so the prototype paths in the table above are relative to that repository's `proto/` folder. This corrects where the evidence lives; no decision changes.
