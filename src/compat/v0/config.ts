@@ -63,8 +63,9 @@ export interface V0SceneConfig {
   objects?: V0Object[]
   /**
    * Folder the asset paths are relative to, without a leading slash ('mazes/Hallway04/').
-   * v0.3's scene store adds it when a maze is loaded (src/stores/scenes.js:274), from the path the
-   * Electron file dialog returns (electron/main.js:676-682).
+   * v0.3's scene store sets it when a maze is loaded (src/stores/scenes.js:274): the folder of the
+   * file the Electron dialog returns, relative to the served root (electron/main.js:676-682), else
+   * the JSON's own `basePath` key, else ''.
    */
   _basePath?: string
 }

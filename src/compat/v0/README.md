@@ -37,8 +37,9 @@ const physics = v0Physics(config)
 | `describeScene(scene, camera)` | (test support) a plain-data description of a scene graph | see `describe.ts` |
 
 `config` is the parsed JSON plus `_basePath`, the folder asset paths are relative to (for example
-`mazes/Hallway04/`), as v0.3's scene store adds it (`src/stores/scenes.js:274`, from
-`electron/main.js:676-682`). Asset URLs are resolved with v0.3's own `src/utils/resolveAssetPath.js`.
+`mazes/Hallway04/`), as v0.3's scene store sets it (`src/stores/scenes.js:274`): the maze's folder
+relative to the served root (`electron/main.js:676-682`), else the JSON's own `basePath` key, else
+an empty string. Asset URLs are resolved with v0.3's own `src/utils/resolveAssetPath.js`.
 
 The caller supplies the asset loaders (`options.loaders.texture` and `.skybox`, each returning a
 promise of a new `Texture`), because three's `TextureLoader` creates an `<img>` element
@@ -69,7 +70,8 @@ MOT-08 uses it to build correctly rotated colliders).
 8. **Renderer settings that do nothing in three 0.169.0.** `toneMapping` and `toneMappingExposure`
    are passed to the constructor (:580-581), which does not read them
    (`node_modules/three/src/renderers/WebGLRenderer.js:64-75`), so tone mapping stays
-   `NoToneMapping` (:150); `physicallyCorrectLights` (:585) is not a property of the r169 renderer.
+   `NoToneMapping` (`WebGLRenderer.js:150`); `physicallyCorrectLights` (:585) is not a property of
+   the r169 renderer.
    `setSize` is called without `setPixelRatio`, so the pixel ratio stays 1 (:583), and shadows are
    always enabled (:584), whatever the JSON's `renderer` block says.
 9. **Every point light with `castShadow` casts cube shadows** (:613): three each in Hallway01,
@@ -99,6 +101,10 @@ MOT-08 uses it to build correctly rotated colliders).
 
 The port also lists unsupported light and geometry types and failed textures in `diagnostics`; v0.3
 logs some of them to the console. Neither changes the scene.
+
+A caller that must show exactly what v0.3 shows (the gate's fallback scene) should check `assets`:
+an entry with `loaded: false` means the scene differs from what v0.3 shows when all its assets are
+present (no sky, or a flat colour instead of a texture), even though the build succeeded.
 
 ## Keys v0.3's experiment scene ignores
 
@@ -143,11 +149,11 @@ Also not compared: anything after setup (frames, resizes, the physics simulation
 version counters, and v0.3's console output. Rapier stores 32-bit floats, so the port's solids are
 rounded with `Math.fround` before they are compared with the Rapier read-back.
 
-The golden files were generated at b96ad72 (three 0.169.0, Rapier 0.14.0, Node 22.16.0). They are only
-ever written from v0.3's output: after a deliberate change to v0.3's loader, regenerate them with
-`npx vitest run test/frontend/v0Reference.test.ts -u` and review the diff. When v0.3's scene component
-is rewritten or retired (REN-5, DPR-19), the extraction will stop finding its functions; keep the golden
-files as the record of v0.3 and replace the extraction test by a check against them.
+The golden files were generated at b96ad72 (three 0.169.0, Rapier 0.14.0, Node 22.16.0). They are
+only ever written from v0.3's output: after a deliberate change to v0.3's loader, regenerate them
+with `npx vitest run test/frontend/v0Reference.test.ts -u` and review the diff. When v0.3's scene
+component is rewritten or retired (REN-5, DPR-19), the extraction will stop finding its functions;
+keep the golden files as the record of v0.3 and replace the extraction test by a check against them.
 
 ## Running in Node
 
