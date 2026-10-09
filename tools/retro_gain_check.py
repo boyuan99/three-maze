@@ -20,8 +20,8 @@ Read-only: data files are only opened for reading, and the CSV may not be writte
 an audited file.
 
 The analysis (load, wrap, analyse) is the design review's prototype, unchanged
-(.claude/paper-review/proto/motion_core/retro_gain_check.py in the review workspace, outside the
-repository); this copy adds the pattern expansion and per-file error handling (plan item REL-02).
+(proto/motion_core/retro_gain_check.py in the separate three-maze-notes repository); this copy adds
+the pattern expansion and per-file error handling (plan item REL-02).
 """
 import argparse
 import csv

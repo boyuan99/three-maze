@@ -52,9 +52,9 @@ For each session:
    turn lost records into missed frames). Such a session is not valid for the gate (section 6).
 2. **Period.** P is the median of the session's rAF-timestamp intervals (excluded intervals left
    out). The same P is used for both estimates. (The prototype behind ADR-0003 Evidence 1,
-   `.claude/paper-review/proto/rendering/bench.mjs:21-28`, took each series' own median; both were
-   17.7 ms in `results/worker-high-100.json`. One P per session keeps the two estimates on the same
-   frame clock.)
+   `proto/rendering/bench.mjs:21-28` in the separate three-maze-notes repository, took each
+   series' own median; both were 17.7 ms in `results/worker-high-100.json`. One P per session
+   keeps the two estimates on the same frame clock.)
 3. **Late and missed.** An interval longer than 1.5 P is late and counts round(interval / P) - 1
    missed frames. An interval of exactly 1.5 P is not late.
 4. **Expected frames** are rendered plus missed: the number of intervals counted plus their missed
@@ -91,8 +91,8 @@ GPU-process and frame-clock intervals.
   the others are reported as outside the session.
 - `long-animation-frame` entries are listed by type but do not count for G2: they measure frames,
   which G1 counts, and a long task inside one is also reported as a `longtask` entry (the probe on
-  Electron 44.7.0 recorded under REN-12 in `.claude/paper-review/plan/breakdown_render.md`: a 60 ms
-  busy task gave a 60 ms entry of each type, a 49 ms task neither).
+  Electron 44.7.0 recorded under REN-12 in `plan/breakdown_render.md` of the three-maze-notes
+  repository: a 60 ms busy task gave a 60 ms entry of each type, a 49 ms task neither).
 - rAF callbacks longer than P are listed per session as render-callback overruns.
 - **Timed handlers (proposed).** The app logs its own main-thread handlers (REN-12) from **3 ms**:
   half a frame, the extra delay that can make an interval late, is 8.3 ms at 60 Hz and 3.5 ms at
