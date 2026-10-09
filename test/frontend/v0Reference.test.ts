@@ -292,7 +292,13 @@ process.stdout.write(JSON.stringify(results))`
 describe('DOM-free', () => {
   const dir = path.join(REPO_ROOT, 'src', 'compat', 'v0')
   const files = readdirSync(dir).filter(name => name.endsWith('.ts')).map(name => path.join(dir, name))
-  const BANNED = /\b(window|document|navigator|location|localStorage|sessionStorage|indexedDB|alert|Image|HTMLElement|HTMLCanvasElement|HTMLImageElement|requestAnimationFrame|cancelAnimationFrame|addEventListener|removeEventListener|getComputedStyle|devicePixelRatio|innerWidth|innerHeight|createElement|createElementNS|TextureLoader|ImageLoader)\b/g
+  const BANNED = new RegExp(`\\b(${[
+    'window', 'document', 'navigator', 'location', 'localStorage', 'sessionStorage', 'indexedDB',
+    'alert', 'Image', 'HTMLElement', 'HTMLCanvasElement', 'HTMLImageElement', 'requestAnimationFrame',
+    'cancelAnimationFrame', 'addEventListener', 'removeEventListener', 'getComputedStyle',
+    'devicePixelRatio', 'innerWidth', 'innerHeight', 'createElement', 'createElementNS',
+    'TextureLoader', 'ImageLoader'
+  ].join('|')})\\b`, 'g')
 
   it('src/compat/v0 names no DOM globals or DOM-bound loaders (comments aside)', () => {
     const found = files.flatMap(file => {
