@@ -15,7 +15,7 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import * as THREE from 'three'
 import ts from 'typescript'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { buildV0Scene, placeV0Camera, v0Physics } from '../../src/compat/v0/index.ts'
+import { buildV0Scene, describeScene, placeV0Camera, v0Physics } from '../../src/compat/v0/index.ts'
 import type { V0SceneConfig } from '../../src/compat/v0/index.ts'
 import { FixedFollowCam } from '../../src/utils/FixedFollowCam.js'
 import { runV03CameraUpdate } from './v0Reference/extractV03.ts'
@@ -212,6 +212,17 @@ it("places the camera rig as v0.3's frame loop does", async () => {
     scene.updateMatrixWorld(true)
     expect(build.camera.matrixWorld.elements).toEqual(camera.matrixWorld.elements)
   }
+})
+
+it("describeScene reports a camera's projection matrix as stored, even when out of date", () => {
+  const scene = new THREE.Scene()
+  const updated = new THREE.PerspectiveCamera(75, 2, 0.1, 1000)
+  const stale = new THREE.PerspectiveCamera()
+  Object.assign(stale, { fov: 75, aspect: 2, far: 1000 })   // without updateProjectionMatrix()
+  scene.add(updated, stale)
+  const [described, staleDescribed] = describeScene(scene, null).children.map(node => node.camera!)
+  expect({ ...staleDescribed, projectionMatrix: null }).toEqual({ ...described, projectionMatrix: null })
+  expect(staleDescribed.projectionMatrix).not.toEqual(described.projectionMatrix)
 })
 
 describe('DOM-free', () => {

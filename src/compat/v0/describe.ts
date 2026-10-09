@@ -1,8 +1,11 @@
 // A plain-data description of a three.js scene graph, for golden snapshots and equivalence tests:
 // this port against v0.3's own loader now, later the scene builder (TS-07) against this port. It
-// only reads the objects (after updating their world matrices), so it runs in Node, a worker or the
-// renderer. Values are as three.js holds them: colours in its linear working space plus the sRGB hex,
-// angles in radians. Ids, uuids, user data and version counters are left out.
+// runs in Node, a worker or the renderer, and changes nothing but derived data: it updates the world
+// matrices as the renderer does before each frame, and Box3.setFromObject caches each geometry's
+// bounding box. Values are as three.js holds them: colours in its linear working space plus the
+// sRGB hex, angles in radians, and each camera's projection matrix as stored (the renderer does not
+// recompute it, so a builder that changes fov or aspect without updateProjectionMatrix() must not
+// compare equal). Ids, uuids, user data and version counters are left out.
 import * as THREE from 'three'
 
 export type Vec3 = [number, number, number]
@@ -258,7 +261,6 @@ function describeCamera(camera: THREE.Object3D): Record<string, unknown> {
     if (typeof camera[key] === 'number') description[key] = camera[key]
   }
   description.view = camera.view ? { ...camera.view } : null
-  camera.updateProjectionMatrix?.()
   description.projectionMatrix = [...camera.projectionMatrix.elements]
   return description
 }
