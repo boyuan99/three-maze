@@ -1,8 +1,8 @@
 // -------------------------------------------------------------------------------------------------
 // VENDORED REFERENCE: test code, not shipped in the application. Do not edit it to make a test
 //   pass; see test/motion/README.md.
-// Source: .claude/paper-review/proto/verify/inclined/proxy/lib/checks.mjs in the design-review
-//   workspace (on the development PC only, ignored by git). SHA-256
+// Source: proto/verify/inclined/proxy/lib/checks.mjs in the separate three-maze-notes
+//   repository (design-review workspace). SHA-256
 //   a9647559d4eed78707dada8496c6c72ad1e82248a4f15dcf37933700455eef60, last modified 2026-10-07
 //   20:25. The verification ran its byte-identical copy verify/A_copy/lib/checks.mjs (copied
 //   21:42).

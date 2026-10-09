@@ -1,8 +1,8 @@
 // -------------------------------------------------------------------------------------------------
 // VENDORED REFERENCE: test code, not shipped in the application. Do not edit it to make a test
 //   pass; see test/motion/README.md.
-// Source: .claude/paper-review/proto/verify/inclined/mover_fix/t3_walls.mjs in the design-review
-//   workspace (on the development PC only, ignored by git). SHA-256
+// Source: proto/verify/inclined/mover_fix/t3_walls.mjs in the separate three-maze-notes
+//   repository (design-review workspace). SHA-256
 //   34be2c53a7330905d262ab039b1f5f6d545683797a9a4494e7a315d62f0e85fa, last modified 2026-10-07
 //   20:38.
 // Copied: 2026-10-09 (roadmap phase 1, MOT-01).

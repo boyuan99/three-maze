@@ -1,8 +1,8 @@
 // -------------------------------------------------------------------------------------------------
 // VENDORED REFERENCE: test code, not shipped in the application. Do not edit it to make a test
 //   pass; see test/motion/README.md.
-// Source: .claude/paper-review/proto/verify/inclined/proxy/lib/geom.mjs in the design-review
-//   workspace (on the development PC only, ignored by git). SHA-256
+// Source: proto/verify/inclined/proxy/lib/geom.mjs in the separate three-maze-notes
+//   repository (design-review workspace). SHA-256
 //   fbc3efc617a2e9227fc3448e44b8b09416f3fd8a6e82010f1974696bf4060d0a, last modified 2026-10-07
 //   20:09. The verification ran its byte-identical copy verify/A_copy/lib/geom.mjs (copied 21:42).
 // Copied: 2026-10-09 (roadmap phase 1, MOT-01).

@@ -1,8 +1,8 @@
 // -------------------------------------------------------------------------------------------------
 // VENDORED REFERENCE: test code, not shipped in the application. Do not edit it to make a test
 //   pass; see test/motion/README.md.
-// Source: .claude/paper-review/proto/verify/inclined/mover_fix/lib/geom.mjs in the design-review
-//   workspace (on the development PC only, ignored by git). SHA-256
+// Source: proto/verify/inclined/mover_fix/lib/geom.mjs in the separate three-maze-notes
+//   repository (design-review workspace). SHA-256
 //   7d424383bbfc01130a5f548f47e1650d43a7cb9990e55b27387fe990765f54be, last modified 2026-10-07
 //   21:19.
 // Copied: 2026-10-09 (roadmap phase 1, MOT-01).

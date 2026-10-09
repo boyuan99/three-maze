@@ -1,8 +1,8 @@
 // -------------------------------------------------------------------------------------------------
 // VENDORED REFERENCE: test code, not shipped in the application. Do not edit it to make a test
 //   pass; see test/motion/README.md.
-// Source: .claude/paper-review/proto/verify/inclined/mover_fix/lib/hover.mjs in the design-review
-//   workspace (on the development PC only, ignored by git). SHA-256
+// Source: proto/verify/inclined/mover_fix/lib/hover.mjs in the separate three-maze-notes
+//   repository (design-review workspace). SHA-256
 //   49244bfe8c2bb0afdb02e57715f5b7d256233ec10d36294b8c1fabbb55a233e7, last modified 2026-10-07
 //   20:44.
 // Copied: 2026-10-09 (roadmap phase 1, MOT-01).

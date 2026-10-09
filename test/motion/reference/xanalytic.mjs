@@ -1,8 +1,8 @@
 // -------------------------------------------------------------------------------------------------
 // VENDORED REFERENCE: test code, not shipped in the application. Do not edit it to make a test
 //   pass; see test/motion/README.md.
-// Source: .claude/paper-review/proto/verify/inclined/verify/xanalytic.mjs in the design-review
-//   workspace (on the development PC only, ignored by git). SHA-256
+// Source: proto/verify/inclined/verify/xanalytic.mjs in the separate three-maze-notes
+//   repository (design-review workspace). SHA-256
 //   c1f2f8af39658f244b9527d1e527ebb815fc8a09a463c8fa163f220c07b12d18, last modified 2026-10-07
 //   21:56.
 // Copied: 2026-10-09 (roadmap phase 1, MOT-01).

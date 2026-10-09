@@ -17,10 +17,11 @@ The collider tests of `src/motion/instantiate.ts` (MOT-07) are ordinary unit tes
 ## Layout
 
 - `reference/`: the **vendored reference implementation**, test code that is never shipped. It is
-  the inclined-face study's mover and test scripts, copied from the design-review workspace
-  (`.claude/paper-review/proto/verify/inclined/`, on the development PC only, ignored by git) on
-  2026-10-09. Each file starts with a provenance header: source path, SHA-256, what it is, and
-  what was changed.
+  the inclined-face study's mover and test scripts, copied on 2026-10-09 from the design-review
+  workspace, now kept in the separate three-maze-notes repository (`proto/verify/inclined/`). The
+  workspace has since moved there unchanged: every source, and every archived output below, still
+  has the SHA-256 recorded here. Each file starts with a provenance header: source path, SHA-256,
+  what it is, and what was changed.
 - `reference/archive/`: outputs the study archived, copied unchanged. The tests reproduce them.
 - `fast/`: the fast tier. `npm test` runs it with the unit tests (CI job `javascript`).
 - `full/`: the long runs of the full tier.
