@@ -12,6 +12,7 @@
     "postinstall": "node setup/setup-python.js",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:motion": "vitest run --config test/motion/vitest.config.mjs",
     "typecheck": "tsc --noEmit",
     "test:e2e": "node test/e2e/run.mjs"
   },
