@@ -28,7 +28,7 @@ deprecation==2.1.0
 hightime==1.0.0
 idna==3.11
 nitypes==1.1.0
-packaging==25.0
+packaging==26.3
 python-decouple==3.8
 requests==2.32.5
 typing_extensions==4.15.0
