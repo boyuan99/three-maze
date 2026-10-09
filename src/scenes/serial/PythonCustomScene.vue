@@ -14,6 +14,9 @@
       <div class="info-panel">
         <h3>{{ sceneName }}</h3>
         <p>{{ sceneDescription }}</p>
+        <div v-if="clockWarnings.length" class="clock-warning">
+          <p v-for="warning in clockWarnings" :key="warning">⚠ {{ warning }}</p>
+        </div>
         <div v-if="connected">
           <p><strong>Backend:</strong> <span style="color: #4ade80;">● Connected</span></p>
           <p v-if="experimentFile"><strong>Experiment:</strong> {{ experimentFile }}</p>
@@ -60,6 +63,7 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader'
 import { MinimalBackendClient } from '@/services/MinimalBackendClient'
 import { resolveAssetPath } from '@/utils/resolveAssetPath.js'
+import { FrameClockMonitor } from '@/utils/frameClock.js'
 
 const route = useRoute()
 const scenesStore = useScenesStore()
@@ -108,13 +112,25 @@ const pendingBackendPosition = ref(null)
 
 // Event-driven position update: send position after processing serial data
 let pendingSerialData = null  // Holds serial data until position is sent
+
+// Experiment registration opens the serial port and waits for the firmware, so allow longer than the default
+const EXPERIMENT_REGISTER_TIMEOUT_MS = 30000
+
+// Frame-clock self-check: the VR gain depends on the frame rate (see utils/frameClock.js)
+const frameClock = new FrameClockMonitor()
+let windowDisplay = null             // display the scene window is on (refresh rate, primary flag)
+let lastClockKinds = null            // warning kinds currently shown in the info panel
+const clockWarnings = ref([])
+
 const POSITION_RESET_THRESHOLD = 0.5  // 0.5m difference triggers reset
 
 // Animation loop
-function animate() {
+function animate(tRaf) {
   if (!isActive.value) return
 
   requestAnimationFrame(animate)
+  const clockReport = frameClock.addFrame(tRaf, windowDisplay)
+  if (clockReport) reportFrameClock(clockReport)
 
   const { scene, camera, renderer, world, playerBody, fixedCam } = state.value
 
@@ -240,6 +256,43 @@ function animate() {
 
   // === 7. Render ===
   renderer.render(scene, camera)
+}
+
+// Show frame-clock warnings and send every window's numbers to the backend, which keeps them
+// with the session data
+function reportFrameClock(report) {
+  const kinds = report.warnings.map(warning => warning.kind)
+  const texts = report.warnings.map(warning => warning.text)
+
+  // Update the panel only when the set of warnings changes, so its text does not flicker
+  if (kinds.join(',') !== lastClockKinds) {
+    lastClockKinds = kinds.join(',')
+    clockWarnings.value = texts
+    texts.forEach(text => console.warn('[Frame clock]', text))
+  }
+
+  if (!backendClient.connected) return
+  try {
+    backendClient.send('renderer_status', {
+      level: kinds.length ? 'warning' : 'info',
+      kinds,
+      message: kinds.length ? texts.join(' | ') : `Frame clock OK: ${report.effectiveHz.toFixed(2)} Hz`,
+      details: {
+        effectiveHz: report.effectiveHz,
+        vsyncHz: report.vsyncHz,
+        vrGain: report.gain,
+        droppedFrames: report.droppedFrames,
+        medianMs: report.medianMs,
+        p5Ms: report.p5Ms,
+        p95Ms: report.p95Ms,
+        maxMs: report.maxMs,
+        displayHz: windowDisplay?.displayFrequency ?? null,
+        isPrimaryDisplay: windowDisplay?.isPrimary ?? null
+      }
+    })
+  } catch (err) {
+    console.error('Failed to report frame clock:', err)
+  }
 }
 
 // Handle incoming serial data from Python backend
@@ -618,6 +671,13 @@ onMounted(async () => {
     // Add window resize handler
     window.addEventListener('resize', onWindowResize)
 
+    // Display info for the frame-clock check (not available outside Electron)
+    try {
+      windowDisplay = await window.electron?.getWindowDisplayInfo?.() ?? null
+    } catch (err) {
+      console.warn('Could not query the display info:', err)
+    }
+
     // Start animation loop
     animate()
     console.log('PythonCustomScene: Animation loop started')
@@ -639,11 +699,7 @@ onMounted(async () => {
         console.error('[ERROR] Backend error:', data)
         error.value = `Backend error: ${data.message || JSON.stringify(data)}`
       })
-      backendClient.on('experiment_registered', (data) => {
-        experimentRunning.value = true
-      })
       backendClient.on('experiment_started', (data) => {
-        experimentRunning.value = true
         if (data.serial_port) {
           serialPort.value = data.serial_port
         }
@@ -652,18 +708,32 @@ onMounted(async () => {
         }
       })
 
-      // Register (load) experiment if specified
+      // Register (load) experiment if specified. Wait for the reply: if loading fails
+      // (missing file, busy serial port, missing data folder...) the session must not look like it is running
       if (experimentFile.value) {
-        const registerResponse = await backendClient.send('experiment_register', {
-          filename: experimentFile.value,
-          config: {}
-        })
-
-        if (registerResponse && registerResponse.type === 'experiment_registered') {
+        try {
+          await backendClient.request('experiment_register', {
+            filename: experimentFile.value,
+            config: {}
+          }, EXPERIMENT_REGISTER_TIMEOUT_MS)
           experimentRunning.value = true
-        } else if (registerResponse && registerResponse.type === 'experiment_error') {
-          console.error('[ERROR] Failed to register experiment:', registerResponse.data.error)
-          error.value = `Failed to load experiment: ${registerResponse.data.error}`
+        } catch (err) {
+          console.error('[ERROR] Failed to register experiment:', err.message)
+          error.value = `Failed to load experiment: ${err.message}`
+          if (err.code === 'TIMEOUT') {
+            // The backend may still finish loading the experiment and start it behind the error
+            // message: stop it as soon as the late reply arrives (it comes as a plain event)
+            const stopLateExperiment = (data) => {
+              if (data?.filename !== experimentFile.value) return
+              backendClient.off('experiment_registered', stopLateExperiment)
+              try {
+                backendClient.send('experiment_stop', {})
+              } catch (stopErr) {
+                console.error('[ERROR] Failed to stop the late experiment:', stopErr)
+              }
+            }
+            backendClient.on('experiment_registered', stopLateExperiment)
+          }
           return
         }
       }
@@ -779,6 +849,11 @@ canvas {
   top: 20px;
   right: 20px;
   z-index: 100;
+}
+
+.clock-warning p {
+  color: #facc15;
+  font-size: 0.85em;
 }
 
 .info-panel {

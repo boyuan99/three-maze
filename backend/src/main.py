@@ -13,6 +13,7 @@ Handles:
 
 import argparse
 import asyncio
+import inspect
 import json
 import logging
 import sys
@@ -22,6 +23,7 @@ import websockets
 from datetime import datetime
 import os
 import socket
+import threading
 
 # Configure basic logging
 logging.basicConfig(
@@ -72,6 +74,10 @@ class BackendServer:
         self.data_logger = None
         self.replayer = None  # DataReplayer instance if in replay mode
         self.active_experiment = None  # Active Python experiment instance
+        self._shutting_down = False  # Set once Electron asks the backend to shut down
+        self._release_lock = asyncio.Lock()  # Serializes cleanup between disconnect and shutdown
+        self._last_renderer_kinds = None  # Renderer warning kinds last written to the log
+        self._failed_sidecar = None  # Renderer sidecar that could not be written (reported once)
 
         # Event-driven serial data queue (one queue per client)
         self.client_queues: Dict[Any, asyncio.Queue] = {}
@@ -119,6 +125,8 @@ class BackendServer:
             "experiment_list": self._handle_experiment_list,
             "experiment_unregister": self._handle_experiment_unregister,
             "position_update": self._handle_position_update,
+            # Renderer health reports (frame-clock checks)
+            "renderer_status": self._handle_renderer_status,
         }
 
     async def _handle_ping(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -231,6 +239,11 @@ class BackendServer:
 
     async def _handle_water_deliver(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle water delivery"""
+        if self._shutting_down:
+            return {
+                "type": "water_error",
+                "data": {"error": "Backend is shutting down"}
+            }
         try:
             if self.hardware_manager is None:
                 return {
@@ -346,11 +359,12 @@ class BackendServer:
         experiment_id = data.get("experimentId", "unknown")
         logger.info(f"Experiment stopped: {experiment_id}")
 
-        # If Python experiment is active, terminate it
-        if self.active_experiment:
+        # If Python experiment is active, terminate it. Take it out before awaiting terminate(),
+        # so no other path (disconnect, shutdown) terminates it a second time
+        experiment, self.active_experiment = self.active_experiment, None
+        if experiment:
             try:
-                summary = await self.active_experiment.terminate()
-                self.active_experiment = None
+                summary = await experiment.terminate()
                 logger.info(f"Python experiment terminated: {summary}")
             except Exception as e:
                 logger.error(f"Error terminating Python experiment: {e}")
@@ -383,6 +397,12 @@ class BackendServer:
                 return {
                     "type": "experiment_error",
                     "data": {"error": "No experiment ID or filename provided"}
+                }
+
+            if self._shutting_down:
+                return {
+                    "type": "experiment_error",
+                    "data": {"error": "Backend is shutting down"}
                 }
 
             # Check if another experiment is already active
@@ -505,7 +525,24 @@ class BackendServer:
                 }
 
             # Initialize experiment
-            initial_state = await self.active_experiment.initialize(config)
+            experiment = self.active_experiment
+            initial_state = await experiment.initialize(config)
+
+            # A shutdown or stop may have released the experiment while it was initializing.
+            # Terminate it (again): initialize() may have opened the DAQ task or the data file after
+            # the first terminate() ran
+            if self._shutting_down or self.active_experiment is not experiment:
+                logger.warning(f"Experiment {experiment_id} was released while initializing; terminating it")
+                if self.active_experiment is experiment:
+                    self.active_experiment = None
+                try:
+                    await experiment.terminate()
+                except Exception as e:
+                    logger.error(f"Error terminating released experiment: {e}", exc_info=True)
+                return {
+                    "type": "experiment_error",
+                    "data": {"error": "Experiment was stopped while it was loading"}
+                }
 
             logger.info(f"Experiment initialized successfully: {experiment_id}")
 
@@ -526,12 +563,12 @@ class BackendServer:
         except Exception as e:
             logger.error(f"Error registering experiment: {e}", exc_info=True)
             # Cleanup if initialization failed
-            if self.active_experiment is not None:
+            experiment, self.active_experiment = self.active_experiment, None
+            if experiment is not None:
                 try:
-                    await self.active_experiment.terminate()
+                    await experiment.terminate()
                 except:
                     pass
-                self.active_experiment = None
             return {
                 "type": "experiment_error",
                 "data": {"error": str(e)}
@@ -549,11 +586,12 @@ class BackendServer:
 
     async def _handle_experiment_unregister(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Handle Python experiment unregistration"""
-        if self.active_experiment:
+        # Take the experiment out before awaiting terminate(), so it is terminated only once
+        experiment, self.active_experiment = self.active_experiment, None
+        if experiment:
             try:
-                summary = await self.active_experiment.terminate()
-                experiment_id = self.active_experiment.experiment_id
-                self.active_experiment = None
+                summary = await experiment.terminate()
+                experiment_id = experiment.experiment_id
 
                 logger.info(f"Python experiment unregistered: {experiment_id}")
 
@@ -702,8 +740,44 @@ class BackendServer:
             return {"type": "replay_status", "data": status}
         return {"type": "error", "data": {"error": "No replayer available"}}
 
+    async def _handle_renderer_status(self, data: Dict[str, Any]) -> None:
+        """Record renderer health reports (frame-clock checks). No reply is sent.
+
+        The renderer reports every few seconds. Each report is appended to a sidecar of the
+        experiment's data file (<data file>.renderer.jsonl), so the session keeps a record of the
+        frame rate and hence of the VR gain; the log only shows changes in the warnings.
+        """
+        kinds = data.get("kinds")
+        if kinds != self._last_renderer_kinds:
+            self._last_renderer_kinds = kinds
+            log = logger.warning if data.get("level") == "warning" else logger.info
+            log(f"[renderer] {data.get('message', '')} {json.dumps(data.get('details', {}))}")
+
+        experiment = self.active_experiment
+        data_file_path = getattr(experiment, "data_file_path", None)
+        if data_file_path:
+            sidecar = os.path.splitext(data_file_path)[0] + ".renderer.jsonl"
+            try:
+                with open(sidecar, "a", encoding="utf-8") as f:
+                    f.write(json.dumps({"time": time.time(), **data}) + "\n")
+            except OSError as e:
+                if sidecar != self._failed_sidecar:
+                    self._failed_sidecar = sidecar
+                    logger.error(f"Cannot write renderer status to {sidecar}: {e}")
+
+        handler = getattr(experiment, "on_renderer_status", None)
+        if handler:
+            try:
+                result = handler(data)
+                if inspect.isawaitable(result):
+                    await result
+            except Exception as e:
+                logger.error(f"Experiment failed to handle renderer status: {e}")
+        return None
+
     async def handle_message(self, websocket: Any, message: str):
         """Handle incoming message from client"""
+        request_id = None
         try:
             data = json.loads(message)
             msg_type = data.get("type")
@@ -758,6 +832,8 @@ class BackendServer:
                     "code": "INTERNAL_ERROR",
                     "message": str(e)
                 },
+                # Echo the request ID so request() callers fail fast instead of timing out
+                "requestId": request_id,
                 "timestamp": time.time() * 1000
             }))
 
@@ -885,28 +961,134 @@ class BackendServer:
             self.active_clients.remove(websocket)
             serial_task.cancel()
 
-            # Cleanup if last client disconnected
-            if len(self.active_clients) == 0:
+            # Cleanup if last client disconnected (the shutdown path cleans up itself)
+            if len(self.active_clients) == 0 and not self._shutting_down:
                 logger.info("No active clients, cleaning up hardware")
+                await self._release_session("client disconnect")
 
-                # Clean up active experiment (CRITICAL!)
-                if self.active_experiment:
-                    logger.info("Cleaning up active experiment due to client disconnect")
-                    try:
-                        # Terminate experiment
-                        summary = await self.active_experiment.terminate()
-                        experiment_id = self.active_experiment.experiment_id
-                        self.active_experiment = None
-                        logger.info(f"Experiment terminated: {experiment_id}")
-                        logger.info(f"Experiment summary: {summary}")
-                    except Exception as e:
-                        logger.error(f"Error terminating experiment during cleanup: {e}", exc_info=True)
+    async def _release_session(self, reason: str):
+        """Terminate the active experiment (which zeroes its outputs and closes its files)
+        and release shared hardware.
 
-                # Clean up shared hardware
-                if self.hardware_manager:
-                    await self.hardware_manager.cleanup()
-                if self.data_logger:
-                    await self.data_logger.stop_logging()
+        The last client disconnecting and a shutdown can both call this at once: the calls are
+        serialized, and the experiment is terminated only once.
+        """
+        async with self._release_lock:
+            # Take the experiment out before awaiting terminate(), so no other path terminates it
+            # again and position updates stop reaching it during cleanup (CRITICAL!)
+            experiment, self.active_experiment = self.active_experiment, None
+            if experiment:
+                logger.info(f"Cleaning up active experiment due to {reason}")
+                try:
+                    summary = await experiment.terminate()
+                    logger.info(f"Experiment terminated: {experiment.experiment_id}")
+                    logger.info(f"Experiment summary: {summary}")
+                except Exception as e:
+                    logger.error(f"Error terminating experiment during cleanup: {e}", exc_info=True)
+
+            # Clean up shared hardware
+            if self.hardware_manager:
+                await self.hardware_manager.cleanup()
+            if self.data_logger:
+                await self.data_logger.stop_logging()
+
+    # Hard limit for a shutdown once it has been requested. If releasing the experiment hangs,
+    # the process exits anyway, so a backend that outlives Electron cannot hold the serial port
+    # or the DAQ forever
+    SHUTDOWN_DEADLINE_S = 10.0
+
+    @staticmethod
+    def _watch_parent_pipe(loop: asyncio.AbstractEventLoop, shutdown_requested: asyncio.Event):
+        """Wait until Electron sends 'shutdown' or the pipe breaks (Electron exited or crashed),
+        then ask the event loop to shut down, and exit if that takes longer than
+        SHUTDOWN_DEADLINE_S."""
+        try:
+            if sys.platform == "win32":
+                watched = BackendServer._poll_parent_pipe_windows()
+            else:
+                watched = BackendServer._read_parent_pipe_posix()
+        except Exception as e:
+            # The pipe could not be watched at all: keep running rather than shut down by mistake
+            logger.error(f"Cannot watch the parent pipe: {e}")
+            return
+        if not watched:
+            return
+
+        try:
+            loop.call_soon_threadsafe(shutdown_requested.set)
+        except RuntimeError:
+            return  # the event loop has already stopped
+
+        time.sleep(BackendServer.SHUTDOWN_DEADLINE_S)
+        try:
+            os.write(2, b"Shutdown did not finish in time; exiting\n")
+        except OSError:
+            pass
+        os._exit(1)
+
+    @staticmethod
+    def _read_parent_pipe_posix() -> bool:
+        """Read stdin until 'shutdown' arrives or the pipe closes.
+
+        Returns False if stdin is neither a pipe nor a socket (Node gives a child a socket pair),
+        in which case it is not watched at all.
+        """
+        import stat
+
+        mode = os.fstat(sys.stdin.fileno()).st_mode
+        if not (stat.S_ISFIFO(mode) or stat.S_ISSOCK(mode)):
+            logger.warning("THREEMAZE_PARENT_PIPE is set but stdin is not a pipe; not watching it")
+            return False
+        try:
+            for line in sys.stdin:
+                if line.strip() == "shutdown":
+                    break
+        except OSError:
+            pass  # the pipe broke: Electron is gone
+        return True
+
+    @staticmethod
+    def _poll_parent_pipe_windows() -> bool:
+        """Poll stdin with PeekNamedPipe until 'shutdown' arrives or the pipe closes.
+
+        A blocking read is not safe on Windows: while one thread has a synchronous read pending
+        on stdin, other threads hang when they touch the standard handles (e.g. while loading
+        numpy's DLL during a lazy import), which froze the event loop on the first client.
+        Returns False if stdin is not a pipe, in which case it is not watched at all.
+        """
+        import ctypes
+        import msvcrt
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.GetFileType.argtypes = [wintypes.HANDLE]
+        kernel32.GetFileType.restype = wintypes.DWORD
+        kernel32.PeekNamedPipe.argtypes = [
+            wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD,
+            ctypes.POINTER(wintypes.DWORD), ctypes.POINTER(wintypes.DWORD), ctypes.POINTER(wintypes.DWORD),
+        ]
+        kernel32.PeekNamedPipe.restype = wintypes.BOOL
+        FILE_TYPE_PIPE = 3
+
+        fd = sys.stdin.fileno()
+        handle = msvcrt.get_osfhandle(fd)
+        if kernel32.GetFileType(handle) != FILE_TYPE_PIPE:
+            logger.warning("THREEMAZE_PARENT_PIPE is set but stdin is not a pipe; not watching it")
+            return False
+
+        available = wintypes.DWORD()
+        received = b""
+        while True:
+            if not kernel32.PeekNamedPipe(handle, None, 0, None, ctypes.byref(available), None):
+                return True  # pipe closed: Electron exited
+            if available.value:
+                try:
+                    received += os.read(fd, available.value)  # data is waiting, so this returns at once
+                except OSError:
+                    return True  # the pipe broke between the peek and the read
+                if b"shutdown" in received:
+                    return True
+            time.sleep(0.2)
 
     async def start(self):
         """Start the WebSocket server with automatic port selection"""
@@ -922,7 +1104,21 @@ class BackendServer:
             logger.warning(f"Port {self.port} is in use, using port {available_port} instead")
             self.port = available_port
 
-        async with websockets.serve(self.handle_client, self.host, self.port):
+        shutdown_requested = asyncio.Event()
+        if os.environ.get("THREEMAZE_PARENT_PIPE") == "1":
+            # Electron writes "shutdown" to stdin before it quits, and the pipe breaks if Electron
+            # dies (it spawns the backend detached, so the backend outlives a crash), so the
+            # experiment always gets to zero its outputs and close its files.
+            threading.Thread(
+                target=self._watch_parent_pipe,
+                args=(asyncio.get_running_loop(), shutdown_requested),
+                name="parent-pipe",
+                daemon=True,
+            ).start()
+
+        # close_timeout limits the closing handshake with each client. By then the experiment has
+        # already been released, so a slow client only delays the exit
+        async with websockets.serve(self.handle_client, self.host, self.port, close_timeout=2):
             # Print success message with port info for Electron to parse
             logger.info(f"WebSocket server ready on port {self.port}")
 
@@ -936,7 +1132,10 @@ class BackendServer:
                 logger.info("Open this URL in your browser to control playback")
                 logger.info("=" * 60)
 
-            await asyncio.Future()  # Run forever
+            await shutdown_requested.wait()
+            logger.info("Shutdown requested; releasing experiment and hardware")
+            self._shutting_down = True
+            await self._release_session("backend shutdown")
 
 
 def main():

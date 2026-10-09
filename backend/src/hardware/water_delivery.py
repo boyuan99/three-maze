@@ -126,10 +126,11 @@ class WaterDelivery(HardwareBase):
 
                     # Pulse high
                     task.write(self.voltage)
-                    await asyncio.sleep(self.duration_ms / 1000.0)
-
-                    # Pulse low
-                    task.write(0.0)
+                    try:
+                        await asyncio.sleep(self.duration_ms / 1000.0)
+                    finally:
+                        # Pulse low, even if the delivery is cancelled
+                        task.write(0.0)
             else:
                 # Simulated delivery
                 logger.info(f"SIMULATED: Water delivery for {self.duration_ms}ms")

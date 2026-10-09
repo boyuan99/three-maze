@@ -13,7 +13,9 @@ A VR environment designed for animal behavior research, built with Three.js, Vue
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/en) (Latest LTS version recommended)
+- [Node.js](https://nodejs.org/en) 22.12 or newer (an LTS version; Electron 44 needs at least 22.12)
+- [Python](https://www.python.org/downloads/) 3.11 or newer (3.12 recommended) for the backend, as
+  `python` on the PATH (`python3` on macOS and Linux)
 - A modern web browser with WebGL support
 - Graphics card with up-to-date drivers
 
@@ -31,6 +33,17 @@ cd three-maze
 ```bash
 npm install
 ```
+
+`npm install` also creates the Python virtual environment `.venv` for the backend with the first
+`python` on the PATH, which must be Python 3.11 or newer (3.12 recommended); check with
+`python --version`. If that check, creating `.venv` or installing the Python packages fails,
+`npm install` fails with a "Python setup FAILED" box that says what to do; after fixing it, run
+`node setup/setup-python.js` to finish the Python part.
+
+`npm install` does not download the Electron binary (Electron 42 and later download it when it is
+first needed): the first `npm run electron:dev` or `npm run test:e2e` downloads it into
+`node_modules/electron/dist`, which needs network access. To download it right away, for example
+before the computer goes offline, run `npx --no install-electron`.
 
 ## Development
 
@@ -54,11 +67,50 @@ Build for web:
 npm run build
 ```
 
-Build Electron application:
+Check that the Electron app packages (output in `release/win-unpacked/`):
 
 ```bash
-npm run electron:build
+npm run electron:build -- --dir
 ```
+
+The package holds the renderer and Electron only, without Python, the backend or the
+experiments, so it cannot run a session; a runnable installer is not set up yet.
+
+## Development and tests
+
+The tests and CI use Node.js 22 and Python 3.12. `npm install` also creates the Python virtual
+environment `.venv` and installs `requirements-dev.txt` into it: the backend's exact pins
+(`requirements.txt`) plus pytest.
+
+```bash
+npm test                         # JavaScript unit tests (Vitest, test/frontend)
+npm run typecheck                # TypeScript type check (tsc, tsconfig.json)
+.venv/Scripts/python -m pytest   # Python backend tests (test/backend); .venv/bin/python on macOS and Linux
+npm run test:e2e                 # end-to-end bench, Windows only, about 1 minute
+```
+
+None of them needs a Teensy, an NI-DAQ device or a `D:` drive. The end-to-end bench runs the real
+renderer and backend in a hidden Electron window with a simulated Teensy and NI-DAQ; see
+[test/e2e/README.md](test/e2e/README.md). Some backend tests use the same simulated rig
+(`test/e2e/sim`) without Electron, to check that registration fails cleanly when COM3 or the
+`D:` drive is missing.
+
+The backend tests that start the backend as a process need its port 8765, which three-maze itself
+uses. Close three-maze first (and let an end-to-end bench run finish): while the port is taken,
+pytest skips those tests with "close three-maze first" in its summary instead of running them.
+
+GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the unit tests, the type
+check, `npm run build` and the backend tests on Windows for every push and pull request. The
+end-to-end bench runs there only when started by hand (Actions > CI > Run workflow).
+
+### Dependency versions
+
+Electron, three.js, Rapier and the backend's runtime packages (`requirements.txt`) can change what
+the animal sees or how it moves, so they are pinned to exact versions. Development tools and the
+user-interface libraries use version ranges, and `package-lock.json` records the versions
+installed. Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) proposes updates monthly
+as pull requests that CI tests; the pinned packages are frozen while paper data are collected. See
+[ADR-0004](docs/adr/0004-dependency-versions.md).
 
 ## Scene Configuration
 

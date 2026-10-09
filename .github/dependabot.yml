@@ -1,0 +1,95 @@
+# Dependabot version updates (policy: docs/adr/0004-dependency-versions.md).
+#
+# Once a month Dependabot opens pull requests for new versions; CI tests each one, and the owner
+# merges it only when CI passes. A release is proposed only after it has been out for 7 days
+# (cooldown). Security updates (a repository setting) skip the schedule and the cooldown.
+#
+# Behaviour-critical dependencies are pinned exactly and arrive one per pull request, so each can
+# be held back on its own: electron, three and @dimforge/rapier3d-compat (npm), and every pin in
+# requirements.txt (pip). Before merging, run the checks CI does not run: `npm run test:e2e`
+# (Electron, three.js), ADR-0003's tests 1 and 5 once phase 1 builds them (Electron) and
+# ADR-0001's Validation suite (Rapier; until it is in CI, phase 1, leave Rapier pull requests open).
+# Everything else (development tools, user-interface libraries, test tools, actions) arrives
+# grouped. Dependabot sets labels per ecosystem, not per dependency: the behaviour-critical pull
+# requests are the ungrouped ones, and each title names its package.
+#
+# FREEZE: from v1.0-rc until the paper data are collected, uncomment the FREEZE entries below.
+# They name the update types, so security updates still arrive for the owner to weigh.
+
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 7
+    # Keep exact pins exact and caret ranges as they are while the new version fits them (then
+    # only package-lock.json changes). The default, auto, could widen pins if it took this
+    # package for a library.
+    versioning-strategy: "increase-if-necessary"
+    # Three single pull requests plus the two groups
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      # Development tools and user-interface libraries: minor and patch releases together
+      tools:
+        patterns: ["*"]
+        exclude-patterns: ["electron", "three", "@dimforge/rapier3d-compat"]
+        update-types: ["minor", "patch"]
+      # Their major releases in a second pull request, since a major can need code changes
+      # (vite, @vitejs/plugin-vue and vitest move together)
+      tools-major:
+        patterns: ["*"]
+        exclude-patterns: ["electron", "three", "@dimforge/rapier3d-compat"]
+        update-types: ["major"]
+    ignore:
+      # @types/node follows the Node.js major that the tests and CI use (22, ci.yml)
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # FREEZE
+      # - dependency-name: "electron"
+      #   update-types: ["version-update:semver-major", "version-update:semver-minor",
+      #                  "version-update:semver-patch"]
+      # - dependency-name: "three"
+      #   update-types: ["version-update:semver-major", "version-update:semver-minor",
+      #                  "version-update:semver-patch"]
+      # - dependency-name: "@dimforge/rapier3d-compat"
+      #   update-types: ["version-update:semver-major", "version-update:semver-minor",
+      #                  "version-update:semver-patch"]
+
+  # requirements.txt (backend runtime, one pull request per pin) and requirements-dev.txt (pytest)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      test-tools:
+        patterns: ["pytest", "iniconfig", "pluggy", "pygments"]
+    # FREEZE (holds pytest back too)
+    # ignore:
+    #   - dependency-name: "*"
+    #     update-types: ["version-update:semver-major", "version-update:semver-minor",
+    #                    "version-update:semver-patch"]
+
+  # Actions in .github/workflows, pinned to commit SHAs
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      actions:
+        patterns: ["*"]

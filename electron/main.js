@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, screen, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, screen, dialog, powerSaveBlocker } from 'electron'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import fs from 'fs'
@@ -21,6 +21,8 @@ let mainWindow = null
 const sceneWindows = new Map()
 const sceneConfigs = new Map()
 let pythonProcess = null
+let backendStopping = null  // Promise while a graceful backend shutdown is in progress
+let quitPromptOpen = false  // The ESC quit confirmation is showing
 let detectedWsPort = null  // Dynamically detected WebSocket port
 let preferredDisplayId = null
 
@@ -61,10 +63,36 @@ async function createMainWindow() {
     mainWindow = null
   })
 
+  // Windows shutdown, restart or log off does not emit before-quit: stop the backend here instead
+  mainWindow.on('session-end', () => {
+    stopPythonBackend()
+  })
+
   mainWindow.webContents.on('before-input-event', (event, input) => {
-    if (input.key === 'Escape') {
+    if (input.type !== 'keyDown' || input.key !== 'Escape' || input.isAutoRepeat) return
+    if (quitPromptOpen || backendStopping) return  // already asking, or already quitting
+
+    // Quitting stops any running experiment, so ask first while a scene window is open
+    const sceneOpen = [...sceneWindows.values()].some(window => window && !window.isDestroyed())
+    if (!sceneOpen) {
       app.quit()
+      return
     }
+    // Not showMessageBoxSync: blocking the main process stops it from draining the backend's
+    // output, and the backend stalls once the pipe is full
+    quitPromptOpen = true
+    dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      buttons: ['Cancel', 'Quit'],
+      defaultId: 0,
+      cancelId: 0,
+      title: 'Experiment window open',
+      message: 'A scene window is still open. Quit three-maze and stop the experiment?'
+    }).then(({ response }) => {
+      if (response === 1) app.quit()
+    }).finally(() => {
+      quitPromptOpen = false
+    })
   })
 
   return mainWindow
@@ -102,7 +130,9 @@ async function createSceneWindow(sceneName) {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: join(__dirname, 'preload.cjs')
+      preload: join(__dirname, 'preload.cjs'),
+      // Keep rendering (and the closed loop it drives) running when the window is occluded
+      backgroundThrottling: false
     },
     backgroundColor: '#1a1a1a',
     titleBarStyle: 'default'
@@ -143,8 +173,15 @@ async function createSceneWindow(sceneName) {
 
   sceneWindows.set(sceneName, sceneWindow)
 
+  // Keep the displays awake while a scene is shown: if the OS turns a monitor off,
+  // the stimulus goes dark and Chromium falls back to a ~56.5 Hz timer-driven frame clock
+  const displaySleepBlockerId = powerSaveBlocker.start('prevent-display-sleep')
+
   sceneWindow.on('closed', () => {
     console.log(`Scene window for ${sceneName} has been closed`);
+    if (powerSaveBlocker.isStarted(displaySleepBlockerId)) {
+      powerSaveBlocker.stop(displaySleepBlockerId)
+    }
     sceneWindows.delete(sceneName)
     sceneConfigs.delete(sceneName)
   })
@@ -234,13 +271,47 @@ app.whenReady().then(async () => {
   }
 })
 
-app.on('window-all-closed', () => {
-  if (pythonProcess) {
-    pythonProcess.kill()
+// Ask the backend to stop its experiment (valve to 0 V, files closed) before the app exits.
+// Killing the process directly would skip that cleanup on Windows.
+function stopPythonBackend(timeoutMs = 4000) {
+  if (backendStopping) return backendStopping
+  const proc = pythonProcess
+  if (!proc || proc.exitCode !== null) {
     pythonProcess = null
+    return Promise.resolve()
   }
+
+  backendStopping = new Promise(resolve => {
+    const timer = setTimeout(() => {
+      console.warn('Python backend did not exit in time; killing it')
+      proc.kill()
+      resolve()
+    }, timeoutMs)
+    proc.once('exit', () => {
+      clearTimeout(timer)
+      resolve()
+    })
+    proc.stdin.end('shutdown')
+  }).finally(() => {
+    pythonProcess = null
+    backendStopping = null
+  })
+  return backendStopping
+}
+
+// Hold every quit until the backend has stopped: a second quit while it is still cleaning up
+// (ESC again, closing the last window) must not let Electron exit and kill it midway
+app.on('before-quit', (event) => {
+  if (!pythonProcess && !backendStopping) return
+  event.preventDefault()
+  stopPythonBackend().finally(() => app.quit())
+})
+
+app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    app.quit()
+    app.quit()  // before-quit shuts the backend down gracefully
+  } else {
+    stopPythonBackend()
   }
 })
 
@@ -284,6 +355,24 @@ ipcMain.on('open-scene', async (event, sceneName, sceneData) => {
 ipcMain.handle('get-ws-port', () => {
   // Return detected port or default
   return detectedWsPort || '8765'
+})
+
+// Report the display a window is on, so the renderer can check its frame clock against it
+ipcMain.handle('get-window-display-info', (event) => {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  if (!window) return null
+  const display = screen.getDisplayMatching(window.getBounds())
+  const primary = screen.getPrimaryDisplay()
+  return {
+    id: display.id,
+    label: display.label,
+    displayFrequency: display.displayFrequency,
+    scaleFactor: display.scaleFactor,
+    bounds: display.bounds,
+    isPrimary: display.id === primary.id,
+    primaryDisplayFrequency: primary.displayFrequency,
+    displayCount: screen.getAllDisplays().length
+  }
 })
 
 ipcMain.handle('get-scene-config', async (event) => {
@@ -405,6 +494,23 @@ if (isDevelopment) {
   app.commandLine.appendSwitch('ignore-certificate-errors')
 }
 
+// How to spawn the backend so that it can still stop the experiment if Electron crashes.
+// On Windows a child that is not detached is put in a kill-on-close job and dies the moment Electron
+// does. A detached python.exe, however, gets a new, visible console window, so the backend runs
+// detached under the venv's pythonw.exe, which has no console. Without pythonw.exe it falls back to
+// a python.exe that is not detached. Elsewhere a detached backend simply sees its stdin close.
+// Once the pipe breaks, the backend exits on its own within 10 s even if cleanup hangs.
+const getBackendLaunch = (config) => {
+  if (process.platform !== 'win32') {
+    return { interpreter: config.interpreter, detached: true }
+  }
+  const pythonw = path.join(path.dirname(config.interpreter), 'pythonw.exe')
+  if (fs.existsSync(pythonw)) {
+    return { interpreter: pythonw, detached: true }
+  }
+  return { interpreter: config.interpreter, detached: false }
+}
+
 const startPythonBackend = async () => {
   try {
     if (pythonProcess) {
@@ -420,13 +526,26 @@ const startPythonBackend = async () => {
     }
 
     // Start the Python WebSocket backend
-    pythonProcess = spawn(config.interpreter, ['-m', 'backend.src.main'], {
+    const launch = getBackendLaunch(config)
+    pythonProcess = spawn(launch.interpreter, ['-m', 'backend.src.main'], {
       cwd: scriptPath,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      // stdin stays open as a control pipe: the backend shuts down gracefully when it reads
+      // "shutdown" or when the pipe breaks because Electron died
+      stdio: ['pipe', 'pipe', 'pipe'],
+      detached: launch.detached,
+      windowsHide: true,
       env: {
         ...process.env,
-        PYTHONUNBUFFERED: '1'  // Disable Python output buffering
+        PYTHONUNBUFFERED: '1',  // Disable Python output buffering
+        THREEMAZE_PARENT_PIPE: '1'
       }
+    })
+    const spawnedProcess = pythonProcess
+    spawnedProcess.stdin.on('error', (error) => {
+      console.error('Python backend stdin error:', error.message)
+    })
+    spawnedProcess.once('exit', () => {
+      if (pythonProcess === spawnedProcess) pythonProcess = null
     })
 
     // Wait for the WebSocket server to start and capture the port

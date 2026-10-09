@@ -615,9 +615,12 @@ class Experiment:
 
             # Send voltage pulse (MATCHES water_delivery.py:15-18)
             self.daq_task.write([self.WATER_VOLTAGE], auto_start=True)
-            await asyncio.sleep(duration_s)
-            # Reset to 0V
-            self.daq_task.write([0.0], auto_start=True)
+            try:
+                await asyncio.sleep(duration_s)
+            finally:
+                # Always return to 0V, even if the pulse is cancelled or interrupted,
+                # so the valve can never be left open
+                self.daq_task.write([0.0], auto_start=True)
 
             self.num_rewards += 1
             return True

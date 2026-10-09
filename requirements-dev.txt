@@ -1,0 +1,15 @@
+# Everything needed to run the backend tests (test/backend), pinned exactly like requirements.txt.
+#
+#   .venv/Scripts/python -m pip install -r requirements-dev.txt   (Windows; bin/python elsewhere)
+#   .venv/Scripts/python -m pytest
+#
+# `npm install` installs this file too, unless npm is told to omit dev dependencies.
+
+-r requirements.txt
+
+pytest==9.1.1
+
+# Pulled in by pytest (it also uses colorama on Windows and packaging, pinned in requirements.txt)
+iniconfig==2.3.1
+pluggy==1.6.0
+Pygments==2.21.0

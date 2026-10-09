@@ -1,0 +1,39 @@
+{
+  // Type checking only (`npm run typecheck`): Vite and Vitest compile TypeScript themselves.
+  // Strict checking applies to .ts files; the existing JavaScript is not checked (checkJs: false),
+  // but .ts files that import it get the types TypeScript infers from it and its JSDoc.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+
+    // Each file must compile on its own, as esbuild (Vite, Vitest) compiles it. Erasable syntax
+    // only (no enums, namespaces or parameter properties), so Node can also run the motion core by
+    // stripping its types (ADR-0001 R7: simulation, dry runs, CI and agent tools run in Node).
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "useDefineForClassFields": true,
+
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+
+    "allowJs": true,
+    "checkJs": false,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node", "vite/client"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.mts", "test/**/*.ts", "test/**/*.mts"],
+  "exclude": ["node_modules", "dist", "release"]
+}
