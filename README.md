@@ -67,11 +67,14 @@ Build for web:
 npm run build
 ```
 
-Build Electron application:
+Check that the Electron app packages (output in `release/win-unpacked/`):
 
 ```bash
-npm run electron:build
+npm run electron:build -- --dir
 ```
+
+The package holds the renderer and Electron only, without Python, the backend or the
+experiments, so it cannot run a session; a runnable installer is not set up yet.
 
 ## Development and tests
 
