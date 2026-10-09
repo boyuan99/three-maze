@@ -103,6 +103,19 @@ GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the u
 check, `npm run build` and the backend tests on Windows for every push and pull request. The
 end-to-end bench runs there only when started by hand (Actions > CI > Run workflow).
 
+### Rig tools
+
+Commands for the rig computer (and the development PC); none needs a Teensy or an NI-DAQ device.
+
+```bash
+npm run rig:info                 # displays, GPUs, versions and Windows session as one JSON file
+```
+
+`npm run rig:info` writes `out/rig-info/rig-info-<computer>-<date>-<time>.json` (or the file given
+with `-- --out FILE`) and prints a summary with warnings: displays at different refresh rates, a
+remote-desktop session, software rendering, several GPUs. It names the primary display by
+Electron's `screen.getPrimaryDisplay()`, opens no visible window and changes nothing.
+
 ### Dependency versions
 
 Electron, three.js, Rapier and the backend's runtime packages (`requirements.txt`) can change what
