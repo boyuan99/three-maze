@@ -57,7 +57,7 @@ uses them, as an independently written second distance function.
 | File | Source | SHA-256 | Written by |
 |---|---|---|---|
 | `t3_walls_top415_out.txt` | `mover_fix/out/t3_walls_top415_out.txt` | `4a1c6883bce8...` | `TOP=4.15 MOVERS='[["adopted",{"fix":false}],["U+RS",{"fix":true}]]' node t3_walls.mjs` (`mover_fix/run_all.sh`, run of 2026-10-07 20:58) |
-| `X11_analytic_out.txt` | `verify/out/X11_analytic_out.txt` | `ec62eaad065f...` | `node xanalytic.mjs` (`verify/rerun.sh`, 2026-10-07 21:58) |
+| `X11_analytic_out.txt` | `verify/out/X11_analytic_out.txt` | `ec62eaad065f...` | `node xanalytic.mjs` (listed in the study's `verify/README.md`, "How to re-run"; output of 2026-10-07 21:58) |
 
 ## The two tiers
 
@@ -83,13 +83,16 @@ fresh Node process, with the archived settings, and compares their whole output 
   corner, wedges, trimesh walls; 1,661 runs per mover) for the adopted mover and U+RS at top 4.15.
   Every line must match except the time-per-sample field of the S1 rows. Among the reproduced
   numbers: on capped long walls U+RS never comes closer than the 0.02 skin (worst depth -0.020)
-  and keeps 100.0 % retention; its 7,187 guard reverts all come from the uncapped 1,200-unit thin wall
-  (study README, t3).
+  and keeps 100.0 % retention; its 7,187 guard reverts all come from the uncapped 1,200-unit thin
+  wall (study README, t3).
 - `xanalytic.test.mjs`: X11, which checks the analytic distance functions that judge overlap
   (`lib/geom.mjs`) against approach A's, against Rapier's `projectPoint` and against a brute-force
   minimum over the agent cylinder. Byte for byte.
 
-On 2026-10-09 both tiers reproduced the archive exactly on Rapier 0.14.0.
+On 2026-10-09 both tiers reproduced the archive exactly on Rapier 0.14.0. The archive was written
+with Node 22.16.0 (V8 12.4). Run with Electron 44.7.0's Node 24.21.0 (V8 15.2,
+`ELECTRON_RUN_AS_NODE=1`), `t3_walls.mjs` and `xanalytic.mjs` gave the same output too (t3 with
+its time field masked), so a newer V8 alone did not change any number.
 
 ## Rules
 
@@ -111,8 +114,9 @@ cd test/motion/reference && TOP=4.15 MOVERS='[["U+RS",{"fix":true}]]' node t3_wa
 
 The reference scripts read the environment variables the study used: `TOP`, `MOVERS` (JSON
 [name, options] pairs), `RAPIER` (path of another rapier3d-compat CommonJS entry), `KCCDEG` (test
-hook in `lib/geom.mjs`); `t3_walls.mjs` takes an optional section list (`s1,s2,s3,s3g`).
-`full/runReference.mjs` clears them before setting the archived values.
+hook in `lib/geom.mjs`), `EYE` and `ASPECT` (camera settings in `proxy/checks.mjs`);
+`t3_walls.mjs` takes an optional section list (`s1,s2,s3,s3g`). `full/runReference.mjs` clears
+them before setting the archived values.
 
 Node runs the reference (`.mjs`) directly. TypeScript modules under `src/motion/` run under Vitest
 until the owner decides how Node runs TypeScript (decision D4 of the phase-1 plan). They use

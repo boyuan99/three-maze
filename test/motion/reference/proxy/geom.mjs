@@ -4,7 +4,7 @@
 // Source: .claude/paper-review/proto/verify/inclined/proxy/lib/geom.mjs in the design-review
 //   workspace (on the development PC only, ignored by git). SHA-256
 //   fbc3efc617a2e9227fc3448e44b8b09416f3fd8a6e82010f1974696bf4060d0a, last modified 2026-10-07
-//   21:42. The verification ran its byte-identical copy verify/A_copy/lib/geom.mjs.
+//   20:09. The verification ran its byte-identical copy verify/A_copy/lib/geom.mjs (copied 21:42).
 // Copied: 2026-10-09 (roadmap phase 1, MOT-01).
 // What it is: Geometry of approach A (compiler-side proxies, not adopted) with exact signed
 //   distances. Only Sphere, Box and Frustum are used here, by xanalytic.mjs, as a second,

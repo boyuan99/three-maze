@@ -4,7 +4,8 @@
 // Source: .claude/paper-review/proto/verify/inclined/proxy/lib/checks.mjs in the design-review
 //   workspace (on the development PC only, ignored by git). SHA-256
 //   a9647559d4eed78707dada8496c6c72ad1e82248a4f15dcf37933700455eef60, last modified 2026-10-07
-//   21:42. The verification ran its byte-identical copy verify/A_copy/lib/checks.mjs.
+//   20:25. The verification ran its byte-identical copy verify/A_copy/lib/checks.mjs (copied
+//   21:42).
 // Copied: 2026-10-09 (roadmap phase 1, MOT-01).
 // What it is: Analytic measures of approach A. Only minOverCyl is used here, by xanalytic.mjs.
 // Changes from the source: none (only this header was added).

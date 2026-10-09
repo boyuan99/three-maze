@@ -9,7 +9,7 @@
 // What it is: The study's vertical-wall regression suite t3: the adjudication's s1, s1b, s2, s3a-e
 //   and s3g on the per-sample movers. Run with TOP=4.15 and the movers adopted and U+RS
 //   (mover_fix/run_all.sh), it wrote archive/t3_walls_top415_out.txt, which
-//   test/motion/full/reference.test.mjs reproduces.
+//   test/motion/full/t3_walls.test.mjs reproduces.
 // Changes from the source: none (only this header was added).
 // -------------------------------------------------------------------------------------------------
 // t3: vertical-wall regression suite, ported from adjudicator/s1_slide, s1b, s2_thin, s3_seams, s3b, s3c, s3d, s3e,

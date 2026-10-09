@@ -9,7 +9,7 @@
 // What it is: X11 of the independent verification of the study: checks the analytic distance
 //   measures of lib/geom.mjs and of approach A (proxy/) against Rapier's projectPoint and against a
 //   brute-force minimum over the agent cylinder. Its run wrote archive/X11_analytic_out.txt, which
-//   test/motion/full/reference.test.mjs reproduces.
+//   test/motion/full/xanalytic.test.mjs reproduces.
 // Changes from the source: The four import paths. Rapier comes from ./lib/rapier.mjs instead of
 //   approach A's scene.mjs (both load the pinned 0.14.0 CommonJS build and call init()); the other
 //   modules are the copies in this folder.

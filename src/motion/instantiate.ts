@@ -70,7 +70,8 @@ function solidDesc(R: Rapier, shape: SolidShape, id: string) {
     return R.ColliderDesc.trimesh(vertices, new Uint32Array(shape.indices), flags)
   }
   const desc = R.ColliderDesc.convexHull(new Float32Array(shape.points))
-  // Rapier returns null when the points span no volume
+  // Rapier's types allow null. 0.14.0 returns a description even for points that span no volume
+  // (probed 2026-10-09), so validateManifest() rejects those before this point.
   if (!desc) throw new Error(`${id}: the convex hull of its points is degenerate`)
   return desc
 }
