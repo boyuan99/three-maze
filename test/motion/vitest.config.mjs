@@ -10,7 +10,8 @@ export default mergeConfig(viteConfig, defineConfig({
   test: {
     include: ['test/motion/**/*.test.{js,mjs,ts,mts}'],
     environment: 'node',
-    // Full-tier cases run for minutes each (README, Runtimes); the CI job's timeout is the real limit.
+    // Full-tier cases run for minutes each (README, Runtimes); the CI job's timeout is the real
+    // limit.
     testTimeout: 30 * 60 * 1000
   }
 }))

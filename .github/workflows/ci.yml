@@ -1,7 +1,7 @@
 # Continuous integration on Windows, the rig's operating system (ADR-0001 follow-up).
 #
-#   javascript  Vitest unit tests (test/frontend) and the motion suite's fast tier (test/motion/fast),
-#               TypeScript type check, renderer build
+#   javascript  Vitest unit tests (test/frontend) and the motion suite's fast tier
+#               (test/motion/fast), TypeScript type check, renderer build
 #   python      backend tests (test/backend) against the exact pins of requirements-dev.txt
 #   motion-suite
 #               the motion suite's full tier (test/motion, `npm run test:motion`): ADR-0001's CI
@@ -80,8 +80,8 @@ jobs:
   motion-suite:
     name: Motion suite (full tier, when motion paths change)
     runs-on: windows-latest
-    # Three times the full tier's runtime on the development PC with one worker (2.9 min, 2026-10-09,
-    # test/motion/README.md) plus about 5 min for checkout, setup and npm ci (estimate)
+    # Three times the full tier's runtime on the development PC with one worker (2.9 min,
+    # 2026-10-09, test/motion/README.md) plus about 5 min for checkout, setup and npm ci (estimate)
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
