@@ -42,9 +42,9 @@ The collider tests of `src/motion/instantiate.ts` (MOT-07) are ordinary unit tes
 | `reference/proxy/geom.mjs` | `proxy/lib/geom.mjs` | `fbc3efc617a2...` | header only |
 | `reference/proxy/checks.mjs` | `proxy/lib/checks.mjs` | `a9647559d4ee...` | header only |
 
-The full hashes are in the headers. These are the files the study's final run used: the hashes
-equal those recorded by its independent verification (`verify/out/hashes_B_mover_fix.txt`,
-`hashes_A_proxy.txt`).
+The full hashes are in the headers. For every file except `xanalytic.mjs` they equal the hashes
+the independent verification recorded for the files it re-ran (`verify/out/hashes_B_mover_fix.txt`,
+`verify/out/hashes_A_proxy.txt`), so these are the versions behind the archived numbers.
 
 `lib/hover.mjs` with `fix: true` and `top: 4.15` is the mover ADR-0001 adopts (variant U+RS:
 R3, R4 and R6; cylinder top `eyeHeight` + 0.45). `fix: false` is the configuration the ADR first
@@ -115,7 +115,9 @@ hook in `lib/geom.mjs`); `t3_walls.mjs` takes an optional section list (`s1,s2,s
 `full/runReference.mjs` clears them before setting the archived values.
 
 Node runs the reference (`.mjs`) directly. TypeScript modules under `src/motion/` run under Vitest
-until the owner decides how Node runs TypeScript (decision D4 of the phase-1 plan).
+until the owner decides how Node runs TypeScript (decision D4 of the phase-1 plan). They use
+relative `.ts` imports and erasable syntax only, so Node 22.16.0 also runs them with
+`--experimental-strip-types` (checked on 2026-10-09 with `src/motion/instantiate.ts`).
 
 ## Runtimes
 
