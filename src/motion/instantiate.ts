@@ -7,7 +7,7 @@
 // loaded (the renderer's ES build, Node's CommonJS build, another version under test) and the
 // caller owns init().
 import type RAPIER from '@dimforge/rapier3d-compat'
-import type { Collider, World } from '@dimforge/rapier3d-compat'
+import type { Collider, TriMesh, World } from '@dimforge/rapier3d-compat'
 import { validateManifest } from './manifest.ts'
 import type {
   ColliderManifest, ManifestCollider, ManifestZone, Quat, SolidShape, Vec3,
@@ -150,6 +150,8 @@ export interface ColliderRecord {
   values: number[]
   /** trimesh only: triangle indices as stored by Rapier */
   indices?: number[]
+  /** trimesh only: TriMeshFlags as stored by Rapier */
+  flags?: number
   translation: Vec3
   rotation: Quat
   groups: number
@@ -170,6 +172,7 @@ export function describeColliders(R: Rapier, queryWorld: QueryWorld): ColliderRe
     let shape: ColliderRecord['shape']
     let values: number[]
     let indices: number[] | undefined
+    let flags: number | undefined
     if (type === R.ShapeType.Cuboid) {
       const h = c.halfExtents()
       shape = 'cuboid'
@@ -178,6 +181,9 @@ export function describeColliders(R: Rapier, queryWorld: QueryWorld): ColliderRe
       shape = 'trimesh'
       values = Array.from(c.vertices())
       indices = Array.from(c.indices() ?? [])
+      // collider.shape is the description's shape, kept since the collider was made, so the flags
+      // are read from Rapier's collider set instead
+      flags = (R.Shape.fromRaw(queryWorld.world.colliders.raw, c.handle) as TriMesh).flags
     } else if (type === R.ShapeType.ConvexPolyhedron) {
       shape = 'convexHull'
       values = Array.from(c.vertices())
@@ -190,6 +196,7 @@ export function describeColliders(R: Rapier, queryWorld: QueryWorld): ColliderRe
       shape,
       values,
       ...(indices ? { indices } : {}),
+      ...(flags === undefined ? {} : { flags }),
       translation: [t.x, t.y, t.z],
       rotation: [q.x, q.y, q.z, q.w],
       groups: c.collisionGroups(),

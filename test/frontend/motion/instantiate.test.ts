@@ -137,6 +137,9 @@ describe('instantiate', () => {
       if (e.shape.kind === 'trimesh') {
         expect(record.values).toEqual(f(e.shape.vertices))
         expect(record.indices).toEqual(e.shape.indices)
+        const flags = e.shape.flags.reduce((all, flag) => all | RAPIER.TriMeshFlags[flag], 0)
+        expect(flags).not.toBe(0)
+        expect(record.flags).toBe(flags)
       }
       if (e.shape.kind === 'convexHull') {
         expect(sortedPoints(record.values)).toEqual(sortedPoints(f(e.shape.points)))
