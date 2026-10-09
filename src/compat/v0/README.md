@@ -127,6 +127,9 @@ label the scene in the UI.
   carries its mesh's position and rotation, on the mazes and on a fixture with a rotated box.
 - **DOM-free:** a scan for DOM globals and DOM-bound loaders in this folder, and a type check of this
   folder with only the ES2022 library (no DOM, no Node types).
+- **Plain Node:** a child `node --experimental-strip-types` process builds the six mazes from these
+  files and must give the same scene descriptions and solids as the build under Vitest. The test is
+  skipped on a Node without type stripping (before 22.6).
 
 Node lacks three things the loaders use, so the test stands in for them (`harness.ts`):
 
@@ -150,7 +153,8 @@ files as the record of v0.3 and replace the extraction test by a check against t
 
 The files import only `three` and `src/utils/resolveAssetPath.js`, with relative `.ts` imports and
 erasable TypeScript only, so Node runs them by stripping types (on Node 22.16, the version used here,
-with `node --experimental-strip-types`).
+with `node --experimental-strip-types`; the "Plain Node" test above checks it). How the project's
+Node scripts run TypeScript is owner decision D4; nothing here depends on its outcome.
 
 `src/types/three-shim.d.ts` declares `three` loosely (every name is `any`) because three 0.169.0 ships
 no types. TODO(D3): remove the shim when @types/three is added, and fix any type errors that appear.

@@ -9,8 +9,10 @@
 //
 // Not compared (see v0Reference/harness.ts): JPEG pixels and sizes (Node has no <img>), what the GPU
 // draws (no WebGL), and anything after setup (frames, resizes, the physics simulation).
+import { execFileSync } from 'node:child_process'
 import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import RAPIER from '@dimforge/rapier3d-compat'
 import * as THREE from 'three'
 import ts from 'typescript'
@@ -250,6 +252,42 @@ it("describeScene reports a camera's projection matrix as stored, even when out 
   expect({ ...staleDescribed, projectionMatrix: null }).toEqual({ ...described, projectionMatrix: null })
   expect(staleDescribed.projectionMatrix).not.toEqual(described.projectionMatrix)
 })
+
+// The port also runs without Vitest's transform: plain Node strips the types (README.md, "Running
+// in Node"). Skipped on a Node without type stripping (before 22.6).
+const nodeStripsTypes = process.allowedNodeEnvironmentFlags.has('--experimental-strip-types')
+
+it.skipIf(!nodeStripsTypes)('builds the same scenes and solids in plain Node', async () => {
+  const port = pathToFileURL(path.join(REPO_ROOT, 'src', 'compat', 'v0', 'index.ts')).href
+  const inputs = mazes.map(maze => ({ file: path.join(REPO_ROOT, maze.file), basePath: maze.basePath }))
+  const script = `
+import { readFileSync } from 'node:fs'
+import * as THREE from 'three'
+import { buildV0Scene, describeScene, v0Physics } from ${JSON.stringify(port)}
+const loaders = { texture: async () => new THREE.Texture(), skybox: async () => new THREE.Texture() }
+const results = []
+for (const { file, basePath } of ${JSON.stringify(inputs)}) {
+  const config = { ...JSON.parse(readFileSync(file, 'utf8')), _basePath: basePath }
+  const build = await buildV0Scene(config, { aspect: 16 / 9, loaders })
+  const scene = describeScene(build.scene, build.camera)
+  results.push({ scene, diagnostics: build.diagnostics, physics: v0Physics(config) })
+}
+process.stdout.write(JSON.stringify(results))`
+  const output = execFileSync(process.execPath,
+    ['--experimental-strip-types', '--no-warnings', '--input-type=module', '-e', script],
+    { cwd: REPO_ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+
+  // The same build under Vitest
+  const loaders = { texture: async () => new THREE.Texture(), skybox: async () => new THREE.Texture() }
+  const expected = []
+  for (const maze of mazes) {
+    const config = readMaze(maze)
+    const build = await buildV0Scene(config, { aspect: 16 / 9, loaders })
+    const scene = describeScene(build.scene, build.camera)
+    expected.push({ scene, diagnostics: build.diagnostics, physics: v0Physics(config) })
+  }
+  expect(JSON.parse(output)).toEqual(viaJson(expected))
+}, 30_000)
 
 describe('DOM-free', () => {
   const dir = path.join(REPO_ROOT, 'src', 'compat', 'v0')
