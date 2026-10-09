@@ -26,7 +26,7 @@ click==8.3.1
 colorama==0.4.6; sys_platform == "win32"
 deprecation==2.1.0
 hightime==1.0.0
-idna==3.11
+idna==3.20
 nitypes==1.1.0
 packaging==25.0
 python-decouple==3.8
