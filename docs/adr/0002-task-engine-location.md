@@ -1,6 +1,6 @@
 # ADR-0002: Interpret declarative tasks in the motion worker; the Python rig runtime serves devices, supervises and hosts code tasks
 
-- Status: Accepted (2026-10-08)
+- Status: Accepted (2026-10-08); amended 2026-10-09
 - Date: 2026-10-07
 - Deciders: project owner
 - Related: [0001-player-mover.md](0001-player-mover.md), [0003-render-worker-priority.md](0003-render-worker-priority.md)
@@ -49,7 +49,7 @@ Adopt option C. † marks rules beyond the adjudication, with their source ("new
 **Clock and order** (†scene-format design, applied per sample). A timer due at device time T fires on the first sample with t_dev ≥ T. Per sample the worker moves the agent, then dispatches, each to completion: non-motion inputs (e.g. licks) in arrival order, each logged with its dispatch seq (†new); zone exits; zone entries by id; due timers by due time, then id. Other FSM semantics follow that design, fixed with the task schema: the minimal subset in phase 1, the rest in phase 2.
 
 **Rig runtime**: Python, the reference device server and supervisor. It owns:
-- the serial reader thread, hardware-timed outputs and the session clock;
+- the serial reader thread, outputs through the `OutputDevice` interface under the safety envelope below, with any hardware timing of pulses left to the rig (amended 2026-10-09), and the session clock;
 - all persistence: raw samples on receipt, events, commands, acknowledgements (acks), frames, and the trial results table (`trials.tsv`) built from events plus acks;
 - the safety envelope: runtime caps per pulse, minimum interval and per session, set in the rig file (†example rig files in the designs); a watchdog that closes the valve, zeroes outputs and invalidates the open trial if no worker heartbeat arrives for over 100 ms or the renderer exits. Protection against the rig runtime process itself dying (a firmware pulse limit or a hardware watchdog) belongs to the rig builder and is outside three-maze's scope (owner, 2026-10-07);
 - the session lifecycle, with resume at a trial boundary: a restarted worker starts the next planned trial with the trial index and FSM variables logged at the last boundary (†new);
@@ -63,7 +63,14 @@ A runtime in another language must pass the conformance suite (black-box tests a
 
 **Code tasks** get the same events, action names and timer clock (in lockstep, the same order). They may not sleep, read the wall clock, do input/output or use randomness except the session-seeded `ctx.rng` (seed logged); an abstract-syntax-tree (AST) lint rejects violating Python tasks at load. Reader, writer and watchdog run on their own threads (†new). Each teleport or reset command carries the next epoch, which the worker adopts on applying it; from issuing it, the runtime logs lower-epoch events as stale and never delivers them (†protocol design). Renderer commands carry apply_seq, which the runtime sets to the answered event's seq (†new); the worker applies each after sample max(apply_seq, last processed seq) and logs the seq used.
 
-**Gaps** (†new). Every seq gap is logged (`gap` column of `samples.tsv`, warning event). With no sample for over T_fault (open), timers stop by construction, the open trial is invalidated and the session faults.
+**Gaps** (†new; amended 2026-10-09). Every seq gap is logged (`gap` column of `samples.tsv`, warning event). With no sample for over T_fault (open), timers stop by construction, the open trial is invalidated and the session faults.
+
+**Amendment 2026-10-09.** Both changes follow the project owner's decision of 2026-10-09 that device firmware is the rig builder's own code, so three-maze specifies what devices send and receive ([device protocol v1](../protocol/device-v1.md)) instead of writing firmware.
+
+- Rig runtime: "hardware-timed outputs" is replaced by "outputs through the `OutputDevice` interface under the safety envelope below, with any hardware timing of pulses left to the rig". three-maze defines the output interface and enforces the envelope; how a rig times a pulse in hardware is the rig's business, like the protection against the rig runtime process dying. Every pulse ends in exactly one recorded outcome that states its timing class: `hardware` when the device reports its own measured on and off times, `software` when the rig runtime times the pulse itself, as its built-in NI-DAQ analog-output adapter does, and `unreported` for a device that does not acknowledge pulses.
+- Gaps: the rule above assumes a device that numbers its samples. For a device that does not, such as today's v0.3 stream read through the `legacy-v0.3` profile, the rig runtime numbers the samples as they arrive, infers gaps from jumps in the device clock where the device sends one, and records the device's guarantee level in every session, so that a paper states which completeness claim its data support (device protocol v1, Guarantee levels). No words of the rule are replaced.
+
+The decision itself (option C) is unchanged.
 
 ## Consequences
 
