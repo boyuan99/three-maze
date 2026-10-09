@@ -1,14 +1,12 @@
 // TEMPORARY type shim for three 0.169.0, which ships no TypeScript declarations
 // (node_modules/three/package.json has no "types" field) while tsconfig.json is strict.
-// Remove this file when owner decision D3 adds @types/three pinned to 0.169.x; the TypeScript files
-// that import three then get real types and may need small fixes.
+// TODO(D3): remove this file when owner decision D3 adds @types/three pinned to 0.169.x; the
+// TypeScript files that import three then get real types and may need small fixes.
 //
 // Every name is `any`, both as a value and as a type, so TypeScript checks nothing about three.js
 // usage. Declare only the names the TypeScript files use: an undeclared name is a type error, which
 // keeps the list honest.
 declare module 'three' {
-  export const REVISION: string
-
   export type Object3D = any
   export const Object3D: any
   export type Scene = any
@@ -57,7 +55,6 @@ declare module 'three' {
   export const ClampToEdgeWrapping: number
   export const EquirectangularReflectionMapping: number
   export const ACESFilmicToneMapping: number
-  export const NoToneMapping: number
   export const PCFShadowMap: number
 }
 
