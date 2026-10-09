@@ -84,12 +84,13 @@ MOT-08 uses it to build correctly rotated colliders).
 13. **Any physics type but `'dynamic'` gives a fixed body** (:460-462): `'static'`, `'kinematic'`
     and typos alike. Example01's sphere is dynamic (`public/mazes/Example01.json:63`) and falls under
     gravity −500 (:623); `v0Physics` reports it in `diagnostics`.
-14. **Textures:** a texture that fails to load leaves the flat colour (:422-425); textures keep three's
-    default colour space (`NoColorSpace`, so JPEGs are not decoded as sRGB) and anisotropy 1; wrapping
-    is set to repeat only when the JSON gives `repeat` (:410-417).
+14. **Textures:** a texture that fails to load leaves the flat colour (:422-425); textures keep
+    three's default colour space (`NoColorSpace`: JPEG colours are used as if linear, not converted
+    from sRGB) and anisotropy 1; wrapping is set to repeat only when the JSON gives `repeat`
+    (:410-417).
 15. **Textures load one after another**, each awaited before the next object (:401-408).
 
-## Deliberate difference
+## Deviation from v0.3
 
 1. **A skybox that fails to load does not hang.** v0.3's promise has no error callback (:553-555),
    so a missing EXR stops the scene setup forever. The port continues without a background or

@@ -1,7 +1,7 @@
 // The v0 scene JSON (public/mazes/*) as v0.3's experiment scene reads it
 // (src/scenes/serial/PythonCustomScene.vue). Only the keys that scene reads are typed; v0 has no
 // schema, and keys it does not read (camera.position, renderer, fog, player, controls, ...) are
-// accepted and ignored, as in v0.3 (README.md, "Keys v0.3 ignores").
+// accepted and ignored, as in v0.3 (README.md, "Keys v0.3's experiment scene ignores").
 
 export interface V0Vector {
   x?: number
