@@ -1,0 +1,176 @@
+S1 long walls (face x = 10): L 200/400/600, split none/40, angles 1/5/15/30/75 deg, regimes 120/s v30, 120/s v141, 20/s v100
+  cells: worst overlap depth / samples with depth > 0.02 / crossings / min retention % / max lateral range after first touch / us per sample / guard reverts / recoveries / fix contacts
+  L200 split  - adopted  -0.015 / 0 / 0 / 99.2 / 0.109 / 99.2 / 0 / 0 / 0
+  L200 split  - U+RS     -0.016 / 0 / 0 / 100.0 / 0.038 / 166.7 / 0 / 0 / 15611
+  L200 split 40 adopted  -0.016 / 0 / 0 / 100.0 / 0.060 / 124.5 / 0 / 0 / 0
+  L200 split 40 U+RS     -0.020 / 0 / 0 / 100.0 / 0.015 / 193.9 / 0 / 0 / 15600
+  L400 split  - adopted  0.006 / 0 / 0 / 9.2 / 0.142 / 90.8 / 10362 / 0 / 0
+  L400 split  - U+RS     0.007 / 0 / 0 / 99.9 / 0.134 / 169.1 / 0 / 6 / 34489
+  L400 split 40 adopted  -0.016 / 0 / 0 / 99.9 / 0.061 / 255.1 / 0 / 0 / 0
+  L400 split 40 U+RS     -0.020 / 0 / 0 / 100.0 / 0.029 / 390.0 / 0 / 0 / 33709
+  L600 split  - adopted  0.021 / 2 / 0 / 29.1 / 0.162 / 178.2 / 8514 / 0 / 0
+  L600 split  - U+RS     0.021 / 1 / 0 / 99.4 / 0.080 / 325.0 / 0 / 1 / 54428
+  L600 split 40 adopted  -0.020 / 0 / 0 / 100.0 / 0.065 / 285.8 / 0 / 0 / 0
+  L600 split 40 U+RS     -0.020 / 0 / 0 / 100.0 / 0.018 / 413.4 / 0 / 0 / 51864
+
+S2 thin wall (0.1 thick, faces x = 10 / 10.1): Lw 40/400/1200, split none/40, 141-1000 units/s at 120 and 20 samples/s, incidence 90/20/5 deg, 20 start phases
+  Lw   40 split  - adopted  runs 220 tunnels 0 worst overlap -0.021
+  Lw   40 split  - U+RS     runs 220 tunnels 0 worst overlap -0.023
+  Lw  400 split  - adopted  runs 300 tunnels 0 worst overlap 0.004
+  Lw  400 split  - U+RS     runs 300 tunnels 0 worst overlap 0.004
+  Lw  400 split 40 adopted  runs 300 tunnels 0 worst overlap -0.020
+  Lw  400 split 40 U+RS     runs 300 tunnels 0 worst overlap -0.020
+  Lw 1200 split  - adopted  runs 300 tunnels 0 worst overlap 0.045
+  Lw 1200 split  - U+RS     runs 300 tunnels 0 worst overlap 0.046
+  Lw 1200 split 40 adopted  runs 300 tunnels 0 worst overlap -0.020
+  Lw 1200 split 40 U+RS     runs 300 tunnels 0 worst overlap -0.020
+
+S3a coplanar seam (two boxes meet at z = 0, second proud by lip, T stem behind): cells angle: worst overlap / lateral range |z|<20 / min per-sample progress ratio |z|<20
+  lip      0 120/s v30  adopted  5deg -0.021/0.022/0.99  30deg -0.030/0.102/0.53  75deg -0.030/0.033/0.56
+  lip      0 120/s v30  U+RS     5deg -0.026/0.008/1.00  30deg -0.029/0.008/1.00  75deg -0.023/0.009/1.00
+  lip      0 120/s v141 adopted  5deg -0.028/0.021/1.00  30deg -0.030/0.013/0.99  75deg -0.030/0.014/0.84
+  lip      0 120/s v141 U+RS     5deg -0.029/0.008/1.00  30deg -0.030/0.008/1.00  75deg -0.030/0.009/1.00
+  lip      0 20/s v100  adopted  5deg -0.030/0.003/1.00  30deg -0.030/0.003/0.97  75deg -0.030/0.008/0.98
+  lip      0 20/s v100  U+RS     5deg -0.030/0.007/1.00  30deg -0.030/0.004/1.00  75deg -0.030/0.006/1.00
+  lip  0.001 120/s v30  adopted  5deg -0.021/0.022/0.99  30deg -0.029/0.102/0.53  75deg -0.030/0.033/0.56
+  lip  0.001 120/s v30  U+RS     5deg -0.026/0.009/1.00  30deg -0.030/0.021/0.99  75deg -0.029/0.009/1.00
+  lip  0.001 120/s v141 adopted  5deg -0.021/0.024/1.00  30deg -0.030/0.014/0.99  75deg -0.030/0.010/0.84
+  lip  0.001 120/s v141 U+RS     5deg -0.030/0.009/1.00  30deg -0.030/0.008/1.00  75deg -0.030/0.010/1.00
+  lip  0.001 20/s v100  adopted  5deg -0.030/0.003/1.00  30deg -0.030/0.006/0.97  75deg -0.030/0.007/0.97
+  lip  0.001 20/s v100  U+RS     5deg -0.030/0.005/1.00  30deg -0.030/0.003/1.00  75deg -0.030/0.007/1.00
+  lip -0.001 120/s v30  adopted  5deg -0.021/0.022/0.99  30deg -0.030/0.103/0.53  75deg -0.030/0.034/0.56
+  lip -0.001 120/s v30  U+RS     5deg -0.026/0.009/1.00  30deg -0.029/0.010/1.00  75deg -0.029/0.010/1.00
+  lip -0.001 120/s v141 adopted  5deg -0.023/0.021/1.00  30deg -0.030/0.006/1.00  75deg -0.030/0.008/0.84
+  lip -0.001 120/s v141 U+RS     5deg -0.030/0.009/1.00  30deg -0.030/0.009/1.00  75deg -0.030/0.010/1.00
+  lip -0.001 20/s v100  adopted  5deg -0.030/0.002/1.00  30deg -0.030/0.004/0.97  75deg -0.030/0.006/0.98
+  lip -0.001 20/s v100  U+RS     5deg -0.029/0.005/1.00  30deg -0.030/0.001/1.00  75deg -0.030/0.006/1.00
+
+S3b T-junction (stem walls x = +-5, far wall z = 10, legs as s3_seams): worst overlap / zero-progress samples / final position
+  split  - 120/s v30  adopted  worst -0.021 zero-progress 0/1360 final (-57.07, 0.53) reverts 0 rec 0
+  split  - 120/s v30  U+RS     worst -0.028 zero-progress 0/1360 final (-57.20, 0.53) reverts 0 rec 0
+  split  - 120/s v141 adopted  worst -0.022 zero-progress 0/294 final (-58.01, 0.53) reverts 0 rec 0
+  split  - 120/s v141 U+RS     worst -0.027 zero-progress 0/294 final (-58.15, 0.53) reverts 0 rec 0
+  split  - 20/s v100  adopted  worst -0.029 zero-progress 0/68 final (-57.07, 0.53) reverts 0 rec 0
+  split  - 20/s v100  U+RS     worst -0.030 zero-progress 0/68 final (-57.20, 0.53) reverts 0 rec 0
+  split 40 120/s v30  adopted  worst -0.023 zero-progress 0/1360 final (-57.17, 0.53) reverts 0 rec 0
+  split 40 120/s v30  U+RS     worst -0.030 zero-progress 0/1360 final (-57.20, 0.53) reverts 0 rec 0
+  split 40 120/s v141 adopted  worst -0.030 zero-progress 0/294 final (-58.13, 0.53) reverts 0 rec 0
+  split 40 120/s v141 U+RS     worst -0.030 zero-progress 0/294 final (-58.15, 0.53) reverts 0 rec 0
+  split 40 20/s v100  adopted  worst -0.030 zero-progress 0/68 final (-57.17, 0.53) reverts 0 rec 0
+  split 40 20/s v100  U+RS     worst -0.030 zero-progress 0/68 final (-57.20, 0.53) reverts 0 rec 0
+
+S3c inside corner 90 deg (push along the bisector) and wedges 30/60/90 deg (s3b/s3c geometry, push along the axis with 5% sideways): worst overlap / final / jitter over the last 100 samples
+  corner90 split  - 120/s v30  adopted  worst -0.029 final (9.470, -99.470) jitter x 0.0027 z 0.0019 reverts 0 rec 0
+  corner90 split  - 120/s v30  U+RS     worst -0.026 final (9.470, -99.470) jitter x 0.0018 z 0.0035 reverts 0 rec 0
+  corner90 split  - 120/s v141 adopted  worst -0.029 final (9.470, -99.470) jitter x 0.0789 z 0.0019 reverts 0 rec 0
+  corner90 split  - 120/s v141 U+RS     worst -0.021 final (9.470, -99.471) jitter x 0.0021 z 0.0101 reverts 0 rec 0
+  corner90 split  - 20/s v100  adopted  worst -0.029 final (9.470, -99.470) jitter x 0.0470 z 0.0015 reverts 0 rec 0
+  corner90 split  - 20/s v100  U+RS     worst -0.021 final (9.470, -99.470) jitter x 0.0102 z 0.0256 reverts 0 rec 0
+  corner90 split 40 120/s v30  adopted  worst -0.029 final (9.470, -99.470) jitter x 0.0007 z 0.0015 reverts 0 rec 0
+  corner90 split 40 120/s v30  U+RS     worst -0.030 final (9.470, -99.470) jitter x 0.0020 z 0.0018 reverts 0 rec 0
+  corner90 split 40 120/s v141 adopted  worst -0.029 final (9.470, -99.470) jitter x 0.0015 z 0.0014 reverts 0 rec 0
+  corner90 split 40 120/s v141 U+RS     worst -0.030 final (9.470, -99.470) jitter x 0.0016 z 0.0013 reverts 0 rec 0
+  corner90 split 40 20/s v100  adopted  worst -0.029 final (9.470, -99.470) jitter x 0.0012 z 0.0013 reverts 0 rec 0
+  corner90 split 40 20/s v100  U+RS     worst -0.029 final (9.470, -99.470) jitter x 0.0029 z 0.0141 reverts 0 rec 0
+  wedge30  split  - 120/s v30  adopted  worst 0.005 final (0.005, -47.970) jitter x 0.0233 z 0.0536 reverts 0 rec 0
+  wedge30  split  - 120/s v30  U+RS     worst -0.020 final (0.004, -47.968) jitter x 0.0014 z 0.0083 reverts 0 rec 0
+  wedge30  split  - 120/s v141 adopted  worst -0.020 final (0.005, -47.972) jitter x 0.0000 z 0.0000 reverts 1230 rec 0
+  wedge30  split  - 120/s v141 U+RS     worst -0.020 final (0.004, -47.969) jitter x 0.0016 z 0.0077 reverts 0 rec 0
+  wedge30  split  - 20/s v100  adopted  worst -0.020 final (0.005, -47.970) jitter x 0.0000 z 0.0000 reverts 6074 rec 0
+  wedge30  split  - 20/s v100  U+RS     worst -0.019 final (0.000, -47.992) jitter x 0.0000 z 0.0000 reverts 0 rec 1
+  wedge30  split 40 120/s v30  adopted  worst -0.020 final (0.005, -47.970) jitter x 0.0113 z 0.0058 reverts 0 rec 0
+  wedge30  split 40 120/s v30  U+RS     worst -0.020 final (0.004, -47.969) jitter x 0.0016 z 0.0059 reverts 0 rec 0
+  wedge30  split 40 120/s v141 adopted  worst 0.004 final (0.000, -47.991) jitter x 0.0107 z 0.0224 reverts 0 rec 0
+  wedge30  split 40 120/s v141 U+RS     worst -0.020 final (0.004, -47.969) jitter x 0.0009 z 0.0038 reverts 0 rec 0
+  wedge30  split 40 20/s v100  adopted  worst -0.020 final (0.000, -47.992) jitter x 0.0000 z 0.0000 reverts 0 rec 0
+  wedge30  split 40 20/s v100  U+RS     worst -0.020 final (0.004, -47.968) jitter x 0.0010 z 0.0057 reverts 0 rec 0
+  wedge60  split  - 120/s v30  adopted  worst -0.021 final (0.004, -48.946) jitter x 0.0103 z 0.0150 reverts 0 rec 0
+  wedge60  split  - 120/s v30  U+RS     worst -0.022 final (0.003, -48.945) jitter x 0.0016 z 0.0028 reverts 0 rec 0
+  wedge60  split  - 120/s v141 adopted  worst -0.020 final (0.003, -48.945) jitter x 0.0114 z 0.0050 reverts 0 rec 0
+  wedge60  split  - 120/s v141 U+RS     worst -0.022 final (0.003, -48.945) jitter x 0.0019 z 0.0035 reverts 0 rec 0
+  wedge60  split  - 20/s v100  adopted  worst -0.020 final (0.003, -48.945) jitter x 0.0114 z 0.0050 reverts 0 rec 0
+  wedge60  split  - 20/s v100  U+RS     worst -0.022 final (0.003, -48.945) jitter x 0.0012 z 0.0032 reverts 0 rec 0
+  wedge60  split 40 120/s v30  adopted  worst -0.024 final (-0.003, -48.946) jitter x 0.0007 z 0.0010 reverts 0 rec 0
+  wedge60  split 40 120/s v30  U+RS     worst -0.024 final (0.003, -48.945) jitter x 0.0018 z 0.0033 reverts 0 rec 0
+  wedge60  split 40 120/s v141 adopted  worst -0.020 final (0.003, -48.945) jitter x 0.0115 z 0.0051 reverts 0 rec 0
+  wedge60  split 40 120/s v141 U+RS     worst -0.024 final (0.002, -48.944) jitter x 0.0014 z 0.0033 reverts 0 rec 0
+  wedge60  split 40 20/s v100  adopted  worst -0.021 final (-0.003, -48.946) jitter x 0.0095 z 0.0042 reverts 0 rec 0
+  wedge60  split 40 20/s v100  U+RS     worst -0.024 final (0.003, -48.945) jitter x 0.0012 z 0.0028 reverts 0 rec 0
+  wedge90  split  - 120/s v30  adopted  worst -0.030 final (-0.000, -49.250) jitter x 0.0107 z 0.0097 reverts 0 rec 0
+  wedge90  split  - 120/s v30  U+RS     worst -0.030 final (-0.000, -49.250) jitter x 0.0014 z 0.0010 reverts 0 rec 0
+  wedge90  split  - 120/s v141 adopted  worst -0.029 final (-0.000, -49.250) jitter x 0.0216 z 0.0213 reverts 0 rec 0
+  wedge90  split  - 120/s v141 U+RS     worst -0.030 final (-0.000, -49.250) jitter x 0.0020 z 0.0011 reverts 0 rec 0
+  wedge90  split  - 20/s v100  adopted  worst -0.029 final (-0.000, -49.250) jitter x 0.0218 z 0.0215 reverts 0 rec 0
+  wedge90  split  - 20/s v100  U+RS     worst -0.030 final (-0.000, -49.250) jitter x 0.0016 z 0.0011 reverts 0 rec 0
+  wedge90  split 40 120/s v30  adopted  worst -0.030 final (-0.000, -49.250) jitter x 0.0010 z 0.0014 reverts 0 rec 0
+  wedge90  split 40 120/s v30  U+RS     worst -0.030 final (0.000, -49.250) jitter x 0.0013 z 0.0011 reverts 0 rec 0
+  wedge90  split 40 120/s v141 adopted  worst -0.029 final (0.000, -49.250) jitter x 0.0195 z 0.0188 reverts 0 rec 0
+  wedge90  split 40 120/s v141 U+RS     worst -0.030 final (-0.000, -49.250) jitter x 0.0015 z 0.0011 reverts 0 rec 0
+  wedge90  split 40 20/s v100  adopted  worst -0.029 final (-0.000, -49.251) jitter x 0.0196 z 0.0190 reverts 0 rec 0
+  wedge90  split 40 20/s v100  U+RS     worst -0.030 final (0.000, -49.250) jitter x 0.0015 z 0.0013 reverts 0 rec 0
+
+S3d retention near head-on (one 200-unit box, split 40, split 10), angles 60/80/85/88 deg; regimes + 1000/s v30: retention %
+  one 200-u box  120/s v30  adopted  60deg 99.6%  80deg 99.7%  85deg 99.9%  88deg 99.0%
+  one 200-u box  120/s v30  U+RS     60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+  one 200-u box  120/s v141 adopted  60deg 99.7%  80deg 99.8%  85deg 99.8%  88deg 99.7%
+  one 200-u box  120/s v141 U+RS     60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+  one 200-u box  20/s v100  adopted  60deg 99.6%  80deg 99.7%  85deg 99.9%  88deg 99.6%
+  one 200-u box  20/s v100  U+RS     60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+  one 200-u box  1000/s v30 adopted  60deg 99.8%  80deg 99.3%  85deg 99.4%  88deg 99.8%
+  one 200-u box  1000/s v30 U+RS     60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+  split <=40     120/s v30  adopted  60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+  split <=40     120/s v30  U+RS     60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+  split <=40     120/s v141 adopted  60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+  split <=40     120/s v141 U+RS     60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+  split <=40     20/s v100  adopted  60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+  split <=40     20/s v100  U+RS     60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+  split <=40     1000/s v30 adopted  60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+  split <=40     1000/s v30 U+RS     60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+  split <=10     120/s v30  adopted  60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+  split <=10     120/s v30  U+RS     60deg 100.0%  80deg 100.0%  85deg 99.9%  88deg 100.0%
+  split <=10     120/s v141 adopted  60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 99.8%
+  split <=10     120/s v141 U+RS     60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+  split <=10     20/s v100  adopted  60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+  split <=10     20/s v100  U+RS     60deg 100.0%  80deg 100.0%  85deg 99.9%  88deg 100.0%
+  split <=10     1000/s v30 adopted  60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+  split <=10     1000/s v30 U+RS     60deg 100.0%  80deg 100.0%  85deg 100.0%  88deg 100.0%
+
+S3e seam trap test (s3e): seam at z = 0, push at 70-89 deg for 4000 samples at 0.25 (30 units/s, 120/s), second piece 1 or 2 thick: z after 1k/2k/3k/4k samples (free slide reaches the value in brackets)
+  ang 70 thick 1 adopted  z -80.378 -166.019 -251.524 -337.029 (-337.0) reverts 0 rec 0
+  ang 70 thick 1 U+RS     z -80.503 -166.166 -251.671 -337.176 (-337.0) reverts 0 rec 0
+  ang 70 thick 2 adopted  z -80.435 -166.015 -251.520 -337.025 (-337.0) reverts 0 rec 0
+  ang 70 thick 2 U+RS     z -80.502 -166.169 -251.674 -337.179 (-337.0) reverts 0 rec 0
+  ang 75 thick 1 adopted  z -59.672 -124.395 -189.100 -253.805 (-253.8) reverts 0 rec 0
+  ang 75 thick 1 U+RS     z -59.679 -124.606 -189.311 -254.015 (-253.8) reverts 0 rec 0
+  ang 75 thick 2 adopted  z -59.678 -124.522 -189.227 -253.932 (-253.8) reverts 0 rec 0
+  ang 75 thick 2 U+RS     z -59.696 -124.611 -189.315 -254.020 (-253.8) reverts 0 rec 0
+  ang 80 thick 1 adopted  z -38.361 -81.732 -125.411 -168.823 (-168.6) reverts 0 rec 0
+  ang 80 thick 1 U+RS     z -38.396 -81.807 -125.504 -168.916 (-168.6) reverts 0 rec 0
+  ang 80 thick 2 adopted  z -38.363 -81.731 -125.415 -168.827 (-168.6) reverts 0 rec 0
+  ang 80 thick 2 U+RS     z -38.406 -81.817 -125.489 -168.901 (-168.6) reverts 0 rec 0
+  ang 85 thick 1 adopted  z -16.763 -38.550 -60.339 -82.126 (-82.2) reverts 0 rec 0
+  ang 85 thick 1 U+RS     z -16.787 -38.574 -60.362 -82.152 (-82.2) reverts 0 rec 0
+  ang 85 thick 2 adopted  z -16.764 -38.545 -60.334 -82.099 (-82.2) reverts 0 rec 0
+  ang 85 thick 2 U+RS     z -16.787 -38.573 -60.363 -82.153 (-82.2) reverts 0 rec 0
+  ang 89 thick 1 adopted  z 0.634 -3.723 -8.082 -12.441 (-12.5) reverts 0 rec 0
+  ang 89 thick 1 U+RS     z 0.635 -3.726 -8.085 -12.444 (-12.5) reverts 0 rec 0
+  ang 89 thick 2 adopted  z 0.634 -3.646 -8.005 -12.364 (-12.5) reverts 0 rec 0
+  ang 89 thick 2 U+RS     z 0.635 -3.694 -8.053 -12.411 (-12.5) reverts 0 rec 0
+
+S3g trimesh wall (near face x = 10, L 200, triangles 200/40/10 long, flags none / FIX_INTERNAL_EDGES|MERGE_DUPLICATE_VERTICES): cells regime/incidence: worst overlap, retention %
+  tri 200 no flags           adopted  120/s v30/30: -0.015 100.0% | 120/s v30/85: -0.016 99.3% | 120/s v141/30: -0.015 99.9% | 120/s v141/85: -0.026 98.9% | 20/s v100/30: -0.025 100.0% | 20/s v100/85: -0.026 99.3%
+  tri 200 no flags           U+RS     120/s v30/30: -0.019 100.0% | 120/s v30/85: -0.017 100.0% | 120/s v141/30: -0.023 100.0% | 120/s v141/85: -0.021 100.0% | 20/s v100/30: -0.023 100.0% | 20/s v100/85: -0.024 100.0%
+  tri 200 FIX_INTERNAL_EDGES adopted  120/s v30/30: -0.015 100.0% | 120/s v30/85: -0.016 99.3% | 120/s v141/30: -0.015 99.9% | 120/s v141/85: -0.026 98.9% | 20/s v100/30: -0.025 100.0% | 20/s v100/85: -0.026 99.3%
+  tri 200 FIX_INTERNAL_EDGES U+RS     120/s v30/30: -0.019 100.0% | 120/s v30/85: -0.017 100.0% | 120/s v141/30: -0.023 100.0% | 120/s v141/85: -0.021 100.0% | 20/s v100/30: -0.023 100.0% | 20/s v100/85: -0.024 100.0%
+  tri  40 no flags           adopted  120/s v30/30: -0.030 100.0% | 120/s v30/85: -0.026 100.0% | 120/s v141/30: -0.030 100.0% | 120/s v141/85: -0.030 100.0% | 20/s v100/30: -0.030 100.0% | 20/s v100/85: -0.030 100.0%
+  tri  40 no flags           U+RS     120/s v30/30: -0.030 100.0% | 120/s v30/85: -0.028 100.0% | 120/s v141/30: -0.030 100.0% | 120/s v141/85: -0.030 100.0% | 20/s v100/30: -0.030 100.0% | 20/s v100/85: -0.030 100.0%
+  tri  40 FIX_INTERNAL_EDGES adopted  120/s v30/30: -0.030 100.0% | 120/s v30/85: -0.026 100.0% | 120/s v141/30: -0.030 100.0% | 120/s v141/85: -0.030 100.0% | 20/s v100/30: -0.030 100.0% | 20/s v100/85: -0.030 100.0%
+  tri  40 FIX_INTERNAL_EDGES U+RS     120/s v30/30: -0.030 100.0% | 120/s v30/85: -0.028 100.0% | 120/s v141/30: -0.030 100.0% | 120/s v141/85: -0.030 100.0% | 20/s v100/30: -0.030 100.0% | 20/s v100/85: -0.030 100.0%
+  tri  10 no flags           adopted  120/s v30/30: -0.030 100.0% | 120/s v30/85: -0.023 100.2% | 120/s v141/30: -0.030 100.0% | 120/s v141/85: -0.030 100.2% | 20/s v100/30: -0.030 100.0% | 20/s v100/85: -0.030 100.2%
+  tri  10 no flags           U+RS     120/s v30/30: -0.030 100.0% | 120/s v30/85: -0.024 100.2% | 120/s v141/30: -0.030 100.0% | 120/s v141/85: -0.026 100.2% | 20/s v100/30: -0.030 100.0% | 20/s v100/85: -0.030 100.2%
+  tri  10 FIX_INTERNAL_EDGES adopted  120/s v30/30: -0.030 100.0% | 120/s v30/85: -0.023 100.2% | 120/s v141/30: -0.030 100.0% | 120/s v141/85: -0.030 100.2% | 20/s v100/30: -0.030 100.0% | 20/s v100/85: -0.030 100.2%
+  tri  10 FIX_INTERNAL_EDGES U+RS     120/s v30/30: -0.030 100.0% | 120/s v30/85: -0.024 100.2% | 120/s v141/30: -0.030 100.0% | 120/s v141/85: -0.026 100.2% | 20/s v100/30: -0.030 100.0% | 20/s v100/85: -0.030 100.2%
+
+Over every run above (top 4.15): runs bit-identical to the adopted mover / runs, largest pose difference; guard reverts; recoveries (clear)
+  adopted  1661 / 1661  max |dpos| 0.00e+0  guard reverts 36459  recoveries 0 (0)
+  U+RS     2 / 1661  max |dpos| 4.08e+2  guard reverts 7187  recoveries 3352 (383)

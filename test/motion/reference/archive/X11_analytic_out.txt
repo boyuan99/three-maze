@@ -1,0 +1,28 @@
+(1) point SDF: max |A - B| and max |A - Rapier projectPoint distance| (points outside, 4,000 random points within 3 units of the surface)
+  slab 35 deg     |A-B| max 6.66e-15   |A-Rapier| max 1.58e-6 (3628 points)
+  slab 60 deg     |A-B| max 7.11e-15   |A-Rapier| max 1.14e-6 (3643 points)
+  slab 120 deg    |A-B| max 5.77e-15   |A-Rapier| max 9.48e-7 (3631 points)
+  slab 145 deg    |A-B| max 7.11e-15   |A-Rapier| max 8.67e-7 (3611 points)
+  ball R3         |A-B| max 0.00e+0   |A-Rapier| max 6.36e-7 (3472 points)
+  ball R25        |A-B| max 0.00e+0   |A-Rapier| max 2.97e-6 (1861 points)
+  cone upright    |A-B| max 8.88e-16   |A-Rapier| max -
+  cone inverted   |A-B| max 8.88e-16   |A-Rapier| max -
+(2) cylinder gap: max |method - brute force| over 300 random near-contact poses per shape and top (A minOverCyl; B closed form agentGap; B cylMinSDF)
+  slab 35 deg     top 2: poses 300 (brute-force gap -0.049..0.300)  |A minOverCyl - brute| max 0.00e+0  |B closed form - brute| max 7.49e-16  |B cylMinSDF - brute| max 4.44e-16
+  slab 35 deg     top 4.15: poses 300 (brute-force gap -0.050..0.298)  |A minOverCyl - brute| max 0.00e+0  |B closed form - brute| max 7.22e-16  |B cylMinSDF - brute| max 4.44e-16
+  slab 60 deg     top 2: poses 300 (brute-force gap -0.049..0.300)  |A minOverCyl - brute| max 0.00e+0  |B closed form - brute| max 9.99e-16  |B cylMinSDF - brute| max 8.88e-16
+  slab 60 deg     top 4.15: poses 300 (brute-force gap -0.049..0.298)  |A minOverCyl - brute| max 0.00e+0  |B closed form - brute| max 9.44e-16  |B cylMinSDF - brute| max 8.88e-16
+  slab 120 deg    top 2: poses 300 (brute-force gap -0.050..0.300)  |A minOverCyl - brute| max 0.00e+0  |B closed form - brute| max 2.00e-15  |B cylMinSDF - brute| max 1.78e-15
+  slab 120 deg    top 4.15: poses 300 (brute-force gap -0.050..0.300)  |A minOverCyl - brute| max 0.00e+0  |B closed form - brute| max 1.33e-15  |B cylMinSDF - brute| max 7.77e-16
+  slab 145 deg    top 2: poses 300 (brute-force gap -0.048..0.299)  |A minOverCyl - brute| max 0.00e+0  |B closed form - brute| max 6.66e-16  |B cylMinSDF - brute| max 6.66e-16
+  slab 145 deg    top 4.15: poses 300 (brute-force gap -0.050..0.299)  |A minOverCyl - brute| max 0.00e+0  |B closed form - brute| max 4.44e-16  |B cylMinSDF - brute| max 2.22e-16
+  ball R3         top 2: poses 300 (brute-force gap -0.049..0.298)  |A minOverCyl - brute| max 5.22e-6  |B closed form - brute| max 5.22e-6  |B cylMinSDF - brute| max 5.22e-6
+  ball R3         top 4.15: poses 300 (brute-force gap -0.050..0.300)  |A minOverCyl - brute| max 9.72e-6  |B closed form - brute| max 9.72e-6  |B cylMinSDF - brute| max 9.72e-6
+  ball R25        top 2: poses 300 (brute-force gap -0.049..0.297)  |A minOverCyl - brute| max 2.01e-6  |B closed form - brute| max 2.01e-6  |B cylMinSDF - brute| max 2.01e-6
+  ball R25        top 4.15: poses 300 (brute-force gap -0.050..0.299)  |A minOverCyl - brute| max 2.72e-6  |B closed form - brute| max 2.72e-6  |B cylMinSDF - brute| max 2.72e-6
+  cone upright    top 2: poses 300 (brute-force gap -0.050..0.298)  |A minOverCyl - brute| max 4.46e-6  |B closed form - brute| max 4.46e-6  |B cylMinSDF - brute| max 4.46e-6
+  cone upright    top 4.15: poses 300 (brute-force gap -0.048..0.300)  |A minOverCyl - brute| max 4.37e-6  |B closed form - brute| max 4.37e-6  |B cylMinSDF - brute| max 4.37e-6
+  cone inverted   top 2: poses 300 (brute-force gap -0.045..0.300)  |A minOverCyl - brute| max 6.30e-6  |B closed form - brute| max 6.30e-6  |B cylMinSDF - brute| max 6.30e-6
+  cone inverted   top 4.15: poses 300 (brute-force gap -0.050..0.299)  |A minOverCyl - brute| max 5.29e-6  |B closed form - brute| max 5.29e-6  |B cylMinSDF - brute| max 5.29e-6
+Brute-force resolution: side 0.5-degree x (top - 0.3) / 240 in height, caps 1 degree x r / 60: it over-estimates the true minimum by at most ~ r (1 - cos 0.25 deg) + slope x half-step, ~1e-3 on tilted faces;
+so differences of order 1e-3 mean agreement within the brute force resolution, and a method BELOW the brute force by more than that would indicate brute-force undersampling, not method error.
