@@ -44,6 +44,18 @@ afterAll(() => {
 
 const mazes = shippedMazes()
 
+/** Each solid sits at its mesh's position and carries the rotation v0.3's collider drops */
+async function expectSolidsAtTheirMeshes(config: V0SceneConfig) {
+  const { meshes } = await buildV0Scene(structuredClone(config), { aspect: 1, loaders: nodeLoaders })
+  const { solids } = v0Physics(config)
+  expect(solids.length).toBeGreaterThan(0)
+  for (const solid of solids) {
+    const { mesh } = meshes.find(entry => entry.objectIndex === solid.objectIndex)!
+    expect(solid.position).toEqual([mesh.position.x, mesh.position.y, mesh.position.z])
+    expect(solid.meshRotation).toEqual([mesh.rotation.x, mesh.rotation.y, mesh.rotation.z])
+  }
+}
+
 it('covers the six shipped mazes', () => {
   expect(mazes.map(maze => maze.name)).toEqual(['Example01', 'Hallway01', 'Hallway02', 'Hallway04', 'HallwaySerialMigrated', 'Hallway_fog'])
 })
@@ -59,17 +71,7 @@ describe.each(mazes)('$name', maze => {
     expect(viaJson(record)).toEqual(viaJson(await v03Record(maze)))
   })
 
-  it("gives each solid its mesh's position and rotation", async () => {
-    const config = readMaze(maze)
-    const { meshes } = await buildV0Scene(config, { aspect: 1, loaders: nodeLoaders })
-    const { solids } = v0Physics(config)
-    expect(solids.length).toBeGreaterThan(0)
-    for (const solid of solids) {
-      const { mesh } = meshes.find(entry => entry.objectIndex === solid.objectIndex)!
-      expect(solid.position).toEqual([mesh.position.x, mesh.position.y, mesh.position.z])
-      expect(solid.meshRotation).toEqual([mesh.rotation.x, mesh.rotation.y, mesh.rotation.z])
-    }
-  })
+  it("gives each solid its mesh's position and rotation", () => expectSolidsAtTheirMeshes(readMaze(maze)))
 })
 
 it("reports Example01's sphere as a dynamic body", () => {
@@ -96,7 +98,7 @@ describe('quirks (src/compat/v0/README.md)', () => {
       { name: 'rotated', geometry: box, rotation: { x: 0, y: Math.PI / 4, z: 0 }, position: { x: 3, y: 0.5, z: -2 }, physics: { enabled: true, type: 'static' } },
       { name: 'zero size', geometry: { type: 'box', width: 0, height: 0, depth: 0 }, physics: { enabled: true, restitution: 0.25 } },
       { name: 'cone', geometry: { type: 'cylinder', radiusTop: 0.2, radiusBottom: 1, height: 2 }, physics: { enabled: true, type: 'kinematic' } },
-      { name: 'plane', geometry: { type: 'plane', width: 5 }, physics: { enabled: true, type: 'dynamic' } },
+      { name: 'plane', geometry: { type: 'plane', width: 5 }, position: { x: -1, y: 0.25, z: 7 }, physics: { enabled: true, type: 'dynamic' } },
       { name: 'missing texture', geometry: box, material: { map: 'assets/missing.jpg', repeat: { x: 2, y: 2 } } },
       { name: 'textured', geometry: box, material: { map: 'assets/Chess_Pattern.jpg', repeat: { x: 2, y: 3 } }, castShadow: true }
     ]
@@ -136,6 +138,8 @@ describe('quirks (src/compat/v0/README.md)', () => {
     expect(meshes).toHaveLength(6)
     expect(record.physics.bodies).toHaveLength(6)        // five scene bodies and the player
     expect(record.physics.colliders.map(collider => collider.body)).toEqual([0, 1, 2, 3, 5])
+    expect(v0Physics(quirky).bodiesWithoutCollider)
+      .toEqual([{ objectIndex: 4, name: 'plane', body: 'dynamic', position: [-1, 0.25, 7] }])
 
     // Point lights: range 50 and decay 2 whatever the JSON says; unsupported light types are skipped
     const lights = record.scene.children.filter(node => node.light)
@@ -155,6 +159,28 @@ describe('quirks (src/compat/v0/README.md)', () => {
       calls: [['setSize', WINDOW.innerWidth, WINDOW.innerHeight, true]],
       writes: [['shadowMap.enabled', true], ['physicallyCorrectLights', true]]
     })
+  })
+
+  it("gives each solid its mesh's position and rotation", () => expectSolidsAtTheirMeshes(quirky))
+
+  it('sphere and cylinder sizes 0 become 1; a texture without repeat is not set to repeat', async () => {
+    const zeroCylinder = { type: 'cylinder', radiusTop: 0, radiusBottom: 0, height: 0 }
+    const record = await live({
+      _basePath: 'mazes/Hallway04/',
+      lights: [],
+      objects: [
+        { name: 'zero ball', geometry: { type: 'sphere', radius: 0 }, physics: { enabled: true } },
+        { name: 'zero cylinder', geometry: zeroCylinder, physics: { enabled: true } },
+        { name: 'no repeat', geometry: { type: 'box' }, material: { map: 'assets/Chess_Pattern.jpg' } }
+      ]
+    })
+    const meshes = record.scene.children.filter(node => node.type === 'Mesh')
+    expect(meshes[0].geometry!.parameters).toMatchObject({ radius: 1, widthSegments: 32 })
+    expect(meshes[1].geometry!.parameters).toMatchObject({ radiusTop: 1, radiusBottom: 1, height: 1 })
+    expect(record.physics.colliders.slice(0, 2).map(collider => collider.shape))
+      .toEqual([{ type: 'Ball', radius: 1 }, { type: 'Cylinder', halfHeight: 0.5, radius: 1 }])
+    expect((meshes[2].material as Record<string, any>).maps.map)
+      .toMatchObject({ wrapS: THREE.ClampToEdgeWrapping, wrapT: THREE.ClampToEdgeWrapping, repeat: [1, 1] })
   })
 
   it('the eye is 3.2 above the player body: 3.7 at the start', async () => {

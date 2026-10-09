@@ -122,7 +122,9 @@ label the scene in the UI.
   fails if v0.3's loader no longer builds the golden record, and if the port's record differs from
   v0.3's.
 - **Quirk fixtures** run through both loaders and must give equal records; the test also checks
-  quirks 1 to 14 directly, since the shipped mazes exercise only some of them.
+  quirks 1 to 14 directly, since the shipped mazes exercise only some of them (no shipped maze
+  rotates an object, gives a size 0 or a texture without `repeat`). It also checks that each solid
+  carries its mesh's position and rotation, on the mazes and on a fixture with a rotated box.
 - **DOM-free:** a scan for DOM globals and DOM-bound loaders in this folder, and a type check of this
   folder with only the ES2022 library (no DOM, no Node types).
 

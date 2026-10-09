@@ -54,6 +54,7 @@ declare module 'three' {
   export const WebGLRenderer: any
 
   export const RepeatWrapping: number
+  export const ClampToEdgeWrapping: number
   export const EquirectangularReflectionMapping: number
   export const ACESFilmicToneMapping: number
   export const NoToneMapping: number
