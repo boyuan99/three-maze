@@ -3,10 +3,9 @@
 // equal, and the Node result must match the analytic geometry. Plain data only, so that a result
 // can cross postMessage.
 import type { ColliderManifest } from '../../../src/motion/manifest.ts'
-import {
-  describeColliders, GROUPS, instantiate, refreshQueries,
-} from '../../../src/motion/instantiate.ts'
+import { describeColliders, GROUPS, instantiate } from '../../../src/motion/instantiate.ts'
 import type { ColliderRecord, QueryWorld, Rapier } from '../../../src/motion/instantiate.ts'
+import { refreshQueries } from '../../../src/motion/rapierCompat.ts'
 
 type Point = [number, number, number]
 

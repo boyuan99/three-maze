@@ -12,6 +12,7 @@ import { validateManifest } from './manifest.ts'
 import type {
   ColliderManifest, ManifestCollider, ManifestZone, Quat, SolidShape, Vec3,
 } from './manifest.ts'
+import { refreshQueries } from './rapierCompat.ts'
 
 export type Rapier = typeof RAPIER
 
@@ -55,17 +56,6 @@ export interface QueryWorld {
   entries: Map<number, ManifestEntry>
   /** Enables or disables an entry (a gate, a zone) and refreshes the scene queries. */
   setEnabled(id: string, enabled: boolean): void
-}
-
-/**
- * Makes the scene queries see every change to the colliders. Rapier 0.14.0 has
- * world.updateSceneQueries(); later builds dropped it, and there a step without bodies refreshes
- * the query structures (ADR-0001 R1; Rapier upgrade MOT-16).
- */
-export function refreshQueries(world: World): void {
-  const w = world as { updateSceneQueries?: () => void, step: () => void }
-  if (typeof w.updateSceneQueries === 'function') w.updateSceneQueries()
-  else w.step()
 }
 
 const vector = ([x, y, z]: Vec3) => ({ x, y, z })
