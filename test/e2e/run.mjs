@@ -17,10 +17,18 @@
 //   --ci               for shared CI runners: the sim self-test reports its tight timing
 //                      tolerances instead of asserting them
 //   --keep             keep the renderer build and the Electron profiles in the output folder
+//   --lock-wait S      seconds to wait at most for the bench lock while another bench run or timing
+//                      measurement holds it (default 3600)
+//   --no-wait          refuse at once (exit code 2) if the bench lock is held
+//
+// The bench lock (lib/benchLock.mjs) lets one bench run or timing measurement at a time use this
+// PC: a second run waits until the first has finished. results.json records the lock and the
+// machine load (tools/timing/machine-load.mjs) at the start, during the run and at the end.
 //
 // Exit code: 0 every check passed (known failures, reported as KNOWN FAILURE, do not count),
 // 1 a check failed, 2 the bench could not run (missing prerequisites, unsupported platform, bad
-// arguments, an unusable --out folder, port 8765 or 8795 taken: close three-maze first).
+// arguments, the bench lock not acquired, an unusable --out folder, port 8765 or 8795 taken:
+// close three-maze first).
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -30,6 +38,8 @@ import {
 } from './lib/proc.mjs'
 import { serveDir } from './lib/static-server.mjs'
 import { portTaken } from './lib/ports.mjs'
+import { acquireBenchLock, BenchBusyError } from './lib/benchLock.mjs'
+import { machineLoad, describeLoad, startCpuSampler } from '../../tools/timing/machine-load.mjs'
 import {
   readJson, analyzeSession, checkSessionOk, checkSessionMissingTeensy, checkSessionCrash,
   checkSessionRegisterTimeout, sessionFacts, analyzeLifecycle, checkLifecycle, lifecycleFacts
@@ -70,7 +80,7 @@ function usage (code) {
   process.exit(code)
 }
 function parseArgs (argv) {
-  const a = { only: null, duration: null, out: null, renderer: null, softwareGl: false, ci: false, keep: false, list: false }
+  const a = { only: null, duration: null, out: null, renderer: null, softwareGl: false, ci: false, keep: false, list: false, lockWait: 3600, noWait: false }
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i]
     const v = () => { if (i + 1 >= argv.length) usage(2); return argv[++i] }
@@ -83,10 +93,13 @@ function parseArgs (argv) {
     else if (k === '--ci') a.ci = true
     else if (k === '--keep') a.keep = true
     else if (k === '--list') a.list = true
+    else if (k === '--lock-wait') a.lockWait = Number(v())
+    else if (k === '--no-wait') a.noWait = true
     else if (k === '--help' || k === '-h') usage(0)
     else { console.error(`unknown argument: ${k}`); usage(2) }
   }
   if (a.duration !== null && !(a.duration >= 5 && a.duration <= 600)) { console.error('--duration: 5..600 seconds'); process.exit(2) }
+  if (!(a.lockWait >= 0)) { console.error('--lock-wait: seconds, 0 or more'); process.exit(2) }
   return a
 }
 const args = parseArgs(process.argv.slice(2))
@@ -114,6 +127,22 @@ function fail (message) {
   process.exit(2)
 }
 if (process.platform !== 'win32') fail('this bench runs on Windows only (pythonw.exe, Windows process and window APIs)')
+
+// The bench lock, before anything else: a second run waits here until the first has finished (or,
+// with --no-wait, refuses). It is released when this process exits, however it exits
+let benchLock
+try {
+  benchLock = await acquireBenchLock({
+    mode: 'exclusive',
+    purpose: `test/e2e/run.mjs --only ${selected.join(',')}`,
+    wait: !args.noWait,
+    timeoutS: args.lockWait,
+    log: (message) => console.error(`e2e: ${message}`)
+  })
+} catch (e) {
+  if (e instanceof BenchBusyError) fail(e.message)
+  throw e
+}
 for (const [what, file] of [['the repo venv python.exe (.venv/Scripts)', PYTHON], ['the repo venv pythonw.exe (.venv/Scripts)', PYTHONW]]) {
   if (!fs.existsSync(file)) fail(`missing ${what}: ${file}. Create the venv and install the backend requirements first (see README).`)
 }
@@ -168,6 +197,10 @@ const runStartEpoch = T0 / 1000
 const secs = (t) => ((Date.now() - t) / 1000).toFixed(1)
 console.log(`three-maze e2e: ${selected.join(', ')}`)
 console.log(`output: ${runDir}`)
+// What else loads this PC (other worktrees' runs, builds and tests), before this run starts anything
+const loadAtStart = await machineLoad()
+const cpuDuringRun = startCpuSampler()
+console.log(`bench lock ${benchLock.id} (waited ${benchLock.record().waited_s} s); machine load: ${describeLoad(loadAtStart)}`)
 
 // ---------------------------------------------------------------- shared setup
 async function checkPythonPackages () {
@@ -427,10 +460,17 @@ console.log(`  ${final.ok ? 'PASS' : 'FAIL'} ${final.name}: ${final.detail}`)
 if (!args.keep && !args.renderer) fs.rmSync(path.join(runDir, 'renderer'), { recursive: true, force: true })
 const ok = exitCode === 0 && final.ok && results.length === selected.length && results.every(r => r.ok)
 const knownFailures = results.flatMap(r => r.known_failures.map(c => `${r.scenario}: ${c}`))
+// The CPU load during the run includes this run's own processes; the end snapshot is taken after
+// they have stopped
+const cpuDuring = cpuDuringRun.stop()
+const loadAtEnd = await machineLoad()
 fs.writeFileSync(path.join(runDir, 'results.json'), JSON.stringify({
   ok, started: new Date(T0).toISOString(), seconds: +secs(T0), repo: REPO_ROOT, selected, software_gl: args.softwareGl,
-  ci: args.ci, known_failures: knownFailures, results, final
+  ci: args.ci, known_failures: knownFailures, results, final,
+  bench_lock: benchLock.record(),
+  machine_load: { start: loadAtStart, during_run_cpu: cpuDuring, end: loadAtEnd }
 }, null, 2))
+benchLock.release()
 console.log(`${ok ? 'PASSED' : 'FAILED'}: ${results.filter(r => r.ok).length}/${selected.length} scenarios in ${secs(T0)} s` +
   (knownFailures.length ? `, with ${knownFailures.length} KNOWN FAILURE${knownFailures.length > 1 ? 'S' : ''} (${knownFailures.join(', ')})` : '') +
   `; details in ${path.join(runDir, 'results.json')}`)
