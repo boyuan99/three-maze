@@ -9,6 +9,7 @@
     "build": "vite build",
     "electron:dev": "node start-dev.js",
     "electron:build": "vite build && electron-builder",
+    "protocol:types": "node scripts/gen-link-types.mjs",
     "postinstall": "node setup/setup-python.js",
     "test": "vitest run",
     "test:watch": "vitest",
