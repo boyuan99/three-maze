@@ -143,10 +143,10 @@ the end.
 - Not compared: `fall: 'none'`, which the reference does not have. The TypeScript mover rejects
   a sub-step whose ground ray finds no floor, so the agent stops at the edge and, unlike along a
   wall, does not slide along it (`test/frontend/motion/mover.test.ts`).
-- Found while porting: the mover must not refresh the scene queries after adding its own
-  collider. A refresh puts it into Rapier's query tree, which changes which of two contacts at the
-  same distance a cast reports first at the seam of two flush pieces; with it, 80 of the 1,661 t3
-  runs no longer matched, six of them in the fast tier's thin-wall group. No query of the mover
+- Found while porting: the mover must not refresh the scene queries after adding its own collider. A
+  refresh puts it into Rapier's query tree, which changes which of two contacts at the same distance
+  a cast reports first at the seam of two flush pieces; with it, 80 of the 1,661 t3 runs no longer
+  matched, 10 of them among the 20 runs of the fast tier's thin-wall group. No query of the mover
   sees its own collider, so nothing needs it.
 
 ### Cost

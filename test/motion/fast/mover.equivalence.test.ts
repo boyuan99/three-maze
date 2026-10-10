@@ -16,7 +16,7 @@ const groups: Record<string, RunResult[]> = {}
 
 beforeAll(async () => {
   groups.walls = await compareAll([...longWallRuns(200, 40), ...longWallRuns(400, 0)])
-  // Six of these runs change if the mover refreshes the scene queries after adding its own
+  // 10 of these 20 runs change if the mover refreshes the scene queries after adding its own
   // collider (src/motion/mover.ts), which no other group here shows
   groups.thin = await compareAll(
     thinWallRuns([400]).filter((r) => /split 40 141@20 90 deg/.test(r.name)))
