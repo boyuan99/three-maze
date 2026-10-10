@@ -1,0 +1,42 @@
+{
+  "type": "pose.batch",
+  "t": 9310410,
+  "data": {
+    "world": "hallway",
+    "poses": [
+      {
+        "seq": 2026,
+        "epoch": 3,
+        "t_dev_us": 9104000,
+        "x": 0.0,
+        "feet_y": 0.0,
+        "z": -95.3,
+        "yaw": 0.0,
+        "contact": false,
+        "airborne": false
+      },
+      {
+        "seq": 2027,
+        "epoch": 3,
+        "t_dev_us": 9108000,
+        "x": 0.0,
+        "feet_y": 0.0,
+        "z": -95.7,
+        "yaw": 0.0,
+        "contact": false,
+        "airborne": false
+      },
+      {
+        "seq": 2028,
+        "epoch": 3,
+        "t_dev_us": 9112000,
+        "x": 0.0,
+        "feet_y": 0.0,
+        "z": -96.1,
+        "yaw": 0.0,
+        "contact": false,
+        "airborne": false
+      }
+    ]
+  }
+}

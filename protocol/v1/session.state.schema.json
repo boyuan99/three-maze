@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://three-maze.example/link/v1/session.state.schema.json",
+  "title": "SessionStateMessage",
+  "description": "Runtime to every client: the session's state, sent after welcome, on every change, and with telemetry about every 100 ms while a session is configured (SPEC.md section 7).",
+  "type": "object",
+  "required": ["type", "t", "data"],
+  "properties": {
+    "type": { "const": "session.state" },
+    "t": { "$ref": "common.schema.json#/$defs/message_time" },
+    "data": { "$ref": "#/$defs/data" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "data": {
+      "title": "SessionStateData",
+      "type": "object",
+      "required": ["state"],
+      "properties": {
+        "state": {
+          "description": "The rig runtime's session state (plan item DPR-06a): idle -> configured -> armed -> running -> stopping -> complete or aborted.",
+          "enum": ["idle", "configured", "armed", "running", "stopping", "complete", "aborted"]
+        },
+        "session": {
+          "description": "The session; present in every state but idle.",
+          "$ref": "common.schema.json#/$defs/session_id"
+        },
+        "experiment": {
+          "description": "The experiment's registry id, never a file name.",
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "reason": {
+          "description": "Why the session is stopping or was aborted.",
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "device": {
+          "description": "The motion device's profile and guarantee level, as welcome gives it to the motion client; sent from armed on, so that monitors show what the session can claim about lost samples (plan item DPR-20).",
+          "$ref": "common.schema.json#/$defs/motion_device"
+        },
+        "telemetry": { "$ref": "#/$defs/telemetry" }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["configured", "armed", "running", "stopping", "complete", "aborted"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": { "required": ["session"] }
+        }
+      ]
+    },
+    "telemetry": {
+      "title": "Telemetry",
+      "description": "Numbers for the control window (plan items DPR-20, REN-6), about every 100 ms. Every field is optional: a runtime sends what it has. Counters count from the start of the session.",
+      "type": "object",
+      "properties": {
+        "samples": {
+          "description": "Device samples received.",
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "sample_rate_hz": {
+          "description": "Samples received per second over the last second.",
+          "type": "number",
+          "minimum": 0
+        },
+        "seq_gaps": {
+          "description": "Sequence gaps (device protocol v1, H3).",
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "samples_lost": {
+          "description": "Samples counted or inferred as lost.",
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "crc_errors": {
+          "description": "Device lines rejected by their checksum.",
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "parse_errors": {
+          "description": "Device lines rejected for any other reason.",
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "device_state": {
+          "description": "idle: not streaming; streaming: samples arrive; fault: the stream failed.",
+          "enum": ["idle", "streaming", "fault"]
+        },
+        "trials": {
+          "description": "Trials ended.",
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "rewards_commanded": {
+          "description": "Reward pulses commanded.",
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "rewards_acknowledged": {
+          "description": "Reward pulses with a done outcome.",
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "frames": {
+          "description": "Frames in the render host's frame log.",
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "late_frames": {
+          "description": "Late frame intervals so far (ADR-0003, Decision 2 counting rule).",
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "clock_check": {
+          "description": "The display-based frame-clock check (ADR-0003 1d): pending until its 5 s self-test ends.",
+          "enum": ["pending", "pass", "fail"]
+        },
+        "pose": { "$ref": "#/$defs/telemetry_pose" }
+      },
+      "additionalProperties": false
+    },
+    "telemetry_pose": {
+      "title": "TelemetryPose",
+      "description": "The latest pose the runtime received, for display only.",
+      "type": "object",
+      "required": ["seq", "x", "z", "yaw"],
+      "properties": {
+        "seq": { "$ref": "common.schema.json#/$defs/seq" },
+        "x": { "type": "number" },
+        "z": { "type": "number" },
+        "yaw": { "type": "number" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

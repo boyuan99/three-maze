@@ -1,0 +1,9 @@
+{
+  "type": "error",
+  "t": 9310600,
+  "data": {
+    "code": "bad_message",
+    "message": "hallway02_experiment.PY failed",
+    "path": "/data/samples/0/seq"
+  }
+}

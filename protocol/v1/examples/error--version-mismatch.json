@@ -1,0 +1,9 @@
+{
+  "type": "error",
+  "t": 512334020,
+  "re": "h1",
+  "data": {
+    "code": "version_mismatch",
+    "message": "hello asked for version 2.0; this runtime speaks 1.0"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://three-maze.example/link/v1/heartbeat.schema.json",
+  "title": "HeartbeatMessage",
+  "description": "Both directions, on a timer of period heartbeat_ms (20 ms) from welcome until the connection closes (SPEC.md section 6). The runtime's watchdog listens to the motion client's heartbeats.",
+  "type": "object",
+  "required": ["type", "t", "data"],
+  "properties": {
+    "type": { "const": "heartbeat" },
+    "t": { "$ref": "common.schema.json#/$defs/message_time" },
+    "data": { "$ref": "#/$defs/data" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "data": {
+      "title": "HeartbeatData",
+      "type": "object",
+      "required": ["n"],
+      "properties": {
+        "n": {
+          "description": "Heartbeat number on this connection and in this direction: 0 for the first, then +1 for each, so a receiver can count missing heartbeats.",
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "last_seq": {
+          "description": "From the motion client: the last sample it has processed. From the runtime: the last sample it has sent. Absent before the first sample.",
+          "$ref": "common.schema.json#/$defs/seq"
+        },
+        "epoch": {
+          "description": "From the motion client: its current epoch.",
+          "$ref": "common.schema.json#/$defs/epoch"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "type": "render.report",
+  "t": 9412011,
+  "data": {
+    "kind": "long_tasks",
+    "time_origin_us": 1792765391123456,
+    "entries": [
+      { "entry": "longtask", "name": "self", "t_start_us": 9101200, "duration_us": 61000 },
+      {
+        "entry": "long-animation-frame",
+        "name": "long-animation-frame",
+        "t_start_us": 9101100,
+        "duration_us": 74800,
+        "blocking_us": 24800,
+        "render_start_us": 9162400,
+        "style_layout_start_us": 9163000
+      },
+      { "entry": "handler", "name": "posePort", "t_start_us": 9101300, "duration_us": 60500 }
+    ]
+  }
+}

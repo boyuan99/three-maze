@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://three-maze.example/link/v1/error.schema.json",
+  "title": "ErrorMessage",
+  "description": "Either direction: the reply to a request that was refused (with re), or a report about a message that had no id (without re) (SPEC.md section 12).",
+  "type": "object",
+  "required": ["type", "t", "data"],
+  "properties": {
+    "type": { "const": "error" },
+    "t": { "$ref": "common.schema.json#/$defs/message_time" },
+    "re": { "$ref": "common.schema.json#/$defs/request_id" },
+    "data": { "$ref": "#/$defs/data" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "data": {
+      "title": "ErrorData",
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "description": "What went wrong; SPEC.md section 12 lists the codes and what the receiver does.",
+          "enum": [
+            "bad_json",
+            "bad_message",
+            "unknown_type",
+            "version_mismatch",
+            "unauthorized",
+            "role_conflict",
+            "session_mismatch",
+            "not_permitted",
+            "internal"
+          ]
+        },
+        "message": {
+          "description": "One line for people and agents, without paths.",
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "path": {
+          "description": "For bad_message: where in the offending message the first problem is.",
+          "$ref": "common.schema.json#/$defs/pointer"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "type": "session.state",
+  "t": 520410118,
+  "data": {
+    "state": "running",
+    "session": "2026-10-23T14-03-11Z_m12",
+    "experiment": "public/mazes/Hallway04.json",
+    "telemetry": {
+      "samples": 2029,
+      "sample_rate_hz": 250.0,
+      "seq_gaps": 1,
+      "samples_lost": 2,
+      "crc_errors": 0,
+      "parse_errors": 0,
+      "device_state": "streaming",
+      "trials": 3,
+      "rewards_commanded": 3,
+      "rewards_acknowledged": 3,
+      "frames": 487,
+      "late_frames": 0,
+      "clock_check": "pass",
+      "pose": { "seq": 2028, "x": -0.42, "z": -96.1, "yaw": 0.07 }
+    }
+  }
+}

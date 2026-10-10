@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://three-maze.example/link/v1/hello.schema.json",
+  "title": "HelloMessage",
+  "description": "Client to runtime, the first message on a connection (SPEC.md section 5). A request: the runtime answers with welcome or error.",
+  "type": "object",
+  "required": ["type", "t", "id", "data"],
+  "properties": {
+    "type": { "const": "hello" },
+    "t": { "$ref": "common.schema.json#/$defs/message_time" },
+    "id": { "$ref": "common.schema.json#/$defs/request_id" },
+    "data": { "$ref": "#/$defs/data" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "data": {
+      "title": "HelloData",
+      "type": "object",
+      "required": ["protocol", "version", "role", "client"],
+      "properties": {
+        "protocol": {
+          "description": "Protocol name.",
+          "const": "three-maze/link"
+        },
+        "version": {
+          "description": "The highest version of this protocol the client speaks, for example 1.0.",
+          "$ref": "common.schema.json#/$defs/protocol_version"
+        },
+        "role": {
+          "description": "motion: the motion worker of the scene window (at most one per session). monitor: an observer such as the control window.",
+          "enum": ["motion", "monitor"]
+        },
+        "client": {
+          "description": "The client program and its version.",
+          "$ref": "common.schema.json#/$defs/software"
+        },
+        "session": {
+          "description": "The session the client was started for. Required for role motion: the runtime refuses a motion client of another session.",
+          "$ref": "common.schema.json#/$defs/session_id"
+        },
+        "versions": {
+          "description": "Versions of the components the client runs (renderer, physics, browser engine), for the session record. Required for role motion.",
+          "$ref": "common.schema.json#/$defs/versions"
+        },
+        "token": {
+          "description": "Reserved for plan item DPR-16a: the session token the runtime handed to the client. Runtimes before DPR-16a ignore it.",
+          "$ref": "common.schema.json#/$defs/token"
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "role": { "const": "motion" } }, "required": ["role"] },
+          "then": { "required": ["session", "versions"] }
+        }
+      ]
+    }
+  }
+}

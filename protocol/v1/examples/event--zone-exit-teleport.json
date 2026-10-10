@@ -1,0 +1,14 @@
+{
+  "type": "event",
+  "t": 9310432,
+  "data": {
+    "kind": "zone",
+    "seq": 2028,
+    "epoch": 4,
+    "t_dev_us": 9112000,
+    "world": "hallway",
+    "zone": "reward",
+    "edge": "exit",
+    "cause": "teleport"
+  }
+}

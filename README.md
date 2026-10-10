@@ -209,6 +209,8 @@ kill <PID>
 - `/mazes` - Maze configuration files
 - `/electron` - Electron-specific code
 - `/public` - Static assets
+- `/protocol` - the link protocol between the rig runtime, the motion worker and monitors:
+  schemas, examples and specification ([protocol/v1/SPEC.md](protocol/v1/SPEC.md))
 
 ## Technical Stack
 

@@ -1,0 +1,14 @@
+{
+  "type": "hello",
+  "t": 1203411,
+  "id": "h1",
+  "data": {
+    "protocol": "three-maze/link",
+    "version": "1.0",
+    "role": "motion",
+    "client": { "impl": "three-maze-motion-worker", "version": "0.3.0" },
+    "session": "2026-10-23T14-03-11Z_m12",
+    "versions": { "electron": "44.7.0", "three": "0.169.0", "rapier3d-compat": "0.14.0" },
+    "token": "9F2C4E1AB37D0E5F9A8B7C6D5E4F3A21"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "type": "session.state",
+  "t": 523997410,
+  "data": {
+    "state": "aborted",
+    "session": "2026-10-23T14-03-11Z_m12",
+    "experiment": "linear_track",
+    "reason": "no device sample for longer than T_fault"
+  }
+}

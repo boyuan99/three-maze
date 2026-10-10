@@ -1,0 +1,5 @@
+{
+  "type": "event",
+  "t": 7360051,
+  "data": { "kind": "land", "seq": 1550, "epoch": 2, "t_dev_us": 7200000, "world": "hallway" }
+}

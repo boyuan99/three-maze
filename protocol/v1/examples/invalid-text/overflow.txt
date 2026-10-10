@@ -1,0 +1,1 @@
+{"type": "pose.batch", "t": 5, "data": {"world": "hallway", "poses": [{"seq": 1, "epoch": 0, "t_dev_us": 4000, "x": 1e400, "feet_y": 0, "z": 0, "yaw": 0, "contact": false, "airborne": false}]}}

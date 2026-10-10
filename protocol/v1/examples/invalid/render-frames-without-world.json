@@ -1,0 +1,42 @@
+{
+  "type": "render.report",
+  "t": 9312004,
+  "data": {
+    "kind": "frames",
+    "time_origin_us": 1792765391123456,
+    "frames": [
+      {
+        "frame": 486,
+        "t_raf_us": 8966650,
+        "t_start_us": 8966900,
+        "t_end_us": 8968100,
+        "epoch": 3,
+        "seq": 2014,
+        "seq_next": 2015,
+        "t_dev_us": 9050100,
+        "flags": 0
+      },
+      {
+        "frame": 487,
+        "t_raf_us": 8983317,
+        "t_start_us": 8983500,
+        "t_end_us": 8984700,
+        "epoch": 3,
+        "seq": 2018,
+        "seq_next": 2019,
+        "t_dev_us": 9066900,
+        "flags": 0
+      },
+      {
+        "frame": 488,
+        "t_raf_us": 8999983,
+        "t_start_us": 9000200,
+        "t_end_us": 9001400,
+        "epoch": 3,
+        "seq": 2022,
+        "t_dev_us": 9088000,
+        "flags": 2
+      }
+    ]
+  }
+}

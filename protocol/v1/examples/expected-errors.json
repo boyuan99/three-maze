@@ -1,0 +1,237 @@
+{
+  "$comment": "Malformed examples and the problems both validators (src/protocol/validate.js, threemaze/link/validate.py) must report for each: exactly these, as (path, keyword) pairs sorted by path and keyword. invalid/ holds messages, invalid-text/ raw frame texts.",
+  "cases": {
+    "invalid/unknown-type.json": {
+      "why": "a type that version 1 does not have",
+      "issues": [{ "path": "/type", "keyword": "enum" }]
+    },
+    "invalid/t-float-ms.json": {
+      "why": "t in milliseconds with a fraction, not whole microseconds",
+      "issues": [{ "path": "/t", "keyword": "type" }]
+    },
+    "invalid/t-negative.json": {
+      "why": "a monotonic clock in microseconds is never negative here",
+      "issues": [{ "path": "/t", "keyword": "minimum" }]
+    },
+    "invalid/t-beyond-2-53.json": {
+      "why": "an integer JavaScript cannot hold exactly",
+      "issues": [{ "path": "/t", "keyword": "maximum" }]
+    },
+    "invalid/no-data.json": {
+      "why": "every message has data",
+      "issues": [{ "path": "", "keyword": "required" }]
+    },
+    "invalid/envelope-seq.json": {
+      "why": "an envelope field version 1 does not have",
+      "issues": [{ "path": "", "keyword": "additionalProperties" }]
+    },
+    "invalid/heartbeat-with-id.json": {
+      "why": "a heartbeat is not a request",
+      "issues": [{ "path": "", "keyword": "additionalProperties" }]
+    },
+    "invalid/hello-without-id.json": {
+      "why": "hello is a request and needs an id",
+      "issues": [{ "path": "", "keyword": "required" }]
+    },
+    "invalid/hello-wrong-protocol.json": {
+      "why": "the protocol name of the 2026-10 design sketch",
+      "issues": [{ "path": "/data/protocol", "keyword": "const" }]
+    },
+    "invalid/hello-role-renderer.json": {
+      "why": "the render host never connects itself (ADR-0003 1a)",
+      "issues": [{ "path": "/data/role", "keyword": "enum" }]
+    },
+    "invalid/hello-motion-without-session.json": {
+      "why": "a motion client names its session",
+      "issues": [{ "path": "/data", "keyword": "required" }]
+    },
+    "invalid/hello-motion-without-versions.json": {
+      "why": "a motion client gives its renderer and physics versions for the session record",
+      "issues": [{ "path": "/data", "keyword": "required" }]
+    },
+    "invalid/hello-token-upper-case.json": {
+      "why": "tokens are lower-case hexadecimal",
+      "issues": [{ "path": "/data/token", "keyword": "pattern" }]
+    },
+    "invalid/hello-version-component-path.json": {
+      "why": "a component id with a slash",
+      "issues": [{ "path": "/data/versions", "keyword": "pattern" }]
+    },
+    "invalid/welcome-without-re.json": {
+      "why": "welcome answers a hello",
+      "issues": [{ "path": "", "keyword": "required" }]
+    },
+    "invalid/welcome-heartbeat-1000.json": {
+      "why": "the design sketch's 1 s heartbeat cannot serve a 100 ms watchdog",
+      "issues": [{ "path": "/data/heartbeat_ms", "keyword": "const" }]
+    },
+    "invalid/welcome-motion-without-device.json": {
+      "why": "a motion client learns the device's guarantees",
+      "issues": [{ "path": "/data", "keyword": "required" }]
+    },
+    "invalid/welcome-motion-without-world.json": {
+      "why": "a motion client learns the world it starts in (rule C4)",
+      "issues": [{ "path": "/data", "keyword": "required" }]
+    },
+    "invalid/welcome-session-path.json": {
+      "why": "a session is a name, not a folder",
+      "issues": [{ "path": "/data/session", "keyword": "pattern" }]
+    },
+    "invalid/session-state-experiment-py.json": {
+      "why": "no .py names on the wire",
+      "issues": [{ "path": "/data/experiment", "keyword": "pattern" }]
+    },
+    "invalid/session-state-experiment-file.json": {
+      "why": "experiments are named by registry id, not by file",
+      "issues": [{ "path": "/data/experiment", "keyword": "pattern" }]
+    },
+    "invalid/session-state-running-without-session.json": {
+      "why": "every state but idle names its session",
+      "issues": [{ "path": "/data", "keyword": "required" }]
+    },
+    "invalid/session-state-telemetry-gain.json": {
+      "why": "the v1 path has no gain estimate (ADR-0003 1d)",
+      "issues": [{ "path": "/data/telemetry", "keyword": "additionalProperties" }]
+    },
+    "invalid/sample-velocity.json": {
+      "why": "v0.3's velocity payload: samples carry displacements",
+      "issues": [{ "path": "/data/samples/0", "keyword": "additionalProperties" }]
+    },
+    "invalid/sample-d-two-numbers.json": {
+      "why": "d is [forward, left, dyaw]",
+      "issues": [{ "path": "/data/samples/1/d", "keyword": "minItems" }]
+    },
+    "invalid/sample-d-four-numbers.json": {
+      "why": "d is [forward, left, dyaw]",
+      "issues": [{ "path": "/data/samples/1/d", "keyword": "items" }]
+    },
+    "invalid/sample-seq-beyond-uint32.json": {
+      "why": "seq wraps at 2^32",
+      "issues": [{ "path": "/data/samples/0/seq", "keyword": "maximum" }]
+    },
+    "invalid/sample-dt-zero.json": {
+      "why": "a window has a length",
+      "issues": [{ "path": "/data/samples/0/dt_us", "keyword": "minimum" }]
+    },
+    "invalid/sample-raw-17-axes.json": {
+      "why": "a device has at most 16 axes",
+      "issues": [{ "path": "/data/samples/0/raw", "keyword": "maxItems" }]
+    },
+    "invalid/sample-flags-beyond-16-bits.json": {
+      "why": "flags has 16 bits",
+      "issues": [{ "path": "/data/samples/0/flags", "keyword": "maximum" }]
+    },
+    "invalid/sample-batch-empty.json": {
+      "why": "a batch holds at least one sample",
+      "issues": [{ "path": "/data/samples", "keyword": "minItems" }]
+    },
+    "invalid/sample-without-gap.json": {
+      "why": "every sample says how many were lost before it",
+      "issues": [{ "path": "/data/samples/3", "keyword": "required" }]
+    },
+    "invalid/pose-batch-without-world.json": {
+      "why": "poses name their world (plan item TS-09)",
+      "issues": [{ "path": "/data", "keyword": "required" }]
+    },
+    "invalid/pose-contact-number.json": {
+      "why": "contact is a boolean",
+      "issues": [{ "path": "/data/poses/2/contact", "keyword": "type" }]
+    },
+    "invalid/event-zone-without-edge.json": {
+      "why": "a zone event says enter or exit",
+      "issues": [{ "path": "/data", "keyword": "required" }, { "path": "/data", "keyword": "unevaluatedProperties" }]
+    },
+    "invalid/event-zone-with-lost.json": {
+      "why": "a field of another event kind",
+      "issues": [{ "path": "/data", "keyword": "unevaluatedProperties" }]
+    },
+    "invalid/event-without-world.json": {
+      "why": "events name their world (plan item TS-09)",
+      "issues": [{ "path": "/data", "keyword": "required" }]
+    },
+    "invalid/event-epoch-negative.json": {
+      "why": "epochs count up from 0",
+      "issues": [{ "path": "/data/epoch", "keyword": "minimum" }]
+    },
+    "invalid/event-kind-contact.json": {
+      "why": "an event kind version 1 does not have",
+      "issues": [{ "path": "/data/kind", "keyword": "enum" }]
+    },
+    "invalid/event-seq-gap-zero.json": {
+      "why": "a gap loses at least one sample",
+      "issues": [{ "path": "/data", "keyword": "unevaluatedProperties" }, { "path": "/data/lost", "keyword": "minimum" }]
+    },
+    "invalid/render-clock-gain.json": {
+      "why": "the v1 clock check has no gain field (plan item REN-4)",
+      "issues": [{ "path": "/data", "keyword": "unevaluatedProperties" }]
+    },
+    "invalid/render-frames-without-world.json": {
+      "why": "frame batches name their world (plan item TS-09)",
+      "issues": [{ "path": "/data", "keyword": "required" }, { "path": "/data", "keyword": "unevaluatedProperties" }]
+    },
+    "invalid/render-long-task-source-url.json": {
+      "why": "script attribution would carry file URLs",
+      "issues": [{ "path": "/data", "keyword": "unevaluatedProperties" }, { "path": "/data/entries/1", "keyword": "additionalProperties" }]
+    },
+    "invalid/render-ready-setting-path.json": {
+      "why": "a setting names a constant, never a file",
+      "issues": [{ "path": "/data", "keyword": "unevaluatedProperties" }, { "path": "/data/settings/envMap", "keyword": "anyOf" }]
+    },
+    "invalid/error-message-windows-path.json": {
+      "why": "no file paths in text",
+      "issues": [{ "path": "/data/message", "keyword": "pattern" }]
+    },
+    "invalid/error-message-py-name.json": {
+      "why": "no .py names in text, in any letter case",
+      "issues": [{ "path": "/data/message", "keyword": "pattern" }]
+    },
+    "invalid/error-message-newline.json": {
+      "why": "text is one line",
+      "issues": [{ "path": "/data/message", "keyword": "pattern" }]
+    },
+    "invalid/error-message-line-separator.json": {
+      "why": "U+2028 ends a line for JavaScript and for Python's str.splitlines",
+      "issues": [{ "path": "/data/message", "keyword": "pattern" }]
+    },
+    "invalid/error-path-not-pointer.json": {
+      "why": "a pointer into the message, never a file path",
+      "issues": [{ "path": "/data/path", "keyword": "pattern" }]
+    },
+    "invalid/error-unknown-code.json": {
+      "why": "codes come from the list",
+      "issues": [{ "path": "/data/code", "keyword": "enum" }]
+    },
+    "invalid/id-trailing-newline.json": {
+      "why": "Python's $ would accept this; the patterns end in (?![\\s\\S])",
+      "issues": [{ "path": "/data", "keyword": "unevaluatedProperties" }, { "path": "/data/zone", "keyword": "pattern" }]
+    },
+    "invalid/ack-with-field.json": {
+      "why": "the core subset's ack carries no fields",
+      "issues": [{ "path": "/data", "keyword": "additionalProperties" }]
+    },
+    "invalid-text/nan.txt": {
+      "why": "NaN is not JSON",
+      "issues": [{ "path": "", "keyword": "json" }]
+    },
+    "invalid-text/infinity.txt": {
+      "why": "Infinity is not JSON",
+      "issues": [{ "path": "", "keyword": "json" }]
+    },
+    "invalid-text/overflow.txt": {
+      "why": "1e400 parses to an infinite number in JavaScript and Python",
+      "issues": [{ "path": "/data/poses/0/x", "keyword": "type" }]
+    },
+    "invalid-text/integer-overflow.txt": {
+      "why": "a 401-digit integer is an infinite number in JavaScript; Python must refuse it too",
+      "issues": [{ "path": "/data/poses/0/x", "keyword": "type" }]
+    },
+    "invalid-text/truncated.txt": {
+      "why": "a cut-off frame",
+      "issues": [{ "path": "", "keyword": "json" }]
+    },
+    "invalid-text/not-an-object.txt": {
+      "why": "one message per frame, as an object",
+      "issues": [{ "path": "", "keyword": "type" }]
+    }
+  }
+}
