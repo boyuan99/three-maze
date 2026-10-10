@@ -8,12 +8,13 @@ compiler or Rapier" (`docs/adr/0001-player-mover.md:81`). Roadmap phase 1 builds
 | Item | Adds |
 |---|---|
 | MOT-01 (this folder's start) | the vendored reference mover, the two tiers, the CI job `motion-suite` |
-| MOT-03 | `fast/mover.equivalence.test.ts`: the TypeScript mover against the reference, sample for sample |
+| MOT-03 | `equivalence.ts`, `fast/mover.equivalence.test.ts`, `full/mover.walls.test.ts`, `full/mover.rooms.test.ts`: the TypeScript mover against the reference, sample for sample |
 | MOT-05a | `full/`: ADR-0001 Validation 1-5 cases behind a mover interface, run on the reference |
 
-The collider tests of `src/motion/instantiate.ts` (MOT-07) and the tests of the motion core
-`src/motion/core.ts` with movers that have no collisions (MOT-02) are ordinary unit tests in
-`test/frontend/motion/`.
+The collider tests of `src/motion/instantiate.ts` (MOT-07), the tests of the motion core
+`src/motion/core.ts` with movers that have no collisions (MOT-02) and the hover mover's own tests
+(`src/motion/mover.ts`, MOT-03: eye height, falls, events, worker bundle) are ordinary unit tests
+in `test/frontend/motion/`.
 
 ## Layout
 
@@ -24,6 +25,9 @@ The collider tests of `src/motion/instantiate.ts` (MOT-07) and the tests of the 
   has the SHA-256 recorded here. Each file starts with a provenance header: source path, SHA-256,
   what it is, and what was changed.
 - `reference/archive/`: outputs the study archived, copied unchanged. The tests reproduce them.
+- `equivalence.ts`: the harness that runs the reference and the TypeScript mover side by side
+  (MOT-03), with case generators that rebuild the worlds and inputs of the study's scripts t1-t5,
+  and one run that forces undos after airborne sweeps.
 - `fast/`: the fast tier. `npm test` runs it with the unit tests (CI job `javascript`).
 - `full/`: the long runs of the full tier.
 - `vitest.config.mjs`: the full tier's configuration. `npm run test:motion` runs `fast/` and
@@ -63,10 +67,10 @@ uses them, as an independently written second distance function.
 
 ## The two tiers
 
-**Fast tier** (`fast/reference.test.mjs`, about 1.3 s). Checks that the Rapier build is 0.14.0,
-the build the archived numbers come from, and recomputes two rows of section S1 (long walls) of
-the t3 study with the U+RS mover at top 4.15, using the code of `t3_walls.mjs` for those rows.
-Both must equal the archived rows in every field except the time per sample:
+**Fast tier** (about 10 s). `fast/reference.test.mjs` (about 1.3 s) checks that the Rapier build
+is 0.14.0, the build the archived numbers come from, and recomputes two rows of section S1 (long
+walls) of the t3 study with the U+RS mover at top 4.15, using the code of `t3_walls.mjs` for
+those rows. Both must equal the archived rows in every field except the time per sample:
 
 ```
   L200 split 40 U+RS     -0.020 / 0 / 0 / 100.0 / 0.015 / * / 0 / 0 / 15600
@@ -78,7 +82,14 @@ time / guard reverts / recoveries / KCC wall contacts, over 15 runs each: 3 spee
 regimes x 5 angles). The first is a capped wall (ADR-0001 R5.2); the second, a 400-unit wall in
 one piece, goes through the recovery of R6 six times.
 
-**Full tier** (`full/`, about 3 minutes with one worker). Runs two study scripts unchanged in a
+`fast/mover.equivalence.test.ts` (about 10 s) compares the TypeScript mover with the reference
+(next section) on those two S1 rows, on a thin wall of section S2 hit head-on from 20 start
+phases (the runs that show a query refresh, below), on 10 s per rate in both soak rooms, on
+directed runs at inclined faces, balls, cones, steps, a drop and falls, and on long walls, the
+T-junction, the corner and the wedges in worlds built by `instantiate()`: 163 runs, 61,335
+samples, all identical, no guard undo.
+
+**Full tier** (`full/`, about 5.6 minutes with one worker). Runs two study scripts unchanged in a
 fresh Node process, with the archived settings, and compares their whole output with the archive:
 
 - `t3_walls.test.mjs`: the vertical-wall suite t3 (long walls, thin walls, seams, T-junction,
@@ -91,10 +102,70 @@ fresh Node process, with the archived settings, and compares their whole output 
   (`lib/geom.mjs`) against approach A's, against Rapier's `projectPoint` and against a brute-force
   minimum over the agent cylinder. Byte for byte.
 
+It also compares the TypeScript mover with the reference on more inputs:
+
+- `mover.walls.test.ts`: the inputs of all 1,661 t3 runs. Every pose identical; the mover's totals
+  reproduce the archive's last line for U+RS: 7,187 guard undos and 3,352 recoveries, 383 of them
+  clear. This is the tier that reaches the undo path (the uncapped 1,200-unit thin wall).
+- `mover.rooms.test.ts`: both soak rooms, 4 seeds x 30 s at 20, 120, 250 and 1,000 samples/s,
+  490 directed runs, and one run that forces undos after airborne sweeps (a lid enabled at run
+  time around the falling agent; 4 airborne undos); it prints the cost table below.
+
 On 2026-10-09 both tiers reproduced the archive exactly on Rapier 0.14.0. The archive was written
 with Node 22.16.0 (V8 12.4). Run with Electron 44.7.0's Node 24.21.0 (V8 15.2,
 `ELECTRON_RUN_AS_NODE=1`), `t3_walls.mjs` and `xanalytic.mjs` gave the same output too (t3 with
 its time field masked), so a newer V8 alone did not change any number.
+
+## The TypeScript mover against the reference
+
+ADR-0001's evidence was produced with the reference mover, so the shipped mover
+(`src/motion/mover.ts`, a port restructured into per-sub-step calls) must reproduce it bit for bit
+(plan item MOT-03). `equivalence.ts` builds every case twice with the vendored generators, runs
+the reference (`makeHover`, `fix: true`, `top: 4.15`) in one world and the TypeScript mover (eye
+height 3.7) through the motion core (`src/motion/core.ts`) in the other, sample by sample, and
+compares x, feet, z and the airborne state of every sample with `Object.is`, and every counter at
+the end.
+
+- The reference takes a world-frame displacement per sample, the core a body-frame one. At yaw 0
+  the sample d = [-dz, -dx, 0] is the same displacement exactly (sin 0 = 0, cos 0 = 1). Samples
+  with rotation cannot be compared this way: the reference has no heading. ADR-0001 Validation 1-5
+  with rotating streams cover them (MOT-05a on the reference, MOT-05b on the TypeScript mover).
+- Device time is whole microseconds (device protocol v1, section 7.2), so both movers get
+  dt = dt_us / 1e6: at 120 samples/s 0.008333 s instead of the study's 1/120. dt only enters
+  falls, so the comparison is unaffected, but runs with falls differ from the study's in the last
+  digits; no archived number used here depends on them.
+- A world built by `instantiate()` from a collider manifest gives the same poses as the study's
+  builders (`viaManifest`: the reference world's cuboids read back into a manifest).
+- Not reached by any compared run: a floor over 0.3 higher under the ground ray (at a step the
+  controller meets the step's side first). An undo after an airborne sweep is reached only by the
+  forced run in `full/mover.rooms.test.ts`: there both movers keep the undone samples' gravity in
+  vy, although ADR-0001 R6 lists vy among the values an undo restores.
+- Not compared: `fall: 'none'`, which the reference does not have. The TypeScript mover rejects
+  a sub-step whose ground ray finds no floor, so the agent stops at the edge and, unlike along a
+  wall, does not slide along it (`test/frontend/motion/mover.test.ts`).
+- Found while porting: the mover must not refresh the scene queries after adding its own
+  collider. A refresh puts it into Rapier's query tree, which changes which of two contacts at the
+  same distance a cast reports first at the seam of two flush pieces; with it, 80 of the 1,661 t3
+  runs no longer matched, six of them in the fast tier's thin-wall group. No query of the mover
+  sees its own collider, so nothing needs it.
+
+### Cost
+
+`full/mover.rooms.test.ts` measures the time per sample of both movers, interleaved sample by
+sample on the same inputs, as the study's t6 did. Development PC, 2026-10-09, the file run alone
+(`npx vitest run --config test/motion/vitest.config.mjs test/motion/full/mover.rooms.test.ts`;
+other work on the PC, CPU load 21-28 % before and after); median over 4 seeds x 30 s of the run
+means, µs per sample, reference / TypeScript mover through the core:
+
+| Room | 20/s | 120/s | 250/s | 1,000/s |
+|---|---|---|---|---|
+| walls only | 792.7 / 791.1 | 158.0 / 158.3 | 87.6 / 87.4 | 49.0 / 49.1 |
+| inclined room | 889.6 / 888.1 | 170.9 / 170.8 | 99.6 / 99.6 | 56.3 / 56.2 |
+
+The two agree within 1 % in every cell. The study's own figures for the reference, from runs of
+60 s with three movers interleaved (t6, `mover_fix/out/t6_cost_ratios_out.txt`): 1,196 / 257 /
+148 / 82 µs (walls only) and 1,502 / 290 / 168 / 94 µs (inclined room); 52 µs at 1,000 samples/s
+in X13 (`verify/README.md`).
 
 ## Rules
 
@@ -110,7 +181,7 @@ its time field masked), so a newer V8 alone did not change any number.
 
 ```
 npm test                    # unit tests and the fast tier
-npm run test:motion         # fast and full tier (about 1.5 min on the development PC)
+npm run test:motion         # fast and full tier (about 2 min on the development PC)
 cd test/motion/reference && TOP=4.15 MOVERS='[["U+RS",{"fix":true}]]' node t3_walls.mjs s1
 ```
 
@@ -123,8 +194,8 @@ them before setting the archived values.
 Node runs the reference (`.mjs`) directly. TypeScript modules under `src/motion/` run under Vitest
 until the owner decides how Node runs TypeScript (decision D4 of the phase-1 plan). They use
 relative `.ts` imports and erasable syntax only, so Node 22.16.0 also runs them with
-`--experimental-strip-types` (checked on 2026-10-09 with `src/motion/instantiate.ts` and
-`src/motion/core.ts`).
+`--experimental-strip-types` (checked on 2026-10-09 with `src/motion/instantiate.ts`,
+`src/motion/core.ts` and `src/motion/mover.ts`).
 
 ## Runtimes
 
@@ -136,6 +207,18 @@ inside the end-to-end bench lock (no bench run in parallel; CPU load 3-9 % befor
 | `npm test` (unit tests and fast tier) | 2.3 s (fast tier 1.3 s) |
 | `npm run test:motion` (Vitest's default workers) | 95.5 s |
 | the same with one worker (`--maxWorkers=1 --minWorkers=1`) | 175.1 s: t3 98.7 s, X11 73.6 s, fast tier 1.3 s |
+
+With the TypeScript mover's comparisons (MOT-03), 2026-10-09, without the bench lock (other work
+on the PC: CPU load 21-28 % around the cost run, 1 % right after the one-worker run):
+
+| Run | Wall time |
+|---|---|
+| `npm test` (unit tests and fast tier) | 9.9 s (mover comparison 8.8 s) |
+| `npm run test:motion` (Vitest's default workers) | 114.4 s |
+| the same with one worker | 338.1 s: mover t3 112.5 s, t3 92.5 s, mover rooms 63.4 s, X11 57.5 s, fast tier 10.0 s |
+
+With the fast tier's thin-wall group and the forced airborne undo added (same day, same
+conditions): `npm test` 10.3 s (mover comparison 9.9 s), `npm run test:motion` 112.2 s.
 
 GitHub-hosted runner: not measured yet. The owner relays the motion-suite job's time from the
 first runs (plan item OA-17); it is informational.
@@ -159,7 +242,7 @@ the suite. When nothing relevant changed it passes without testing. The filter i
 and blocks the merge, so this way `motion-suite` can be made a required check of `main` (plan
 item OA-04).
 
-Timeout: 15 minutes, three times the one-worker runtime above (2.9 min, so 9 min) plus about
-5 minutes for checkout, Node setup and `npm ci` (estimate). Revisit it when MOT-05a adds the
-Validation cases (estimated 15-30 min in total, not measured) or when the hosted-runner times
-arrive.
+Timeout: 22 minutes, three times the one-worker runtime above (5.6 min, so 17 min) plus about
+5 minutes for checkout, Node setup and `npm ci` (estimate). It was 15 minutes until the mover
+comparisons (MOT-03) doubled the runtime. Revisit it when MOT-05a adds the Validation cases
+(estimated 15-30 min in total, not measured) or when the hosted-runner times arrive.

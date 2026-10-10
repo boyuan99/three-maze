@@ -80,6 +80,16 @@ export type MoverEvent =
   | { type: 'fall_start' }
   /** An airborne agent reached a walkable floor (ADR-0001 R4). */
   | { type: 'land' }
+  /**
+   * The overlap guard hit after a sub-step, which was redone as a recovery (ADR-0001 R6); ok: the
+   * redone sub-step came out clear. (x, feetY, z) is the pose the redone sub-step reached.
+   */
+  | { type: 'guard_recovery', ok: boolean, x: number, feetY: number, z: number }
+  /**
+   * The overlap guard undid a sub-step or an airborne sweep (ADR-0001 R6); (x, feetY, z) is the
+   * rejected pose. Expected never to happen.
+   */
+  | { type: 'guard_undo', kind: 'sub' | 'air', x: number, feetY: number, z: number }
 
 export type TeleportEvent = {
   type: 'teleport'
@@ -143,7 +153,12 @@ export interface Mover {
 export interface TeleportCommand {
   x: number
   z: number
-  /** Height near which the mover looks for the floor to put the feet on; default 0. */
+  /**
+   * Height near which the mover looks for the floor to put the feet on; default 0. Give the
+   * target's own height: the hover mover looks only 0.3 above and below it (ADR-0001 R4), and its
+   * ground ray hits at once when it starts inside a solid, so a teleport at height 0 onto a deck
+   * 7 units high puts the feet 0.301 above 0, inside the deck (as the reference mover does).
+   */
   feetY?: number
   /** Heading after the teleport, rad; default: unchanged. */
   yaw?: number
