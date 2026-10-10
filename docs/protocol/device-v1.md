@@ -6,6 +6,13 @@
 
 Device firmware is the rig builder's own code. three-maze does not ship, plan or require any particular firmware (project owner, 2026-10-09). This page says what a device must send, what the rig runtime does with it, and why each rule exists. A device that follows it gets the strongest guarantees three-maze can give about lost and corrupted samples. A device that does not, such as the device stream that three-maze v0.3 reads, is read through a *profile* that states which guarantees are missing, and every session records them ([section 8](#8-guarantee-levels), [section 10](#10-profile-legacy-v03)).
 
+Phase 1 of three-maze reads two profiles only, `v1` and `legacy-v0.3` (project owner, 2026-10-09). A device whose stream follows neither cannot be used yet unless its firmware is changed to follow this protocol. Phase 2 of the roadmap adds two ways to connect such a device as it is (three-maze-notes: decision log, DEC-039; `plan/phase1-plan.md`, phase-2 item DPR-28; design in `docs-site/docs/design/backend-modules.md:156-178`):
+
+- a configurable text-line profile: the rig file declares the init lines, the fields of each line, and which fields carry the device time and the motion counts, so a device that prints one text line per sample is connected without writing code;
+- an entry point for a driver the rig builder writes, for streams that such a field list cannot describe, for example binary framing, a handshake, USB HID or a network stream.
+
+Either way the host hands the motion core the same device samples ([section 7.2](#72-the-device-sample-the-host-derives)) and records in every session which guarantees the stream gives ([section 8](#8-guarantee-levels)), as it does for the two profiles on this page.
+
 The key words MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119 and RFC 8174 when they appear in capitals. Every MUST has a rule id (F for framing, D for devices, H for the host, L for the legacy profile), a reason, and the test that checks it ([section 9](#9-rules-reasons-and-tests)).
 
 ## Contents
@@ -564,7 +571,7 @@ The version in the hello is `<major>.<minor>`. A minor version only adds optiona
 
 ## 14. Sources
 
-- Owner decisions: device firmware is user code, and three-maze owns this specification, an adapter for the v0.3 stream and a simulated reference device (2026-10-09); how a rig times a pulse in hardware, and protection against the rig runtime process dying, are the rig's (2026-10-07, 2026-10-09).
+- Owner decisions: device firmware is user code, and three-maze owns this specification, an adapter for the v0.3 stream and a simulated reference device (2026-10-09); how a rig times a pulse in hardware, and protection against the rig runtime process dying, are the rig's (2026-10-07, 2026-10-09); phase 1 reads the `v1` and `legacy-v0.3` profiles only, and a configurable text-line profile and user-written drivers follow in phase 2 (2026-10-09; three-maze-notes decision log DEC-039, which keeps the customisable device format promised on 2026-10-06 in DEC-008).
 - [ADR-0001](../adr/0001-player-mover.md): Context (v0.3's gain g = (rAF rate / 60) · (T_dev / 50 ms)); Terms; R1 (samples in seq order, each once; device dt; yaw convention).
 - [ADR-0002](../adr/0002-task-engine-location.md): Motion worker; Clock and order (timers on device time; non-motion inputs per sample with their dispatch seq); Rig runtime (safety envelope; protection against the runtime dying is rig-side); Gaps; Validation 5.
 - `experiments/hallway04_experiment.py` at b96ad72: `:80-84` (clip, DT, cm per count), `:157`, `:169-173` (baud rate, init delay and line), `:266` (decoding), `:285-289` (heading before displacement), `:329-381` (parser; skip rules `:341-354`, fields `:358-374`), `:525-561` (velocity mapping), `:661-674` (data row).
