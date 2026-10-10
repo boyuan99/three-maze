@@ -8,6 +8,7 @@ These records fix the design choices that three-maze v1.0 is built on. Each one 
 | [0002](0002-task-engine-location.md) | Interpret declarative tasks in the motion worker; the Python rig runtime serves devices, supervises and hosts code tasks | Accepted | 2026-10-08 |
 | [0003](0003-render-worker-priority.md) | OffscreenCanvas rendering is P1 behind a week-6 promotion gate; everything that protects data is P0 | Accepted | 2026-10-08 |
 | [0004](0004-dependency-versions.md) | Pin exactly only the dependencies that change experimental behaviour; update everything through monthly, tested pull requests | Accepted | 2026-10-08 |
+| [0005](0005-experiment-file-format.md) | Write each experiment as one versioned JSON file that holds its world and its task, leaves rig facts to the rig file, and stays within ADR-0002's action budget | Proposed | 2026-10-09 |
 
 ## Statuses
 
