@@ -1,0 +1,38 @@
+"""Shared setup for the rig runtime's tests (threemaze/, plan items DPR-06a and DPR-02).
+
+Every session these tests run writes into pytest's tmp_path (data_root=...), never into the
+rig file's own data root.
+"""
+import copy
+import json
+from pathlib import Path
+
+import pytest
+
+REPO = Path(__file__).resolve().parents[3]
+SIM_RIG = REPO / "rigs" / "sim.json"
+
+
+@pytest.fixture(scope="session")
+def sim_rig_path():
+    return SIM_RIG
+
+
+@pytest.fixture
+def sim_rig_data():
+    """rigs/sim.json as a dict, to modify."""
+    return copy.deepcopy(json.loads(SIM_RIG.read_text(encoding="utf-8")))
+
+
+@pytest.fixture
+def write_rig(tmp_path):
+    """write_rig(data, name="rig.json") -> path of a rig file in a fresh folder under tmp_path."""
+    counter = iter(range(1, 10_000))
+
+    def write(data, name="rig.json"):
+        folder = tmp_path / f"rig{next(counter)}"
+        folder.mkdir()
+        path = folder / name
+        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        return path
+    return write

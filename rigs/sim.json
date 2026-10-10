@@ -1,0 +1,27 @@
+{
+  "$schema": "schema/rig-v1.schema.json",
+  "format": "three-maze-rig",
+  "version": 1,
+  "name": "sim",
+  "description": "Simulated rig: the reference simulated device of device protocol v1 runs in the rig runtime's own process, so a session needs no Teensy, NI-DAQ device or data drive. The calibration is v0.3's mapping. The safety envelope only guards the simulated valve. See docs/rig-file-v1.md.",
+  "devices": {
+    "ball": { "driver": "simulated", "deviceId": "sim-ball", "periodUs": 50000 },
+    "valve": { "driver": "simulated", "deviceId": "sim-valve", "outputs": 1 }
+  },
+  "bindings": { "motion": "ball", "reward": "valve" },
+  "calibration": {
+    "ball": {
+      "matrix": [
+        [0, 0.0349, 0],
+        [0.0349, 0, 0],
+        [0, 0, 0.05]
+      ],
+      "note": "v0.3's mapping (device-v1.md section 10.4): forward = axis 1 (v0.3 field 8) x 0.0349 cm, left = axis 0 (field 7) x 0.0349 cm, yaw = axis 2 (field 9) x 0.05 rad; experiments/hallway04_experiment.py:84, :287-288"
+    }
+  },
+  "dataRoot": "../data",
+  "safety": {
+    "reward": { "maxPulseMs": 300, "minIntervalMs": 250, "maxTotalMsPerSession": 60000 }
+  },
+  "motion": { "eyeHeight": 3.7 }
+}

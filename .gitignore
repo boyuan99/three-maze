@@ -66,3 +66,6 @@ ref/
 
 # v0.3 agent prompts: kept out until they are rewritten for scene schema v1 (roadmap phase 1)
 prompts/
+
+# Session folders of the simulated rig (rigs/sim.json, dataRoot ../data)
+/data/
