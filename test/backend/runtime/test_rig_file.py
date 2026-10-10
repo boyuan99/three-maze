@@ -217,3 +217,27 @@ def test_schema_is_valid_draft_2020_12():
 
 def test_schema_lists_exactly_the_registered_drivers():
     assert load_schema()["$defs"]["device"]["properties"]["driver"]["enum"] == driver_names()
+
+
+def test_the_documented_example_is_rigs_sim_json(sim_rig_data):
+    """docs/rig-file-v1.md shows rigs/sim.json without its description and note."""
+    import re
+    from pathlib import Path
+    doc = (Path(__file__).resolve().parents[3] / "docs" / "rig-file-v1.md").read_text(encoding="utf-8")
+    example = json.loads(re.search(r"```json\n(.*?)```", doc, re.S).group(1))
+    del sim_rig_data["description"], sim_rig_data["calibration"]["ball"]["note"]
+    assert example == sim_rig_data
+
+
+def test_the_documented_errors_are_the_real_ones(sim_rig_data, write_rig):
+    """docs/rig-file-v1.md, Validation: the example output is what the runtime reports."""
+    import re
+    from pathlib import Path
+    doc = (Path(__file__).resolve().parents[3] / "docs" / "rig-file-v1.md").read_text(encoding="utf-8")
+    documented = re.search(r"```text\ninvalid rig file .*?\n(.*?)```", doc, re.S).group(1).splitlines()
+    sim_rig_data["devices"]["ball"]["periodUs"] = 0
+    sim_rig_data["devices"]["ball"]["port"] = "COM9"
+    sim_rig_data["motion"]["speedClamp"] = 100
+    with pytest.raises(RigFileError) as excinfo:
+        load_rig(write_rig(sim_rig_data))
+    assert documented == [f"  {issue}" for issue in excinfo.value.issues]

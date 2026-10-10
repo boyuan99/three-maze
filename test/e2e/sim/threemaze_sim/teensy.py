@@ -15,6 +15,8 @@ not in the repo):
   sample k = 1, 2, ...:   k*P,0,c_k,P,0,c_k,P,0,c_k,0,0,0,k        (P = period in us)
   c_k = forward ball counts per sample: 16 * THREEMAZE_SIM_SPEED, emitted as integers whose
   running sum stays exact. No lateral motion, no rotation, no licks.
+  With a THREEMAZE_SIM_DEVICE file (devicecfg.py), x, y, theta and the lick value come from its
+  trajectory instead:   k*P,x,y,P,x,y,P,x,y,theta,lick,0,k
 - Lines are buffered like a driver buffer (1 MiB, then new lines are dropped) until read.
 - Closing the port stops the stream. A port can be held by one handle at a time, also across
   processes sharing THREEMAZE_SIM_DIR (a lock file in $THREEMAZE_SIM_DIR/ports), so a second
@@ -24,6 +26,7 @@ THREEMAZE_SIM_SERIAL: ok (default) | missing (open fails like a missing COM3 on 
 busy (open fails like a port held by another program) | silent (opens, never sends data).
 THREEMAZE_SIM_OPEN_DELAY_S (default 0): opening the port blocks the calling thread this long first,
 like a hung USB-serial driver; e.g. 35 makes hallway04 registration outlast the renderer's 30 s timeout.
+THREEMAZE_SIM_PROTOCOL=v1: the port's device speaks device protocol v1 instead (device_v1.py).
 
 serial.jsonl events: open_delay, open, open_failed, close, received (host -> device write), command,
 command_ignored, stream_start, stream_stop, sent (device -> host line, with its due time),
@@ -39,7 +42,7 @@ import time
 
 from serial.serialutil import PortNotOpenError, SerialBase, SerialException, to_bytes
 
-from . import config, runtime
+from . import config, devicecfg, runtime
 
 # --- errors exactly as pyserial's Windows backend reports them ------------------------------
 
@@ -127,6 +130,11 @@ def _round_half_up(x):
     return math.floor(x + 0.5)
 
 
+def legacy_line(k, period_us, x, y, theta, lick):
+    """Sample k (from 1) of the 13-field stream."""
+    return f"{k * period_us},{x},{y},{period_us},{x},{y},{period_us},{x},{y},{theta},{lick},0,{k}"
+
+
 def _is_number(text):
     try:
         float(text)
@@ -157,6 +165,7 @@ class _Stream:
         try:
             period_us = int(round(self.period_s * 1e6))
             counts = config.FORWARD_COUNTS_PER_SAMPLE * runtime.settings.speed
+            motion = devicecfg.legacy_motion(runtime.settings, period_us)
             k = 0
             due = self.t0 + self.period_s
             while not self.stopped:
@@ -167,8 +176,12 @@ class _Stream:
                     time.sleep(min(delay, 0.02))
                     continue
                 k += 1
-                c = _round_half_up(counts * k) - _round_half_up(counts * (k - 1))
-                line = f"{k * period_us},0,{c},{period_us},0,{c},{period_us},0,{c},0,0,0,{k}"
+                if motion is None:
+                    c = _round_half_up(counts * k) - _round_half_up(counts * (k - 1))
+                    line = legacy_line(k, period_us, 0, c, 0, 0)
+                else:
+                    (x, y, theta), lick = motion.next()
+                    line = legacy_line(k, period_us, x, y, theta, lick)
                 if not self.device._emit(self, line, k, due):
                     break
                 due += self.period_s
@@ -405,7 +418,11 @@ class SimSerial(SerialBase):
         except SerialException as exc:
             runtime.serial_log.write("open_failed", port=self.portstr, mode="in_use", error=str(exc))
             raise
-        self._device = SimTeensy(self.portstr, silent=(mode == "silent"))
+        if runtime.settings.protocol == "v1":
+            from .device_v1 import SimV1Teensy
+            self._device = SimV1Teensy(self.portstr, silent=(mode == "silent"))
+        else:
+            self._device = SimTeensy(self.portstr, silent=(mode == "silent"))
         self.is_open = True
         runtime.serial_log.write("open", port=self.portstr, baudrate=self._baudrate, timeout=self._timeout,
                                  write_timeout=self._write_timeout, mode=mode)

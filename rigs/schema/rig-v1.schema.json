@@ -184,12 +184,216 @@
           "minimum": 1,
           "maximum": 4294967295
         },
+        "sensor": {
+          "description": "What one count of each axis is; needed by segments and samples trajectories, which are in cm and degrees or radians.",
+          "type": "object",
+          "required": ["cmPerCount", "radPerCount"],
+          "additionalProperties": false,
+          "properties": {
+            "cmPerCount": { "type": "number", "exclusiveMinimum": 0 },
+            "radPerCount": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "trajectory": {
+          "description": "Where the device's motion comes from. Absent: it never moves (it still sends a sample every period).",
+          "type": "object",
+          "required": ["kind"],
+          "properties": {
+            "kind": { "enum": ["segments", "samples", "replay"] }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "kind": { "const": "segments" } }, "required": ["kind"] },
+              "then": { "$ref": "#/$defs/segmentsTrajectory" }
+            },
+            {
+              "if": { "properties": { "kind": { "enum": ["samples", "replay"] } }, "required": ["kind"] },
+              "then": { "$ref": "#/$defs/fileTrajectory" }
+            }
+          ]
+        },
+        "lick": {
+          "description": "Lick channels it reports with L lines (0 or 1): edges of the trajectory's lick level.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0
+        },
         "outputs": {
           "description": "Number of output channels. At least 1: the device can serve the reward role.",
           "type": "integer",
           "minimum": 0,
           "maximum": 255
+        },
+        "ack": {
+          "description": "Answer every pulse with an A or X line (hello key ack=1).",
+          "type": "boolean",
+          "default": true
+        },
+        "maxPulseUs": {
+          "description": "The device's own longest pulse; longer ones are refused with X,<cmd_id>,range. Absent: no limit of its own.",
+          "$ref": "#/$defs/uint32"
+        },
+        "onLatencyUs": {
+          "description": "Time from a pulse command to the output going on.",
+          "$ref": "#/$defs/uint32",
+          "default": 0
+        },
+        "hbMs": {
+          "description": "Heartbeat timeout it declares (hello key hb): once it has had a beat command, it closes an open output, and refuses pulses, when no beat came for this long. The session refuses to arm below 300 (device protocol v1, rule H5).",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "fw": {
+          "description": "Firmware version it reports (hello key fw).",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._+-]{1,32}$"
+        },
+        "clockStartUs": {
+          "description": "Its microsecond clock when it is opened.",
+          "$ref": "#/$defs/uint32",
+          "default": 0
+        },
+        "lineEnding": {
+          "description": "lf, or crlf as Serial.println() writes.",
+          "enum": ["lf", "crlf"],
+          "default": "lf"
+        },
+        "faults": {
+          "description": "Faults to inject, each at a sample number of every stream (wrap: of the first). Each is written to the device's log with its sample number.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/fault" }
         }
+      }
+    },
+    "segmentsTrajectory": {
+      "description": "Piecewise-constant motion: straight runs, turns and stops.",
+      "type": "object",
+      "required": ["kind", "segments"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "segments" },
+        "loop": { "description": "Start again after the last segment.", "type": "boolean", "default": true },
+        "segments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["durationS"],
+            "additionalProperties": false,
+            "properties": {
+              "durationS": { "description": "Rounded to whole samples, at least one.", "type": "number", "exclusiveMinimum": 0 },
+              "forwardCmPerS": { "type": "number", "default": 0 },
+              "leftCmPerS": { "type": "number", "default": 0 },
+              "yawDegPerS": { "description": "Counter-clockwise from above.", "type": "number", "default": 0 },
+              "lick": { "enum": [0, 1], "default": 0 }
+            }
+          }
+        }
+      }
+    },
+    "fileTrajectory": {
+      "description": "samples: a text file with a header naming forward_cm, left_cm, dyaw_rad and optionally lick, then one row per sample. replay: the counts of a recorded stream, one sample per recorded sample, at this device's period: a raw capture (tools/capture_raw.py) or a text file of device lines, either device protocol v1 S lines with 3 axes or v0.3 13-field lines.",
+      "type": "object",
+      "required": ["kind", "file"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["samples", "replay"] },
+        "file": { "description": "Relative to the folder of this rig file.", "type": "string", "minLength": 1 },
+        "loop": { "description": "Start again after the last sample; otherwise hold still.", "type": "boolean", "default": false }
+      }
+    },
+    "fault": {
+      "type": "object",
+      "required": ["type", "seq"],
+      "properties": {
+        "type": {
+          "description": "drop: samples produced but never sent; badCrc: one digit corrupted under the original checksum; truncate: only the first bytes of a line; split: a line in pieces; burst: lines held back and sent together; silence: no sample or lick line sent for a while (outputs still answer); wrap: the microsecond clock wraps from 4294967295 to 0 between seq - 1 and seq.",
+          "enum": ["drop", "badCrc", "truncate", "split", "burst", "silence", "wrap"]
+        },
+        "seq": { "description": "Sample number it applies to (the first one, for several).", "$ref": "#/$defs/uint32" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "drop" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/faultDrop" }
+        },
+        {
+          "if": { "properties": { "type": { "enum": ["badCrc", "wrap"] } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/faultPlain" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "truncate" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/faultTruncate" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "split" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/faultSplit" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "burst" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/faultBurst" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "silence" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/faultSilence" }
+        }
+      ]
+    },
+    "faultPlain": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "type": {}, "seq": {} }
+    },
+    "faultDrop": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {},
+        "seq": {},
+        "count": { "description": "How many samples in a row.", "type": "integer", "minimum": 1, "default": 1 }
+      }
+    },
+    "faultTruncate": {
+      "type": "object",
+      "required": ["keepBytes"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {},
+        "seq": {},
+        "keepBytes": { "description": "Bytes of the line that are sent (at most all but its last checksum digit); the next line follows them directly.", "type": "integer", "minimum": 1 }
+      }
+    },
+    "faultSplit": {
+      "type": "object",
+      "required": ["pieces", "gapUs"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {},
+        "seq": {},
+        "pieces": { "type": "integer", "minimum": 2, "maximum": 16 },
+        "gapUs": { "description": "Time between pieces; all pieces arrive within one period.", "$ref": "#/$defs/uint32" }
+      }
+    },
+    "faultBurst": {
+      "type": "object",
+      "required": ["count"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {},
+        "seq": {},
+        "count": { "description": "How many lines are held and then sent together with the last of them.", "type": "integer", "minimum": 2 }
+      }
+    },
+    "faultSilence": {
+      "type": "object",
+      "required": ["durationMs"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {},
+        "seq": {},
+        "durationMs": { "description": "No S or L line is sent for this long; the samples of that time are lost.", "type": "integer", "minimum": 1 }
       }
     },
     "deviceCalibration": {

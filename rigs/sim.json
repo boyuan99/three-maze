@@ -3,9 +3,15 @@
   "format": "three-maze-rig",
   "version": 1,
   "name": "sim",
-  "description": "Simulated rig: the reference simulated device of device protocol v1 runs in the rig runtime's own process, so a session needs no Teensy, NI-DAQ device or data drive. The calibration is v0.3's mapping. The safety envelope only guards the simulated valve. See docs/rig-file-v1.md.",
+  "description": "Simulated rig: the reference simulated device of device protocol v1 runs in the rig runtime's own process, so a session needs no Teensy, NI-DAQ device or data drive. The ball runs straight ahead at 11.168 cm/s, 16 counts per sample, as v0.3's simulated Teensy does (test/e2e/sim). The calibration is v0.3's mapping. The safety envelope only guards the simulated valve. See docs/rig-file-v1.md.",
   "devices": {
-    "ball": { "driver": "simulated", "deviceId": "sim-ball", "periodUs": 50000 },
+    "ball": {
+      "driver": "simulated",
+      "deviceId": "sim-ball",
+      "periodUs": 50000,
+      "sensor": { "cmPerCount": 0.0349, "radPerCount": 0.05 },
+      "trajectory": { "kind": "segments", "segments": [{ "durationS": 1, "forwardCmPerS": 11.168 }] }
+    },
     "valve": { "driver": "simulated", "deviceId": "sim-valve", "outputs": 1 }
   },
   "bindings": { "motion": "ball", "reward": "valve" },

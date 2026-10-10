@@ -35,10 +35,14 @@ def child_env(sim_dir, active=True, **extra):
 REPORT_TIMING = False
 
 
-def run_case(out_dir, name, case, exe="python.exe", active=True, **extra):
+def run_case(out_dir, name, case, exe="python.exe", active=True, device=None, **extra):
     sim_dir = os.path.join(out_dir, name)
     shutil.rmtree(sim_dir, ignore_errors=True)
     os.makedirs(sim_dir)
+    if device is not None:  # THREEMAZE_SIM_DEVICE, written into the case's folder
+        extra["THREEMAZE_SIM_DEVICE"] = os.path.join(sim_dir, "device.json")
+        with open(extra["THREEMAZE_SIM_DEVICE"], "w", encoding="utf-8") as fh:
+            json.dump(device, fh, indent=1)
     result_path = os.path.join(sim_dir, "result.json")
     argv = [os.path.join(VENV, exe), os.path.join(HERE, "selftest_case.py"), case, result_path]
     if REPORT_TIMING:
@@ -55,20 +59,53 @@ def run_case(out_dir, name, case, exe="python.exe", active=True, **extra):
     return result
 
 
-def run_fail_closed(out_dir):
-    sim_dir = os.path.join(out_dir, "fail-closed")
+def run_fail_closed(out_dir, name="fail-closed", explains="THREEMAZE_SIM_SPEED='fast'", device=None,
+                    **extra):
+    """A misconfigured sim must stop the process (exit 86) before the program runs."""
+    sim_dir = os.path.join(out_dir, name)
     shutil.rmtree(sim_dir, ignore_errors=True)
     os.makedirs(sim_dir)
+    if device is not None:
+        extra["THREEMAZE_SIM_DEVICE"] = os.path.join(sim_dir, "device.json")
+        with open(extra["THREEMAZE_SIM_DEVICE"], "w", encoding="utf-8") as fh:
+            json.dump(device, fh)
     proc = subprocess.run([os.path.join(VENV, "python.exe"), "-c", "print('ran')"], cwd=sim_dir,
-                          env=child_env(sim_dir, THREEMAZE_SIM_SPEED="fast"), capture_output=True, text=True,
+                          env=child_env(sim_dir, **extra), capture_output=True, text=True,
                           timeout=60, creationflags=CREATE_NO_WINDOW)
     log_path = os.path.join(sim_dir, "sim_error.log")
-    logged = os.path.exists(log_path) and "THREEMAZE_SIM_SPEED='fast'" in open(log_path, encoding="utf-8").read()
+    logged = os.path.exists(log_path) and explains in open(log_path, encoding="utf-8").read()
     checks = [["exit code 86", proc.returncode == 86, proc.returncode],
               ["program did not run", "ran" not in proc.stdout, proc.stdout],
-              ["sim_error.log explains", logged, log_path]]
-    return {"name": "fail-closed", "case": "fail-closed", "exe": "python.exe", "returncode": proc.returncode,
+              ["sim_error.log explains", logged, f"{log_path} should contain {explains!r}"]]
+    return {"name": name, "case": "fail-closed", "exe": "python.exe", "returncode": proc.returncode,
             "ok": all(ok for _, ok, _ in checks), "checks": checks}
+
+
+# Simulated v1 devices for the v1 cases (fields of rigs/schema/rig-v1.schema.json, simulatedDevice).
+# The calibration constants are v0.3's (experiments/hallway04_experiment.py:84, :288), as in
+# rigs/sim.json; 11.168 cm/s is v0.3's simulated running speed (16 counts per 50 ms sample).
+SENSOR = {"cmPerCount": 0.0349, "radPerCount": 0.05}
+
+
+def v1_device(period_us):
+    return {"deviceId": "sim-selftest", "periodUs": period_us, "sensor": SENSOR, "lick": 1,
+            "outputs": 1, "maxPulseUs": 500000, "fw": "selftest-1",
+            "trajectory": {"kind": "segments", "segments": [
+                {"durationS": 0.2, "forwardCmPerS": 11.168},
+                {"durationS": 0.1, "lick": 1},
+                {"durationS": 0.2, "leftCmPerS": 6.98, "yawDegPerS": 90}]}}
+
+
+V1_FAULTS = [{"type": "drop", "seq": 20, "count": 2}, {"type": "badCrc", "seq": 40},
+             {"type": "truncate", "seq": 60, "keepBytes": 10}, {"type": "split", "seq": 80, "pieces": 3, "gapUs": 500},
+             {"type": "burst", "seq": 100, "count": 4}, {"type": "silence", "seq": 120, "durationMs": 40},
+             {"type": "wrap", "seq": 150}]
+
+# Legacy stream with distinct non-zero x, y, theta and lick values in fields 7 to 10, at 20 Hz:
+# x = 6.98 * 0.05 / 0.0349 = 10 counts, y = 16, theta = (180/pi deg/s = 1 rad/s) * 0.05 / 0.05 = 1
+LEGACY_FIELDS = {"sensor": SENSOR, "trajectory": {"kind": "segments", "segments": [
+    {"durationS": 0.1, "forwardCmPerS": 11.168, "leftCmPerS": 6.98, "yawDegPerS": 57.29577951308232, "lick": 1},
+    {"durationS": 0.1, "forwardCmPerS": -5.584}]}}
 
 
 def main():
@@ -90,7 +127,24 @@ def main():
         run_case(args.out, "data-missing", "data_missing", THREEMAZE_SIM_DATA="missing"),
         run_case(args.out, "speed-1.3", "speed", THREEMAZE_SIM_SPEED="1.3"),
         run_case(args.out, "cross-process-busy", "cross_process_busy"),
-        run_fail_closed(args.out),
+        run_fail_closed(args.out, THREEMAZE_SIM_SPEED="fast"),
+        # Legacy stream at the other two rates, and with fields 7 to 10 from a trajectory
+        run_case(args.out, "legacy-250hz", "legacy_rate", THREEMAZE_SELFTEST_PERIOD_MS="4"),
+        run_case(args.out, "legacy-1000hz", "legacy_rate", THREEMAZE_SELFTEST_PERIOD_MS="1"),
+        run_case(args.out, "legacy-fields", "legacy_fields", device=LEGACY_FIELDS),
+        # Device protocol v1 at 20, 250 and 1,000 Hz, and every fault type at 250 Hz
+        run_case(args.out, "v1-20hz", "v1", device=v1_device(50000), THREEMAZE_SIM_PROTOCOL="v1"),
+        run_case(args.out, "v1-250hz", "v1", device=v1_device(4000), THREEMAZE_SIM_PROTOCOL="v1"),
+        run_case(args.out, "v1-1000hz", "v1", device=v1_device(1000), THREEMAZE_SIM_PROTOCOL="v1"),
+        run_case(args.out, "v1-faults", "v1_faults", device=dict(v1_device(4000), faults=V1_FAULTS),
+                 THREEMAZE_SIM_PROTOCOL="v1"),
+        # A misconfigured v1 sim fails closed too
+        run_fail_closed(args.out, "fail-closed-v1-no-device", "THREEMAZE_SIM_PROTOCOL=v1 needs",
+                        THREEMAZE_SIM_PROTOCOL="v1"),
+        run_fail_closed(args.out, "fail-closed-protocol", "THREEMAZE_SIM_PROTOCOL='v2'",
+                        THREEMAZE_SIM_PROTOCOL="v2"),
+        run_fail_closed(args.out, "fail-closed-v1-device", "/periodUs",
+                        device=dict(v1_device(50000), periodUs=0), THREEMAZE_SIM_PROTOCOL="v1"),
     ]
     with open(os.path.join(args.out, "summary.json"), "w", encoding="utf-8") as fh:
         json.dump(results, fh, indent=1)

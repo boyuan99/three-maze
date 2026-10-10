@@ -47,8 +47,13 @@ def events(session, device):
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
 
 
+LIFECYCLE = ("open", "start", "safe_state", "stop", "close")
+
+
 def names(session, device):
-    return [record["event"] for record in events(session, device)]
+    """The runtime's calls on a simulated device, from its log (which has the device's own events
+    too)."""
+    return [record["event"] for record in events(session, device) if record["event"] in LIFECYCLE]
 
 
 @pytest.fixture

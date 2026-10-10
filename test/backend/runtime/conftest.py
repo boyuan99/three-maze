@@ -5,12 +5,20 @@ rig file's own data root.
 """
 import copy
 import json
+import sys
 from pathlib import Path
 
 import pytest
 
 REPO = Path(__file__).resolve().parents[3]
 SIM_RIG = REPO / "rigs" / "sim.json"
+
+# The end-to-end bench's simulated rig (threemaze_sim: the conformance checker, the legacy stream).
+# Importing it changes nothing: it patches a process only when its sitecustomize runs at start-up
+# with THREEMAZE_SIM=1, which a test process never has.
+SIM_DIR = REPO / "test" / "e2e" / "sim"
+if str(SIM_DIR) not in sys.path:
+    sys.path.append(str(SIM_DIR))
 
 
 @pytest.fixture(scope="session")
