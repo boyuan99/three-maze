@@ -1,6 +1,6 @@
 # ADR-0003: OffscreenCanvas rendering is P1 behind a week-6 promotion gate; everything that protects data is P0
 
-- Status: Accepted (2026-10-08)
+- Status: Accepted (2026-10-08); amended 2026-10-09
 - Date: 2026-10-07
 - Deciders: project owner
 - Related: [0001-player-mover.md](0001-player-mover.md) (mover), [0002-task-engine-location.md](0002-task-engine-location.md) (motion worker, rig runtime)
@@ -91,7 +91,7 @@ On the rig: 6. **the gate** (week 6), as specified in Decision 2.
 
 ## Evidence
 
-Prototypes and raw outputs live outside the repository, in the gitignored design-review workspace (`.claude/paper-review/`); tests 1–5 bring the relevant cases in.
+Prototypes and raw outputs live outside this repository, in the design-review workspace, the separate three-maze-notes repository (amended 2026-10-09); tests 1–5 bring the relevant cases in.
 
 **1. Synthetic stall test** (`proto/rendering/bench.mjs`, `render-worker.mjs`, `results/worker-high*.json`): Electron 33.4.11 (Chromium 130), three.js r169, RTX 5070; an unlit HallwaySerialMigrated replica, 1920×1080 buffer, windowed unfocused page; 1,200 frames per condition (nominally 20 s, about 22 s on the fallback clock); 50 or 100 ms main-thread busy-waits once per second; rendering only. Decision 2's rule, on rAF timestamps (both rows) and callback entries (100 ms row):
 
@@ -105,3 +105,5 @@ Both 100 ms series had 22 late intervals. The rAF count matches the net frame de
 **2. Data integrity without a render worker** (headless Node, with the review's collide-and-slide mover rather than ADR-0001's hover kinematic character controller (KCC); not re-verified; ADR-0001's test 7 repeats it): per-sample gain 1.0000 at 56.5–144 Hz and identical trial events across 8 frame schedules, including 2% long frames, a 250 ms stall and a 2 s hidden window.
 
 **3. Compile stalls** (scene-switch benchmark: remote-desktop session, fallback clock, 24 switches per condition; worst case, with salted programs and an empty program cache, while a cache hit still cost 14–45 ms): an unwarmed switch to new shader programs froze rendering for a median 356 ms (RTX 5070, lit materials). After the 1b warm-up, switch frames took 0.1–0.3 ms of main-thread CPU (completion 1.1–9.5 ms).
+
+**Amendment 2026-10-09 (evidence location).** "outside the repository, in the gitignored design-review workspace (`.claude/paper-review/`)" is replaced by "outside this repository, in the design-review workspace, the separate three-maze-notes repository". The project owner moved the design-review workspace on 2026-10-09 from a folder of the development checkout that git ignored into a repository of its own, three-maze-notes, so that the evidence has a version history. The files moved unchanged, so paths such as `proto/rendering/bench.mjs` above are relative to that repository's root. This corrects where the evidence lives; no decision changes.
