@@ -11,7 +11,8 @@ compiler or Rapier" (`docs/adr/0001-player-mover.md:81`). Roadmap phase 1 builds
 | MOT-03 | `fast/mover.equivalence.test.ts`: the TypeScript mover against the reference, sample for sample |
 | MOT-05a | `full/`: ADR-0001 Validation 1-5 cases behind a mover interface, run on the reference |
 
-The collider tests of `src/motion/instantiate.ts` (MOT-07) are ordinary unit tests in
+The collider tests of `src/motion/instantiate.ts` (MOT-07) and the tests of the motion core
+`src/motion/core.ts` with movers that have no collisions (MOT-02) are ordinary unit tests in
 `test/frontend/motion/`.
 
 ## Layout
@@ -122,7 +123,8 @@ them before setting the archived values.
 Node runs the reference (`.mjs`) directly. TypeScript modules under `src/motion/` run under Vitest
 until the owner decides how Node runs TypeScript (decision D4 of the phase-1 plan). They use
 relative `.ts` imports and erasable syntax only, so Node 22.16.0 also runs them with
-`--experimental-strip-types` (checked on 2026-10-09 with `src/motion/instantiate.ts`).
+`--experimental-strip-types` (checked on 2026-10-09 with `src/motion/instantiate.ts` and
+`src/motion/core.ts`).
 
 ## Runtimes
 
