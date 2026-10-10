@@ -439,7 +439,7 @@ v0.3's data files record fields 0, 7, 8 and 10 for each logged row, but not fiel
 What changes against v0.3, by design, and is recorded with the session:
 
 - **Displacements, not velocities.** v0.3 turned counts into a velocity with an assumed DT of 1/20 s (`:81`, `:532-541`), which the renderer then applied per frame; the adapter passes the displacement itself. Where v0.3's clip did not act, the two agree: v0.3's velocity × DT equals field × k.
-- **No clip.** v0.3 clipped the sideways and forward velocities (fields 7 and 8) to ±100 units/s each (`:80`, `:532-541`), that is, at k = 0.0349 and DT = 1/20 s, beyond about 143 counts per sample; it did not clip the turn (`:552`). The adapter applies no clip. TODO(D10): the project owner decides whether a per-axis clip declared in the rig file is offered; until then the adapter applies none, which is the recommended option.
+- **No clip.** v0.3 clipped the sideways and forward velocities (fields 7 and 8) to ±100 units/s each (`:80`, `:532-541`), that is, at k = 0.0349 and DT = 1/20 s, beyond about 143 counts per sample; it did not clip the turn (`:552`). The adapter applies no clip: the project owner decided on 2026-10-09 that v1 has no running-speed clamp, since a clamp would make the gain fall below 1 during fast runs, and that each session records the highest speed reached instead (three-maze-notes decision log DEC-035).
 - **Heading.** v0.3 added each sample's turn to the heading before turning that sample's displacement (`:285-289`, `:545`), and the renderer integrated a second copy of the heading (ADR-0001, Context). The motion core is the only heading integrator and turns each sub-step by the heading at its midpoint (ADR-0001 R1).
 
 ### 10.5 Sequence, time, licks and guarantees
