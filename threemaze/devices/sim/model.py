@@ -13,8 +13,9 @@ What it does (rule ids of the protocol):
 - `start` begins a stream: one S line per period whether or not anything moved (D2), seq from 0
   (D3), t_us the end of the window on a free-running microsecond clock (D4), contiguous windows
   (D5), running totals of integer counts that wrap like int32 (D6), flags 0 (D7), and only
-  between start and stop (D8); lick edges as L lines before the S line of their window (D9);
-  `stop` ends the stream with a Z line;
+  between start and stop (D8); lick edges as L lines on channel 0 before the S line of their
+  window (D9), only when its hello declares lick=1, and no F lines, since it declares no frame
+  clock (section 4.4); `stop` ends the stream with a Z line;
 - with outputs: `pulse` opens a channel for the commanded width and answers with one A line
   carrying the on and off times on its clock, or one X line (busy, range, channel, fault) (D10);
   a declared heartbeat timeout closes an open output when `beat`s stop; `stop` closes outputs;

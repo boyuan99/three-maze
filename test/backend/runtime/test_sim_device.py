@@ -87,8 +87,9 @@ B1_LIKE = {"kind": "segments", "segments": [
 
 # --- framing and the checker against the specification's golden lines ---------------------------
 
+GOLDEN_HELLO = "H,threemaze-device,1.0,ball-01,4000,4,fw=demo-1.2,flags=1,lick=1,fclk=1*D6"
 GOLDEN_VALID = [  # device-v1.md section 11.1
-    "hello*92", "H,threemaze-device,1.0,ball-01,4000,4,fw=demo-1.2,flags=1*9D", "start*3F",
+    "hello*92", GOLDEN_HELLO, "start*3F",
     "S,0,1000000,4000,0,12,-1,35,3*37", "L,0,1002500,1*D5", "S,1,1004000,4000,0,22,-1,65,5*A2",
     "F,1,1006100*71", "S,2,1008000,4000,1,-2026,6,65,5*F2", "S,5,1020000,4000,0,-2010,6,90,7*F3",
     "stop*A5", "Z,6,1022000*9D", "S,41,4294966296,4000,0,2147483647,0,1,0*17",
@@ -119,11 +120,11 @@ def entries(lines):
 
 
 def test_checker_on_the_overview_exchange():
-    """Section 2: samples 3 and 4 lost in transit, everything else conforms. (Its hello does not
-    declare lick=1, yet the device sends an L line: a note, not a finding.)"""
+    """Section 2: samples 3 and 4 lost in transit, everything else conforms, including the L and
+    F lines that the hello declares (lick=1, fclk=1)."""
     report = conformance.check(entries(GOLDEN_VALID[:11]))
     assert [(f.rule, f.details.get("missing")) for f in report.findings] == [("D3", [3, 4])]
-    assert [n.rule for n in report.notes] == ["4.4"]
+    assert report.notes == []
     stats = report.stats
     assert (stats["samples"], stats["lick_edges"], stats["frame_edges"]) == (4, 1, 1)
     assert stats["lost_at_end"] == 0
@@ -138,13 +139,42 @@ def test_checker_on_the_overview_exchange():
     ("S,7,1028000,0,0,1,2,3,4*5D", "F4"),
     ("S,0,1000000,4000,256,12,-1,35,3*DE", "F4"),
     ("S, 7,1028000,4000,0,1,2,3,4*1F", "F4"),
+    ("L,1,1002500,1*CA", "F4"),
     ("S,0,1000000,4000," + "1" * 250 + "*00", "F2"),
 ])
 def test_checker_rejects_the_golden_bad_lines(line, rule):
-    hello = "H,threemaze-device,1.0,ball-01,4000,4,fw=demo-1.2,flags=1*9D"
-    report = conformance.check(entries([hello, line]))
+    report = conformance.check(entries([GOLDEN_HELLO, line]))
     assert [f.rule for f in report.findings] == [rule], report.findings
-    assert report.stats["samples"] == 0
+    assert report.stats["samples"] == report.stats["lick_edges"] == 0
+
+
+@pytest.mark.parametrize("keys, lick_edges, frame_edges, findings", [
+    ("", 0, 0, ["F4", "F4"]),                   # neither declared: both lines rejected
+    (",lick=1", 1, 0, ["F4"]),                  # no fclk=1: the F line is rejected
+    (",fclk=1", 0, 1, ["F4"]),                  # no lick channel: the L line is rejected
+    (",lick=1,fclk=0", 1, 0, ["F4"]),
+    (",lick=1,fclk=1", 1, 1, []),
+])
+def test_checker_rejects_l_and_f_lines_the_hello_does_not_declare(keys, lick_edges, frame_edges,
+                                                                  findings):
+    """Section 4.4: L lines only on the lick channels the hello declares, F lines only with
+    fclk=1; a rejected line is no event."""
+    records = ["hello", f"H,threemaze-device,1.0,b,4000,1{keys}", "start", "L,0,2000,1", "F,1,3000",
+               "S,0,4000,4000,0,0", "stop", "Z,1,5000"]
+    report = conformance.check(entries([frame(r).decode() for r in records]))
+    assert [f.rule for f in report.findings] == findings, report.findings
+    assert all("section 4.4" in f.message for f in report.findings)
+    assert (report.stats["lick_edges"], report.stats["frame_edges"]) == (lick_edges, frame_edges)
+    assert report.stats["samples"] == 1
+
+
+def test_checker_notes_flag_bits_the_hello_does_not_declare():
+    """Section 11.1: the host accepts dev_flags 2 although the hello declares flags=1; the checker
+    accepts it too and notes the departure from the hello."""
+    report = conformance.check(entries([GOLDEN_HELLO, "S,0,1000000,4000,2,12,-1,35,3*8D"]))
+    assert report.ok and report.stats["samples"] == 1
+    assert [(n.rule, n.message) for n in report.notes] == [
+        ("4.2", "flag bits 2 set; the hello declared flags=1")]
 
 
 def test_checker_ignores_unknown_types_and_reserved_flags_are_d7():
@@ -258,6 +288,20 @@ def test_sim_d9_lick_edges_before_their_window():
             following = next(item for item in lines[index + 1:] if item.startswith("S,"))
             assert int(following.split(",")[2]) - 50000 < t_edge <= int(following.split(",")[2])
     assert [r[3] for r in host.records("L")] == ["1", "0"] * (len(host.records("L")) // 2)
+
+
+@pytest.mark.parametrize("lick", [0, 1])
+def test_sim_hello_declares_every_event_line_it_sends(lick):
+    """Section 4.4: L lines only on the channels the hello declares; the reference device has no
+    frame-clock input, so it never declares fclk and never sends F lines. Without lick=1 the
+    trajectory's lick level is not sent at all."""
+    host = stream(motion_device(50000, lick=lick, trajectory=B1_LIKE), seconds=1.0)
+    keys = dict(item.split("=", 1) for item in host.records("H")[0][6:])
+    assert keys.get("lick") == ("1" if lick else None) and "fclk" not in keys
+    assert {int(r[1]) for r in host.records("L")} == ({0} if lick else set())
+    assert host.records("F") == []
+    report = host.check()
+    assert report.ok and report.notes == [], report.findings
 
 
 # --- outputs ----------------------------------------------------------------------------------

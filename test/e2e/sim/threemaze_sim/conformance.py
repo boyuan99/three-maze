@@ -11,7 +11,8 @@ Input: a raw capture ("three-maze raw capture 1": tools/capture_raw.py, and the 
 rig driver "simulated"): comment lines "# {json}", of which {"wrote_to_device": {"perf_counter_ns",
 "bytes"}} are the host's writes, and data lines "<perf_counter_ns> TAB <line as received>". A
 plain file of device lines works too; the checks that need the host's commands (D1, D8, D10, H7)
-are then skipped.
+are then skipped. Checks against the hello (the number of totals in an S line; L and F lines only
+as the hello declares them, section 4.4) use the last H line and are skipped before one.
 
     python conformance.py <capture> [--period-tolerance-us N] [--json]
 
@@ -290,6 +291,12 @@ class Checker:
             return
         if flags & 0xFC:
             self.find("D7", entry, f"reserved flag bits set ({flags})")
+        declared = int(self.hello["keys"].get("flags", "0")) if self.hello else None
+        if declared is not None and flags & 0x03 & ~declared:
+            # The host does not compare flags with the hello (device-v1.md section 11.1), but a
+            # device that raises a bit its hello says it cannot detect contradicts its hello (D7)
+            self.notes.append(Finding("4.2", entry.n, f"flag bits {flags & 0x03 & ~declared} set;"
+                                                      f" the hello declared flags={declared}"))
         if self.stream is None:
             if self.host_seen:
                 self.find("D8", entry, "S line outside a stream (no start, or after the stop report)")
@@ -365,10 +372,11 @@ class Checker:
             return
         lick = int(self.hello["keys"].get("lick", "0")) if self.hello else None
         if lick is not None and channel >= lick:
-            # Section 4.4 says the channel is below the hello's lick value, but the protocol's own
-            # golden lines (sections 2 and 11.1) send L lines after a hello without lick
-            self.notes.append(Finding("4.4", entry.n,
-                                      f"lick channel {channel}; the hello declared lick={lick}"))
+            # Section 4.4: L lines only on the channels the hello declares; the host rejects
+            # any other (H2), so it is no lick edge
+            self.find("F4", entry, f"lick channel {channel}, but the hello declared lick={lick}"
+                                   " (section 4.4)")
+            return
         self.stats["lick_edges"] += 1
         self._event(entry, "L", t_ev)
 
@@ -378,6 +386,10 @@ class Checker:
             return
         count, t_ev = self._uint(entry, fields[1], "count", 1), self._uint(entry, fields[2], "t_us")
         if None in (count, t_ev):
+            return
+        if self.hello is not None and int(self.hello["keys"].get("fclk", "0")) != 1:
+            # Section 4.4: F lines only from a device whose hello declares fclk=1
+            self.find("F4", entry, "F line, but the hello did not declare fclk=1 (section 4.4)")
             return
         self.stats["frame_edges"] += 1
         self._event(entry, "F", t_ev)

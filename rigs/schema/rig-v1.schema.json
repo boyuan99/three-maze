@@ -213,7 +213,7 @@
           ]
         },
         "lick": {
-          "description": "Lick channels it reports with L lines (0 or 1): edges of the trajectory's lick level.",
+          "description": "Lick channels it declares in its hello and reports with L lines (0 or 1): edges of the trajectory's lick level.",
           "type": "integer",
           "minimum": 0,
           "maximum": 1,
