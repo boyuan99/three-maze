@@ -37,11 +37,11 @@ The key words MUST, MUST NOT, SHOULD and MAY are used as in RFC 2119 and RFC 817
 
 ## 2. Overview
 
-A motion device announces itself, streams one line per sample while the host lets it, and may add event lines. In this exchange the words `host` and `device` only show the direction; they are not part of the lines.
+A motion device announces itself, streams one line per sample while the host lets it, and may add the event lines its hello declares. In this exchange the words `host` and `device` only show the direction; they are not part of the lines.
 
 ```text
 host   hello*92
-device H,threemaze-device,1.0,ball-01,4000,4,fw=demo-1.2,flags=1*9D
+device H,threemaze-device,1.0,ball-01,4000,4,fw=demo-1.2,flags=1,lick=1,fclk=1*D6
 host   start*3F
 device S,0,1000000,4000,0,12,-1,35,3*37
 device L,0,1002500,1*D5
@@ -53,7 +53,7 @@ host   stop*A5
 device Z,6,1022000*9D
 ```
 
-The device `ball-01` samples every 4,000 µs (250 Hz) and has 4 sensor axes. Each `S` line carries the sample's sequence number, its end time in µs on the device clock, the window length, a flags byte and the running total of every axis since `start`. A lick began at device time 1,002,500 µs and a frame-clock edge arrived at 1,006,100 µs. Samples 3 and 4 were lost between the device and the host: the host counts the gap from the sequence numbers, and because the counts are running totals, sample 5 still carries their motion. The stop report says the device sent 6 samples, so the host can show that it received 4 and counted 2 as lost. Every line ends with `*` and a CRC-8 checksum in hexadecimal; [section 11](#11-golden-lines) gives the expected result of every line.
+The device `ball-01` samples every 4,000 µs (250 Hz) and has 4 sensor axes; its hello also declares one lick channel (`lick=1`) and a frame-clock input (`fclk=1`), so it may send `L` and `F` lines (section 4.4). Each `S` line carries the sample's sequence number, its end time in µs on the device clock, the window length, a flags byte and the running total of every axis since `start`. A lick began at device time 1,002,500 µs and a frame-clock edge arrived at 1,006,100 µs. Samples 3 and 4 were lost between the device and the host: the host counts the gap from the sequence numbers, and because the counts are running totals, sample 5 still carries their motion. The stop report says the device sent 6 samples, so the host can show that it received 4 and counted 2 as lost. Every line ends with `*` and a CRC-8 checksum in hexadecimal; [section 11](#11-golden-lines) gives the expected result of every line.
 
 | Line | Direction | Who must use it | Content |
 |---|---|---|---|
@@ -62,7 +62,7 @@ The device `ball-01` samples every 4,000 µs (250 Hz) and has 4 sensor axes. Eac
 | `start`, `stop` | host to device | motion devices | begin and end a stream |
 | `S` | device to host | motion devices | one sample |
 | `Z` | device to host | SHOULD, motion devices | stop report: how many samples the stream had |
-| `L`, `F` | device to host | MAY | lick edge, frame-clock edge |
+| `L`, `F` | device to host | MAY, if the hello declares them (`lick`, `fclk=1`) | lick edge, frame-clock edge |
 | `beat` | host to device | sent to devices that declare a heartbeat | heartbeat |
 | `pulse` | host to device | output devices | open an output for a given time |
 | `A`, `X` | device to host | output devices that declare `ack=1` | pulse done (device-measured on and off times), pulse refused or failed |
@@ -184,7 +184,7 @@ L,<channel>,<t_us>,<level>
 F,<count>,<t_us>
 ```
 
-`L` reports a lick edge: `channel` (integer 0 to 255, below the hello's `lick` value), the device time of the edge in µs, and `level` 1 for contact onset or 0 for its end. `F` reports an edge of an external frame clock (for example a microscope's frame trigger): `count` (uint32) is the number of such edges since `start`, 1 for the first, and `t_us` is the edge's device time. Both are optional (MAY). How a device debounces a lick sensor is up to the device. The host takes every lick channel's level as 0 at `start`, so a device whose sensor is already in contact at `start` reports an onset at the time it handled `start`.
+`L` reports a lick edge: `channel` (integer 0 to 255, below the hello's `lick` value), the device time of the edge in µs, and `level` 1 for contact onset or 0 for its end. `F` reports an edge of an external frame clock (for example a microscope's frame trigger): `count` (uint32) is the number of such edges since `start`, 1 for the first, and `t_us` is the edge's device time. Both are optional (MAY), and a device sends only what its hello declares: `L` lines on channels below its `lick` value, `F` lines only with `fclk=1`. The host learns from the hello which of these inputs a device has, so that a session without `L` lines from a device that declares `lick=1` shows that no lick happened, not that the device has no lick sensor; any other `L` or `F` line breaks the field rules of its type, and the host rejects it (H2). How a device debounces a lick sensor is up to the device. The host takes every lick channel's level as 0 at `start`, so a device whose sensor is already in contact at `start` reports an onset at the time it handled `start`.
 
 **D9. Event order.** A device that sends `L` or `F` lines MUST send them in time order, and MUST send each one before the `S` line of the window that contains its time (the first sample whose `t_us` is at or after the event's time). *Reason:* ADR-0002 dispatches non-motion inputs per sample, in arrival order, each logged with its dispatch seq (Clock and order). With this rule the host assigns every event to the next `S` line it receives, without reordering, so a live session and its replay agree. A host that receives an event after the `S` line of its window counts it (`late_events`) and assigns it to the next sample.
 
@@ -466,7 +466,7 @@ The motion device of section 2 (`n_axes` 4, period 4,000 µs, a stream just star
 | Line | Result |
 |---|---|
 | `hello*92` | host command: hello |
-| `H,threemaze-device,1.0,ball-01,4000,4,fw=demo-1.2,flags=1*9D` | hello: version 1.0, device_id `ball-01`, period_us 4000, n_axes 4, keys `fw=demo-1.2`, `flags=1` |
+| `H,threemaze-device,1.0,ball-01,4000,4,fw=demo-1.2,flags=1,lick=1,fclk=1*D6` | hello: version 1.0, device_id `ball-01`, period_us 4000, n_axes 4, keys `fw=demo-1.2`, `flags=1`, `lick=1`, `fclk=1` |
 | `start*3F` | host command: start |
 | `S,0,1000000,4000,0,12,-1,35,3*37` | seq 0, t_dev_us 1000000, dt_us 4000 (the line's own, first sample), raw [12, −1, 35, 3], dev_flags 0, gap 0 |
 | `L,0,1002500,1*D5` | lick channel 0 onset at 1002500; assigned to seq 1 |
@@ -503,7 +503,7 @@ Single lines of the motion device, each read on its own (not as part of the stre
 | Line | Result |
 |---|---|
 | `S,1,1004000,4000,0,22,-1,65,5*a2` | accepted, with the same result as the seq 1 line above: checksum digits may be lower case |
-| `S,0,1000000,4000,2,12,-1,35,3*8D` | accepted: dev_flags 2 (no_tracking); the host does not compare flags with the hello's `flags` key |
+| `S,0,1000000,4000,2,12,-1,35,3*8D` | accepted: dev_flags 2 (no_tracking), a bit that the hello's `flags=1` does not declare: the host does not compare flags with the hello's `flags` key |
 | `S,0,1000000,4000,4,12,-1,35,3*44` | accepted: reserved bit 2 set; recorded in dev_flags, otherwise ignored |
 
 ### 11.2 v1, rejected
@@ -520,6 +520,7 @@ For the device above (`n_axes` 4):
 | `S,7,1028000,0,0,1,2,3,4*5D` | `parse_errors` | `dt_us` 0 |
 | `S,0,1000000,4000,256,12,-1,35,3*DE` | `parse_errors` | flags above 255 |
 | `S, 7,1028000,4000,0,1,2,3,4*1F` | `parse_errors` | a space in a field |
+| `L,1,1002500,1*CA` | `parse_errors` | lick channel 1; the hello declares one lick channel (`lick=1`), channel 0 (section 4.4) |
 | `Q,1,2*F8` | `unknown` | valid checksum, unknown type; ignored |
 | any line of more than 254 bytes | `overflow` | F2; the reader resumes after the next LF |
 
