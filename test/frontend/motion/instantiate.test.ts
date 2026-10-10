@@ -1,19 +1,16 @@
 // instantiate(manifest) (src/motion/instantiate.ts): manifest round trip, ray casts against
 // analytic geometry, the collision-group matrix, run-time enabling, rejection of invalid
 // manifests, and the same collider set in Node and in a Vite-built worker bundle.
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
-import { Worker } from 'node:worker_threads'
+import { readFileSync } from 'node:fs'
 import RAPIER from '@dimforge/rapier3d-compat'
-import { build } from 'vite'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createColliders, GROUPS, instantiate } from '../../../src/motion/instantiate.ts'
 import { ManifestError, validateManifest } from '../../../src/motion/manifest.ts'
 import type { ColliderManifest, ManifestCollider, Quat, Vec3 } from '../../../src/motion/manifest.ts'
 import { GATE_RAY, RAYS, runChecks } from './instantiateChecks.ts'
 import type { CheckResults, Hit } from './instantiateChecks.ts'
+import { buildWorkerBundle } from './workerBundle.ts'
+import type { WorkerBundle } from './workerBundle.ts'
 
 const FIXTURE = readFileSync(new URL('./fixtures/colliders.manifest.json', import.meta.url), 'utf8')
 const fixture = (): ColliderManifest => validateManifest(JSON.parse(FIXTURE))
@@ -65,54 +62,17 @@ const near = (hit: Hit | null, id: string, toi: number) => {
 // ---- results in Node, and in a worker running the Vite bundle ----
 
 let node: CheckResults
-let bundleDir: string
+let bundle: WorkerBundle
 
 beforeAll(async () => {
   await RAPIER.init()
   node = runChecks(RAPIER, fixture())
   // The worker bundle: Vite's production build of instantiate.worker.ts with Rapier's ES build
-  // inlined (an ES module, minified), plus a host that gives it a Web Worker's self.onmessage
-  // and postMessage inside a Node worker thread
-  bundleDir = mkdtempSync(join(tmpdir(), 'three-maze-motion-worker-'))
-  await build({
-    configFile: false,
-    logLevel: 'warn',
-    build: {
-      outDir: bundleDir,
-      emptyOutDir: true,
-      minify: 'esbuild',
-      lib: {
-        entry: fileURLToPath(new URL('./instantiate.worker.ts', import.meta.url)),
-        formats: ['es'],
-        fileName: () => 'motion-worker.mjs',
-      },
-    },
-  })
-  writeFileSync(join(bundleDir, 'host.mjs'), [
-    "import { parentPort, workerData } from 'node:worker_threads'",
-    'globalThis.self = globalThis',
-    'globalThis.postMessage = (message) => parentPort.postMessage(message)',
-    'await import(workerData.bundle)',
-    'parentPort.on(\'message\', (data) => globalThis.onmessage({ data }))',
-  ].join('\n'))
+  // inlined, run in a worker thread (workerBundle.ts)
+  bundle = await buildWorkerBundle(new URL('./instantiate.worker.ts', import.meta.url))
 }, 120_000)
 
-afterAll(() => {
-  if (bundleDir) rmSync(bundleDir, { recursive: true, force: true })
-})
-
-function runInWorker(manifest: ColliderManifest): Promise<CheckResults> {
-  const bundle = pathToFileURL(join(bundleDir, 'motion-worker.mjs')).href
-  const worker = new Worker(join(bundleDir, 'host.mjs'), { workerData: { bundle } })
-  return new Promise<CheckResults>((resolve, reject) => {
-    worker.once('error', reject)
-    worker.once('message', (reply: { ok: boolean, results?: CheckResults, error?: string }) => {
-      if (reply.ok) resolve(reply.results as CheckResults)
-      else reject(new Error(reply.error))
-    })
-    worker.postMessage(manifest)
-  }).finally(() => worker.terminate())
-}
+afterAll(() => bundle?.remove())
 
 describe('instantiate', () => {
   it('records the version of the Rapier build that made the colliders', () => {
@@ -210,9 +170,8 @@ describe('collision groups', () => {
 
 describe('instantiate in a worker bundle', () => {
   it('gives the same collider set and the same query results as in Node', async () => {
-    const bundle = readFileSync(join(bundleDir, 'motion-worker.mjs'), 'utf8')
-    expect(bundle).not.toMatch(/from\s*["']@dimforge/) // Rapier is inside the bundle
-    expect(await runInWorker(fixture())).toEqual(node)
+    expect(bundle.code()).not.toMatch(/from\s*["']@dimforge/) // Rapier is inside the bundle
+    expect(await bundle.run<CheckResults>(fixture())).toEqual(node)
   }, 60_000)
 })
 
