@@ -10,6 +10,7 @@
     "electron:dev": "node start-dev.js",
     "electron:build": "vite build && electron-builder",
     "postinstall": "node setup/setup-python.js",
+    "vocabulary": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/vocabulary/generate.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Generated from schema/vocabulary.json by `npm run vocabulary` (tools/vocabulary/generate.ts); do not edit. The experiment schema refers to these definitions.",
+  "$defs": {
+    "identifier": {
+      "description": "Every name an author chooses (ADR-0005 F4).",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+    },
+    "action": {
+      "description": "Actions an experiment file of format 1.0 may use.",
+      "enum": [
+        "reward",
+        "teleport",
+        "freeze",
+        "display",
+        "timer",
+        "trial",
+        "set",
+        "endSession"
+      ]
+    },
+    "reservedAction": {
+      "description": "Actions reserved for later versions: rejected with an \"available in phase 2\" diagnostic.",
+      "enum": [
+        "setGain",
+        "setCue",
+        "emit",
+        "switchWorld"
+      ]
+    },
+    "displayOperation": {
+      "description": "Operations of the merged action display.",
+      "enum": [
+        "blank",
+        "on"
+      ]
+    },
+    "timerOperation": {
+      "description": "Operations of the merged action timer.",
+      "enum": [
+        "start",
+        "cancel"
+      ]
+    },
+    "trialOperation": {
+      "description": "Operations of the merged action trial.",
+      "enum": [
+        "start",
+        "end"
+      ]
+    },
+    "event": {
+      "description": "A task event of format 1.0: <category>:<id>.",
+      "type": "string",
+      "pattern": "^(?:enter|exit|timer):[A-Za-z][A-Za-z0-9_]*$"
+    },
+    "reservedEvent": {
+      "description": "A task event of a category reserved for later versions.",
+      "type": "string",
+      "pattern": "^(?:input|message|world):"
+    }
+  }
+}
