@@ -106,8 +106,9 @@ end-to-end bench runs there only when started by hand (Actions > CI > Run workfl
 ### Dependency versions
 
 Electron, three.js, Rapier and the backend's runtime packages (`requirements.txt`) can change what
-the animal sees or how it moves, so they are pinned to exact versions. Development tools and the
-user-interface libraries use version ranges, and `package-lock.json` records the versions
+the animal sees or how it moves, so they are pinned to exact versions, and so is Ajv, which decides
+which link-protocol messages are accepted ([protocol/v1](protocol/v1/SPEC.md)). Development tools
+and the user-interface libraries use version ranges, and `package-lock.json` records the versions
 installed. Dependabot ([.github/dependabot.yml](.github/dependabot.yml)) proposes updates monthly
 as pull requests that CI tests; the pinned packages are frozen while paper data are collected. See
 [ADR-0004](docs/adr/0004-dependency-versions.md).
