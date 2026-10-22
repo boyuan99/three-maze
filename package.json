@@ -21,7 +21,7 @@
     "timing:gate": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/timing/gate.ts"
   },
   "dependencies": {
-    "@dimforge/rapier3d-compat": "0.14.0",
+    "@dimforge/rapier3d-compat": "0.21.0",
     "ajv": "8.20.0",
     "pinia": "^3.0.4",
     "three": "0.169.0",
