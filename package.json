@@ -14,7 +14,9 @@
     "test:watch": "vitest",
     "test:motion": "vitest run --config test/motion/vitest.config.mjs",
     "typecheck": "tsc --noEmit",
-    "test:e2e": "node test/e2e/run.mjs"
+    "test:e2e": "node test/e2e/run.mjs",
+    "rig:info": "node scripts/rig-info.cjs",
+    "timing:gate": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/timing/gate.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.14.0",

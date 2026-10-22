@@ -103,6 +103,48 @@ GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the u
 check, `npm run build` and the backend tests on Windows for every push and pull request. The
 end-to-end bench runs there only when started by hand (Actions > CI > Run workflow).
 
+### Rig tools
+
+Commands for a rig visit, for PowerShell in the repository folder with three-maze closed. Only the
+capture needs the Teensy; nothing needs the NI-DAQ device. Every output goes to `out\`, which git
+ignores.
+
+```powershell
+# 1. Update: git pull, npm ci, the Electron binary, the Python packages; prints and saves the versions
+powershell -ExecutionPolicy Bypass -File scripts\rig-update.ps1
+powershell -ExecutionPolicy Bypass -File scripts\rig-update.ps1 -Ref phase1-gate-1   # a tag or branch
+
+# 2. Displays, GPUs, versions and Windows session as one JSON file
+npm run rig:info
+
+# 3. Audit the v0.3 data files (read-only); keep the quotes around the pattern
+.venv\Scripts\python tools\retro_gain_check.py "D:\VirmenData\*.txt" --csv out\audit.csv
+
+# 4. Optional: record the Teensy's stream as it arrives, for 30 minutes (Ctrl+C stops early)
+.venv\Scripts\python tools\capture_raw.py --port COM3 --minutes 30
+```
+
+1. `scripts\rig-update.ps1` refuses to run if tracked files have local changes, and needs network
+   access for git, npm, the Electron download (since Electron 42 `npm ci` no longer downloads it)
+   and pip. It prints Node, npm, Electron (package and binary), three.js, Rapier, Python and every
+   package pinned in `requirements.txt` against its pin, with the time each step took, and saves
+   the printout in `out\rig-update\`. Exit code 1 if a step failed or a version does not match its
+   pin. On the development PC, on clean clones with the npm, pip and Electron download caches
+   already filled, it took 36-39 s in two runs (31-35 s of it `npm ci`); a first run on the rig
+   downloads everything and takes longer (not measured).
+2. `npm run rig:info` writes `out\rig-info\rig-info-<computer>-<date>-<time>.json` (or the file
+   given with `-- --out FILE`) and prints a summary with warnings: displays at different refresh
+   rates, a remote-desktop session, software rendering, several GPUs. It names the primary
+   display by Electron's `screen.getPrimaryDisplay()`, opens no visible window and changes nothing.
+3. `tools\retro_gain_check.py` takes files or glob patterns (expanded by the tool, since cmd and
+   PowerShell pass them on unexpanded) and writes one CSV row per file: effective gain, device
+   period, lost samples, heading checks. A file it cannot analyse gets its error in the CSV and the
+   audit goes on (exit code 1). It refuses to write the CSV into a folder that holds data files.
+4. `tools\capture_raw.py` sends the device nothing but v0.3's init line (`10000,50,10,1`, 2 s
+   after opening the port, as the hallway experiments do; `--no-init` sends nothing) and writes
+   every line it receives, exactly as received, with the host's `perf_counter_ns` time stamp, to
+   `out\capture\`. Change `--port` if the control file names another port.
+
 ### Dependency versions
 
 Electron, three.js, Rapier and the backend's runtime packages (`requirements.txt`) can change what

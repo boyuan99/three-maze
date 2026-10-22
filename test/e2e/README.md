@@ -134,6 +134,7 @@ modes too (Known limits has the cases software rendering can hide).
 - Ports 8765 (the session backend) and 8795 (the lifecycle backend) free: close three-maze first.
   The runner checks them before it starts anything and exits with code 2 if one is taken, because
   on Windows a second backend on a taken port crashes on bind instead of moving to the next port.
+  Another bench run does not count: the runner waits for it (see Bench lock).
 - A GPU is optional: without one, the bench renders with SwiftShader (the harness passes
   `--enable-unsafe-swiftshader`); `--software-gl` forces it. The real app does not pass that
   switch, so on Windows without a usable GPU Electron 44 falls back to WARP (Microsoft Basic Render
@@ -166,10 +167,49 @@ Expect a CI runner without a GPU to be slower still.
 | `--software-gl` | render with SwiftShader (`app.disableHardwareAcceleration()`) |
 | `--ci` | for shared CI runners: the `sim` self-test measures its tight timing tolerances (first line 45-80 ms after init, median gap 48-52 ms, 24-27 lines in 1.32 s, test pulse 69-90 ms) and reports them in its facts line and `summary.json` instead of asserting them. Its functional checks still run |
 | `--keep` | keep the renderer build and the Electron profiles in the output folder |
+| `--lock-wait S` | wait at most S seconds for the bench lock while another run holds it (default 3600), then exit with code 2 |
+| `--no-wait` | exit with code 2 at once if another run holds the bench lock |
 
 Exit code: 0 all checks passed (known failures do not count, see above), 1 a check failed, 2 the
-bench could not run (missing venv, Electron or packages, not Windows, bad arguments, an unusable
-`--out` folder, port 8765 or 8795 in use). Ctrl+C stops the processes the run started.
+bench could not run (missing venv, Electron or packages, not Windows, bad arguments, the bench lock
+not acquired, an unusable `--out` folder, port 8765 or 8795 in use). Ctrl+C stops the processes
+the run started.
+
+## Bench lock and machine load
+
+Every checkout and worktree on a PC shares the bench's fixed ports and its CPU and GPU. So every run
+first takes the bench lock (`lib/benchLock.mjs`), before it checks the venv or creates its output
+folder. If another bench run or timing measurement holds it, the run says who (process, command,
+folder, since when) and waits, every minute saying it still waits, for up to `--lock-wait` seconds;
+with `--no-wait` it refuses at once. Waiting runs get the lock in the order they started waiting.
+
+- The lock is the folder `three-maze-bench-lock` in the system temp folder (`%TEMP%`), shared by
+  every checkout of the same Windows user. `THREEMAZE_BENCH_LOCK_DIR` moves it (for the lock's own
+  tests).
+- It is released when the run ends, however it ends. A holder whose process is gone, or whose
+  heartbeat (renewed every 10 s) is older than 2 minutes, is removed by the next run, so a crashed
+  or killed run never blocks the bench.
+- Two modes: `exclusive`, taken by every run of `run.mjs` (the v0.3 scenarios use the fixed ports,
+  and the sim self-test asserts timing tolerances) and by every timing measurement; and `shared`,
+  for functional v1 scenarios, which will take their ports from the environment (`freePort()` in
+  `lib/ports.mjs`) so that several can run at once. Shared holders never run alongside an
+  exclusive one, and a waiting exclusive run blocks new shared holders. No scenario uses the
+  shared mode yet (v1 scenarios arrive with DPR-18a).
+
+`results.json` records the lock (`bench_lock`: its id, mode, how long the run waited and held it,
+and any stale holder it removed) and the machine load (`machine_load`, from
+`tools/timing/machine-load.mjs`, which also runs on its own: `node tools/timing/machine-load.mjs`):
+
+- `start`, taken right after the lock and before the run starts anything: the CPU load over 1 s,
+  each GPU's engine utilisation (Windows performance counters, and `nvidia-smi` where installed),
+  the 10 busiest processes over 1 s, and every other process whose command line names a
+  three-maze checkout (other worktrees' builds, tests, backends and shells);
+- `during_run_cpu`: the CPU load every 2 s during the run (mean, 95th percentile, maximum); it
+  includes this run's own processes;
+- `end`, after the run's processes have stopped.
+
+The console shows the lock id and a one-line summary of the start snapshot. The two snapshots
+add about 3 s each to a run.
 
 ## Reading the output
 
@@ -237,7 +277,8 @@ Lifecycle cases are in `<out>/lifecycle/<case>/`: `lifecycle.log` (Electron side
 
 The runner stops only processes it started, by PID (and their descendants, `taskkill /T`), never by
 image name, so other Node or Python programs are never touched. Three-maze itself must be closed
-first, because the bench's backend needs its port 8765 (see Requirements).
+first, because the bench's backend needs its port 8765 (see Requirements); another bench run is
+waited for (see Bench lock and machine load).
 
 ## Known limits
 
@@ -338,6 +379,8 @@ first, because the bench's backend needs its port 8765 (see Requirements).
 - The lifecycle cases use a fake experiment; `crash` and `t35` cover the real one.
 - The ESC key, the quit dialog, the gallery window and Windows session end are not covered.
 - The session backend needs port 8765 and the lifecycle backend 8795, so the bench cannot run
-  while three-maze (or another bench run) is open: the runner refuses with exit code 2 and
-  "close three-maze first". It never stops another program's backend.
+  while three-maze is open: the runner refuses with exit code 2 and "close three-maze first". It
+  never stops another program's backend. Another bench run holds the bench lock, so a second run
+  waits for it instead; a program that uses the ports without the lock (three-maze itself, or a
+  bench from a commit before the lock) is caught only by the port check.
 - Windows only (pythonw, Windows process and window APIs).
