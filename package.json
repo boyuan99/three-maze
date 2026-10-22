@@ -18,6 +18,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p src/render",
     "test:e2e": "node test/e2e/run.mjs",
     "test:render": "node test/render/smoke.mjs",
+    "test:stall": "node --experimental-strip-types --disable-warning=ExperimentalWarning test/perf/stall/run.mjs",
     "rig:info": "node scripts/rig-info.cjs",
     "timing:gate": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/timing/gate.ts"
   },

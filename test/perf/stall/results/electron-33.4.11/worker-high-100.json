@@ -1,0 +1,273 @@
+{
+ "suite": "worker",
+ "runs": [
+  {
+   "mode": "main-thread",
+   "stallMs": 100,
+   "everyMs": 1000,
+   "cpuMs": {
+    "n": 1200,
+    "mean": 0.064,
+    "p50": 0.1,
+    "p95": 0.2,
+    "p99": 0.2,
+    "max": 0.7
+   },
+   "syncMs": null,
+   "entryMs": {
+    "n": 1200,
+    "mean": 18.929,
+    "p50": 17.7,
+    "p95": 18.4,
+    "p99": 110.9,
+    "max": 118.1
+   },
+   "entryPacing": {
+    "periodMs": 17.7,
+    "hz": 56.5,
+    "intervals": 1200,
+    "lateIntervals": 22,
+    "missedVsyncs": 121,
+    "missedPct": 9.16
+   },
+   "gpuMs": {
+    "n": 1200,
+    "mean": 0.167,
+    "p50": 0.19,
+    "p95": 0.26,
+    "p99": 0.342,
+    "max": 1.281
+   },
+   "rafMs": {
+    "n": 1200,
+    "mean": 18.929,
+    "p50": 17.7,
+    "p95": 18.4,
+    "p99": 88.2,
+    "max": 89.2
+   },
+   "pacing": {
+    "periodMs": 17.7,
+    "hz": 56.5,
+    "intervals": 1200,
+    "lateIntervals": 22,
+    "missedVsyncs": 84,
+    "missedPct": 6.542
+   },
+   "drawCalls": 7,
+   "triangles": 84,
+   "programs": 2,
+   "gpuSamples": 1200,
+   "disjoint": 0
+  },
+  {
+   "mode": "offscreen-worker",
+   "stallMs": 100,
+   "everyMs": 1000,
+   "pacing": {
+    "periodMs": 17.7,
+    "hz": 56.5,
+    "intervals": 1200,
+    "lateIntervals": 0,
+    "missedVsyncs": 0,
+    "missedPct": 0
+   },
+   "entryPacing": {
+    "periodMs": 17.7,
+    "hz": 56.5,
+    "intervals": 1200,
+    "lateIntervals": 0,
+    "missedVsyncs": 0,
+    "missedPct": 0
+   },
+   "rafMs": {
+    "n": 1200,
+    "mean": 17.697,
+    "p50": 17.7,
+    "p95": 18.1,
+    "p99": 18.5,
+    "max": 18.8
+   },
+   "entryMs": {
+    "n": 1200,
+    "mean": 17.697,
+    "p50": 17.7,
+    "p95": 18.1,
+    "p99": 18.5,
+    "max": 18.7
+   },
+   "cpuMs": {
+    "n": 1200,
+    "mean": 0.059,
+    "p50": 0.1,
+    "p95": 0.2,
+    "p99": 0.2,
+    "max": 0.5
+   }
+  }
+ ],
+ "gl": {
+  "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 (0x00002F04) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "vendor": "Google Inc. (NVIDIA)",
+  "maxAniso": 16,
+  "timerQuery": true,
+  "parallelCompile": true,
+  "contextAttributes": {
+   "alpha": true,
+   "antialias": true,
+   "depth": true,
+   "desynchronized": false,
+   "failIfMajorPerformanceCaveat": false,
+   "powerPreference": "default",
+   "premultipliedAlpha": true,
+   "preserveDrawingBuffer": false,
+   "stencil": false,
+   "xrCompatible": false
+  },
+  "dpr": 1.75
+ },
+ "rafWorks": true,
+ "page": {
+  "visibility": "visible",
+  "hasFocus": false,
+  "screen": {
+   "w": 2195,
+   "h": 1235
+  },
+  "inner": [
+   1285,
+   725
+  ],
+  "dpr": 1.75
+ },
+ "harness": {
+  "args": {
+   "suite": "worker",
+   "gpu": "high",
+   "mode": "visible",
+   "seconds": "20",
+   "stall": "100",
+   "every": "1000",
+   "tag": "worker-high-100"
+  },
+  "electron": "33.4.11",
+  "chrome": "130.0.6723.191",
+  "gpuInfo": {
+   "auxAttributes": {
+    "amdSwitchable": false,
+    "canSupportThreadedTextureMailbox": false,
+    "directMLFeatureLevel": "Not supported",
+    "dx12FeatureLevel": "Not supported",
+    "glImplementationParts": "(gl=none,angle=none)",
+    "glResetNotificationStrategy": 0,
+    "inProcessGpu": true,
+    "initializationTime": 0,
+    "isAsan": false,
+    "isClangCoverage": false,
+    "jpegDecodeAcceleratorSupported": false,
+    "optimus": false,
+    "overlayInfo": {
+     "bgra8OverlaySupport": "NONE",
+     "directComposition": false,
+     "nv12OverlaySupport": "NONE",
+     "p010OverlaySupport": "NONE",
+     "rgb10a2OverlaySupport": "NONE",
+     "supportsOverlays": false,
+     "yuy2OverlaySupport": "NONE"
+    },
+    "passthroughCmdDecoder": false,
+    "sandboxed": false,
+    "subpixelFontRendering": true,
+    "supportsD3dSharedImages": false,
+    "supportsDirectML": false,
+    "supportsDx12": false,
+    "supportsVulkan": false,
+    "targetCpuBits": 64,
+    "visibilityCallbackCallCount": 0,
+    "vulkanVersion": "Not supported"
+   },
+   "gpuDevice": [
+    {
+     "active": false,
+     "deviceId": 12036,
+     "driverVersion": "32.0.15.9186",
+     "gpuPreference": 3,
+     "revision": 161,
+     "subSysId": -1980624829,
+     "vendorId": 4318
+    },
+    {
+     "active": false,
+     "deviceId": 42880,
+     "driverVersion": "32.0.101.7088",
+     "gpuPreference": 2,
+     "revision": 4,
+     "subSysId": 2114327650,
+     "vendorId": 32902
+    },
+    {
+     "active": false,
+     "deviceId": 12036,
+     "driverVersion": "32.0.15.9186",
+     "gpuPreference": 0,
+     "revision": 161,
+     "subSysId": -1980624829,
+     "vendorId": 4318
+    },
+    {
+     "active": false,
+     "deviceId": 140,
+     "driverVersion": "10.0.26100.9278",
+     "gpuPreference": 0,
+     "revision": 0,
+     "subSysId": 0,
+     "vendorId": 5140
+    }
+   ]
+  },
+  "featureStatus": {
+   "2d_canvas": "enabled",
+   "canvas_oop_rasterization": "enabled_on",
+   "direct_rendering_display_compositor": "disabled_off_ok",
+   "gpu_compositing": "enabled",
+   "multiple_raster_threads": "enabled_on",
+   "opengl": "enabled_on",
+   "rasterization": "enabled",
+   "raw_draw": "disabled_off_ok",
+   "skia_graphite": "disabled_off",
+   "video_decode": "enabled",
+   "video_encode": "enabled",
+   "vulkan": "disabled_off",
+   "webgl": "enabled",
+   "webgl2": "enabled",
+   "webgpu": "enabled",
+   "webnn": "disabled_off"
+  },
+  "displays": [
+   {
+    "id": 1262070965,
+    "bounds": {
+     "x": 0,
+     "y": 0,
+     "width": 2195,
+     "height": 1235
+    },
+    "scaleFactor": 1.75,
+    "displayFrequency": 60,
+    "label": "LG HDR 4K"
+   },
+   {
+    "id": 3245091811,
+    "bounds": {
+     "x": -2195,
+     "y": 0,
+     "width": 2195,
+     "height": 1235
+    },
+    "scaleFactor": 1.75,
+    "displayFrequency": 60,
+    "label": "LG HDR 4K"
+   }
+  ]
+ }
+}
