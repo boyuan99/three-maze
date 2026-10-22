@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://three-maze.example/link/v1/message.schema.json",
+  "title": "LinkMessage",
+  "description": "Any message of the three-maze/link protocol, version 1 (SPEC.md). Validate a received or sent message against this schema; type selects the message's own schema.",
+  "type": "object",
+  "required": ["type"],
+  "properties": {
+    "type": {
+      "description": "The core message types of version 1 (SPEC.md section 3). Plan item DPR-05b adds at most two more, within the budget of 12.",
+      "enum": [
+        "hello",
+        "welcome",
+        "heartbeat",
+        "ack",
+        "error",
+        "session.state",
+        "sample.batch",
+        "pose.batch",
+        "event",
+        "render.report"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "hello" } }, "required": ["type"] },
+      "then": { "$ref": "hello.schema.json" }
+    },
+    {
+      "if": { "properties": { "type": { "const": "welcome" } }, "required": ["type"] },
+      "then": { "$ref": "welcome.schema.json" }
+    },
+    {
+      "if": { "properties": { "type": { "const": "heartbeat" } }, "required": ["type"] },
+      "then": { "$ref": "heartbeat.schema.json" }
+    },
+    {
+      "if": { "properties": { "type": { "const": "ack" } }, "required": ["type"] },
+      "then": { "$ref": "ack.schema.json" }
+    },
+    {
+      "if": { "properties": { "type": { "const": "error" } }, "required": ["type"] },
+      "then": { "$ref": "error.schema.json" }
+    },
+    {
+      "if": { "properties": { "type": { "const": "session.state" } }, "required": ["type"] },
+      "then": { "$ref": "session.state.schema.json" }
+    },
+    {
+      "if": { "properties": { "type": { "const": "sample.batch" } }, "required": ["type"] },
+      "then": { "$ref": "sample.batch.schema.json" }
+    },
+    {
+      "if": { "properties": { "type": { "const": "pose.batch" } }, "required": ["type"] },
+      "then": { "$ref": "pose.batch.schema.json" }
+    },
+    {
+      "if": { "properties": { "type": { "const": "event" } }, "required": ["type"] },
+      "then": { "$ref": "event.schema.json" }
+    },
+    {
+      "if": { "properties": { "type": { "const": "render.report" } }, "required": ["type"] },
+      "then": { "$ref": "render.report.schema.json" }
+    }
+  ]
+}

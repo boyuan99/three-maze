@@ -1,0 +1,12 @@
+{
+  "type": "hello",
+  "t": 1203411,
+  "id": "h1",
+  "data": {
+    "protocol": "three-maze/link",
+    "version": "1.0",
+    "role": "motion",
+    "client": { "impl": "three-maze-motion-worker", "version": "0.3.0" },
+    "session": "2026-10-23T14-03-11Z_m12"
+  }
+}

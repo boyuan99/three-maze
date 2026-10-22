@@ -1,0 +1,14 @@
+{
+  "type": "render.report",
+  "t": 6201050,
+  "data": {
+    "kind": "clock",
+    "time_origin_us": 1792765391123456,
+    "phase": "self_test",
+    "pass": true,
+    "intervals": 299,
+    "median_hz": 60.0,
+    "display_hz": 60,
+    "spread_us": 310.0
+  }
+}

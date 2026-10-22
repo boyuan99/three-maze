@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://three-maze.example/link/v1/sample.batch.schema.json",
+  "title": "SampleBatchMessage",
+  "description": "Runtime to the motion client: device samples in sequence order, each sent once (SPEC.md section 8). One sample is the device sample of device protocol v1, section 7.2.",
+  "type": "object",
+  "required": ["type", "t", "data"],
+  "properties": {
+    "type": { "const": "sample.batch" },
+    "t": { "$ref": "common.schema.json#/$defs/message_time" },
+    "data": { "$ref": "#/$defs/data" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "data": {
+      "title": "SampleBatchData",
+      "type": "object",
+      "required": ["seq_source", "samples"],
+      "properties": {
+        "seq_source": {
+          "description": "device: seq is the device's own number, so a gap is a counted loss. host: the runtime numbered the samples as they arrived (legacy-v0.3), so a gap can only be inferred from the device clock.",
+          "enum": ["device", "host"]
+        },
+        "samples": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1000,
+          "items": { "$ref": "#/$defs/sample" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "sample": {
+      "title": "Sample",
+      "description": "One device sample.",
+      "type": "object",
+      "required": ["seq", "t_dev_us", "dt_us", "d", "raw", "flags", "gap"],
+      "properties": {
+        "seq": { "$ref": "common.schema.json#/$defs/seq" },
+        "t_dev_us": {
+          "description": "End of the sample's window on the unwrapped device clock (device protocol v1, H6), or the runtime's clock at receipt when the device has none.",
+          "$ref": "common.schema.json#/$defs/time_us"
+        },
+        "dt_us": {
+          "description": "The time d covers: t_dev_us minus the previous sample's, so longer than one period after a gap.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "d": {
+          "description": "Body-frame displacement [forward cm, left cm, dyaw rad] = C * raw, with the rig file's calibration C; yaw positive counter-clockwise seen from above.",
+          "type": "array",
+          "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": "number" }],
+          "items": false,
+          "minItems": 3
+        },
+        "raw": {
+          "description": "Counts per sensor axis since the previous sample, before calibration.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": { "type": "number" }
+        },
+        "flags": {
+          "description": "Bits 0-7: the device's flags byte, unchanged (bit 0 count_incomplete, bit 1 no_tracking). Bit 8 (256): dt_estimated, dt_us is an estimate, not a measured window: for a stream's first sample, the declared period, or (seq + 1) times it when the first seq is above 0 (device protocol v1, section 7.2). Bit 9 (512): dt_mismatch, the device's window length disagreed with its clock (device protocol v1, H6). Bits 10-15: reserved, 0.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "gap": {
+          "description": "Samples lost just before this one (counted or inferred): 0 when none.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

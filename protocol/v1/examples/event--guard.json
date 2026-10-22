@@ -1,0 +1,12 @@
+{
+  "type": "event",
+  "t": 8840002,
+  "data": {
+    "kind": "guard",
+    "seq": 1901,
+    "epoch": 3,
+    "t_dev_us": 8604000,
+    "world": "hallway",
+    "result": "recovered"
+  }
+}

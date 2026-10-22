@@ -1,0 +1,5 @@
+{
+  "type": "event",
+  "t": 1210588,
+  "data": { "kind": "seq_gap", "seq": 5, "epoch": 0, "t_dev_us": 1020000, "lost": 2 }
+}

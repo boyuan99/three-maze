@@ -1,0 +1,26 @@
+{
+  "type": "welcome",
+  "t": 512334012,
+  "re": "h1",
+  "data": {
+    "protocol": "three-maze/link",
+    "version": "1.0",
+    "role": "motion",
+    "client_id": "motion-1",
+    "runtime": { "impl": "threemaze", "version": "0.3.0" },
+    "heartbeat_ms": 20,
+    "watchdog_ms": 100,
+    "epoch": 0,
+    "session": "2026-10-23T14-03-11Z_m12",
+    "device": {
+      "profile": "v1",
+      "completeness": "counted",
+      "integrity": "crc8",
+      "seq_source": "device",
+      "time_source": "device",
+      "period_us": 4000,
+      "n_axes": 4,
+      "device_id": "ball-01"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "type": "error",
+  "t": 9310600,
+  "data": { "code": "bad_message", "message": "two\nlines", "path": "/data/samples/0/seq" }
+}

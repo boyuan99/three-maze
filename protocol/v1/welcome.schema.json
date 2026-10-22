@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://three-maze.example/link/v1/welcome.schema.json",
+  "title": "WelcomeMessage",
+  "description": "Runtime to client: the reply to an accepted hello (SPEC.md section 5).",
+  "type": "object",
+  "required": ["type", "t", "re", "data"],
+  "properties": {
+    "type": { "const": "welcome" },
+    "t": { "$ref": "common.schema.json#/$defs/message_time" },
+    "re": { "$ref": "common.schema.json#/$defs/request_id" },
+    "data": { "$ref": "#/$defs/data" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "data": {
+      "title": "WelcomeData",
+      "type": "object",
+      "required": [
+        "protocol",
+        "version",
+        "role",
+        "client_id",
+        "runtime",
+        "heartbeat_ms",
+        "watchdog_ms",
+        "epoch"
+      ],
+      "properties": {
+        "protocol": { "const": "three-maze/link" },
+        "version": {
+          "description": "The version both sides use from now on: the hello's major version with the lower of the two minor versions.",
+          "type": "string",
+          "pattern": "^1\\.(0|[1-9][0-9]{0,3})(?![\\s\\S])"
+        },
+        "role": {
+          "description": "The role granted, the one the hello asked for.",
+          "enum": ["motion", "monitor"]
+        },
+        "client_id": {
+          "description": "Name the runtime gives this connection in its logs.",
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "runtime": {
+          "description": "The rig runtime program and its version.",
+          "$ref": "common.schema.json#/$defs/software"
+        },
+        "heartbeat_ms": {
+          "description": "Heartbeat interval: each side sends a heartbeat on a timer of this period (SPEC.md section 6).",
+          "const": 20
+        },
+        "watchdog_ms": {
+          "description": "The runtime's watchdog acts when no heartbeat from the motion client has arrived for longer than this (ADR-0002, Rig runtime).",
+          "const": 100
+        },
+        "epoch": {
+          "description": "The epoch the client starts with: 0 for a new session.",
+          "$ref": "common.schema.json#/$defs/epoch"
+        },
+        "session": {
+          "description": "The current session, if one is configured. Required for role motion.",
+          "$ref": "common.schema.json#/$defs/session_id"
+        },
+        "world": {
+          "description": "The world the session starts in (phase 1: its only world). Required for role motion.",
+          "$ref": "common.schema.json#/$defs/world"
+        },
+        "device": {
+          "description": "The motion device and the guarantees its samples carry. Required for role motion.",
+          "$ref": "common.schema.json#/$defs/motion_device"
+        }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "role": { "const": "motion" } }, "required": ["role"] },
+          "then": { "required": ["session", "world", "device"] }
+        }
+      ]
+    }
+  }
+}

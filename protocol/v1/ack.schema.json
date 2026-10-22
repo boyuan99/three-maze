@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://three-maze.example/link/v1/ack.schema.json",
+  "title": "AckMessage",
+  "description": "Either direction: the reply to a request that was carried out (SPEC.md section 12). The requests that 1.0 adds with plan item DPR-05b define the fields an ack carries; the core subset defines none.",
+  "type": "object",
+  "required": ["type", "t", "re", "data"],
+  "properties": {
+    "type": { "const": "ack" },
+    "t": { "$ref": "common.schema.json#/$defs/message_time" },
+    "re": { "$ref": "common.schema.json#/$defs/request_id" },
+    "data": { "$ref": "#/$defs/data" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "data": {
+      "title": "AckData",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  }
+}

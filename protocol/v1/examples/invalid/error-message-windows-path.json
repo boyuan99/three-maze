@@ -1,0 +1,9 @@
+{
+  "type": "error",
+  "t": 9310600,
+  "data": {
+    "code": "bad_message",
+    "message": "cannot open D:\\VirmenData\\m12.txt",
+    "path": "/data/samples/0/seq"
+  }
+}

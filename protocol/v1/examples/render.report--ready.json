@@ -1,0 +1,28 @@
+{
+  "type": "render.report",
+  "t": 1190334,
+  "data": {
+    "kind": "ready",
+    "time_origin_us": 1792765391123456,
+    "host": "main",
+    "warmup_us": 812345,
+    "programs": 6,
+    "textures": 2,
+    "geometries": 12,
+    "canvas_width": 1920,
+    "canvas_height": 1080,
+    "pixel_ratio": 1,
+    "refresh_hz": 60,
+    "settings": { "shadows": false, "toneMapping": "NoToneMapping", "antialias": true },
+    "assets": [
+      {
+        "id": "Chess_Pattern",
+        "sha256": "1adceddaf7974c1fc2b1c605ef531ee449ba5b6bfd6d0df959a5ec51ab2fefb4"
+      },
+      {
+        "id": "evening_road_01_puresky_1k",
+        "sha256": "7f13eedcf00c822a756812fe74c2ecd24d74693d7a94c4d570cb3b9e3459242e"
+      }
+    ]
+  }
+}

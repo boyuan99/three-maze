@@ -1,0 +1,17 @@
+{
+  "type": "welcome",
+  "t": 512334012,
+  "re": "h1",
+  "data": {
+    "protocol": "three-maze/link",
+    "version": "1.0",
+    "role": "motion",
+    "client_id": "motion-1",
+    "runtime": { "impl": "threemaze", "version": "0.3.0" },
+    "heartbeat_ms": 20,
+    "watchdog_ms": 100,
+    "epoch": 0,
+    "session": "2026-10-23T14-03-11Z_m12",
+    "world": "hallway"
+  }
+}

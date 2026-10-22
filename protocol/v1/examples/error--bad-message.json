@@ -1,0 +1,9 @@
+{
+  "type": "error",
+  "t": 9310600,
+  "data": {
+    "code": "bad_message",
+    "message": "seq must be at most 4294967295",
+    "path": "/data/samples/0/seq"
+  }
+}

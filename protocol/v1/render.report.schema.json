@@ -1,0 +1,278 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://three-maze.example/link/v1/render.report.schema.json",
+  "title": "RenderReportMessage",
+  "description": "Motion client to runtime: a report of the render host, which the motion worker forwards unchanged (SPEC.md section 11; ADR-0003 1a: the stimulus window's main thread returns only its frame log and clock reports). kind ready: the warm-up report; frames: a batch of the frame log; long_tasks: long-task and long-animation-frame entries; clock: a frame-clock check result.",
+  "type": "object",
+  "required": ["type", "t", "data"],
+  "properties": {
+    "type": { "const": "render.report" },
+    "t": { "$ref": "common.schema.json#/$defs/message_time" },
+    "data": { "$ref": "#/$defs/data" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "data": {
+      "title": "RenderReportData",
+      "type": "object",
+      "required": ["kind", "time_origin_us"],
+      "properties": {
+        "kind": { "enum": ["ready", "frames", "long_tasks", "clock"] },
+        "time_origin_us": {
+          "description": "performance.timeOrigin of the render host's realm, in whole microseconds. It names the clock domain of every *_us time in the report (the render host's performance.now()), which differs from the motion worker's; it is not itself a timestamp.",
+          "$ref": "common.schema.json#/$defs/count"
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "ready" } }, "required": ["kind"] },
+          "then": { "$ref": "#/$defs/ready" }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "frames" } }, "required": ["kind"] },
+          "then": { "$ref": "#/$defs/frames" }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "long_tasks" } }, "required": ["kind"] },
+          "then": { "$ref": "#/$defs/long_tasks" }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "clock" } }, "required": ["kind"] },
+          "then": { "$ref": "#/$defs/clock" }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "ready": {
+      "title": "RenderReady",
+      "description": "Sent once, after every world, material and texture is warmed up and before any trial (ADR-0003 1b): from then on a rise in programs or textures is a fault the frame log flags.",
+      "type": "object",
+      "required": ["host", "warmup_us", "programs", "textures", "canvas_width", "canvas_height", "pixel_ratio"],
+      "properties": {
+        "host": {
+          "description": "Which render host draws the stimulus: main (the scene window's main thread) or worker (an OffscreenCanvas worker, ADR-0003 Decision 3).",
+          "enum": ["main", "worker"]
+        },
+        "fallback_reason": {
+          "description": "Why the main-thread host is used although a worker host was asked for.",
+          "$ref": "common.schema.json#/$defs/text"
+        },
+        "warmup_us": {
+          "description": "How long loading and warm-up took.",
+          "$ref": "common.schema.json#/$defs/duration_us"
+        },
+        "programs": {
+          "description": "renderer.info.programs.length after warm-up.",
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "textures": {
+          "description": "renderer.info.memory.textures after warm-up.",
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "geometries": {
+          "description": "renderer.info.memory.geometries after warm-up.",
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "canvas_width": {
+          "description": "Drawing-buffer width in pixels.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "canvas_height": {
+          "description": "Drawing-buffer height in pixels.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "pixel_ratio": {
+          "description": "The renderer's pixel ratio.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "refresh_hz": {
+          "description": "Refresh rate of the display the scene window is on, as Electron reports it.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "settings": {
+          "description": "Effective renderer settings by name, for example {\"shadows\": false, \"toneMapping\": \"NoToneMapping\"} (plan item REN-3).",
+          "type": "object",
+          "maxProperties": 64,
+          "propertyNames": { "$ref": "common.schema.json#/$defs/id" },
+          "additionalProperties": { "$ref": "#/$defs/setting" }
+        },
+        "assets": {
+          "description": "Every asset the scene loaded, by id, with the SHA-256 of its bytes.",
+          "type": "array",
+          "maxItems": 1000,
+          "items": { "$ref": "#/$defs/asset" }
+        }
+      }
+    },
+    "setting": {
+      "title": "RenderSetting",
+      "description": "A setting's value: a boolean, a number or a constant's name.",
+      "anyOf": [
+        { "type": "boolean" },
+        { "type": "number" },
+        { "$ref": "common.schema.json#/$defs/id" }
+      ]
+    },
+    "asset": {
+      "title": "AssetHash",
+      "type": "object",
+      "required": ["id", "sha256"],
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/id" },
+        "sha256": { "$ref": "common.schema.json#/$defs/sha256" }
+      },
+      "additionalProperties": false
+    },
+    "frames": {
+      "title": "RenderFrames",
+      "description": "Frame-log records in frame order, at most 1 s of frames per batch (plan item REN-11).",
+      "type": "object",
+      "required": ["world", "frames"],
+      "properties": {
+        "world": {
+          "description": "The world every frame in the batch showed: a batch never spans a world switch.",
+          "$ref": "common.schema.json#/$defs/world"
+        },
+        "frames": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1000,
+          "items": { "$ref": "#/$defs/frame" }
+        }
+      }
+    },
+    "frame": {
+      "title": "FrameRecord",
+      "description": "One requestAnimationFrame callback of the render host (ADR-0003 1d). Times are on the render host's clock.",
+      "type": "object",
+      "required": ["frame", "t_raf_us", "t_start_us", "t_end_us", "epoch", "flags"],
+      "properties": {
+        "frame": {
+          "description": "Frame index: 0 for the first callback after ready, then +1 per callback.",
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "t_raf_us": {
+          "description": "The callback's requestAnimationFrame timestamp.",
+          "$ref": "common.schema.json#/$defs/time_us"
+        },
+        "t_start_us": {
+          "description": "performance.now() when the callback started.",
+          "$ref": "common.schema.json#/$defs/time_us"
+        },
+        "t_end_us": {
+          "description": "performance.now() when the callback returned.",
+          "$ref": "common.schema.json#/$defs/time_us"
+        },
+        "epoch": { "$ref": "common.schema.json#/$defs/epoch" },
+        "seq": {
+          "description": "The sample whose pose was drawn, or the earlier of two when the frame interpolated between poses. Absent before the first pose.",
+          "$ref": "common.schema.json#/$defs/seq"
+        },
+        "seq_next": {
+          "description": "The later of the two samples when the frame interpolated between poses.",
+          "$ref": "common.schema.json#/$defs/seq"
+        },
+        "t_dev_us": {
+          "description": "The device time the drawn pose stands for. Absent before the first pose.",
+          "$ref": "common.schema.json#/$defs/time_us"
+        },
+        "flags": {
+          "description": "Bit 0 (1): screen blanked. Bit 1 (2): motion frozen. Bit 2 (4): document hidden. Bit 3 (8): WebGL context lost. Bit 4 (16): shader programs or textures rose after ready. Bits 5-7: reserved, 0.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        }
+      },
+      "additionalProperties": false
+    },
+    "long_tasks": {
+      "title": "RenderLongTasks",
+      "description": "Long tasks the render host's main thread observed (plan item REN-12), in the order observed.",
+      "type": "object",
+      "required": ["entries"],
+      "properties": {
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1000,
+          "items": { "$ref": "#/$defs/long_task" }
+        }
+      }
+    },
+    "long_task": {
+      "title": "LongTaskEntry",
+      "description": "One PerformanceObserver entry, or one of the app's own timed handlers above the threshold. Script attribution is left out, because it holds file URLs.",
+      "type": "object",
+      "required": ["entry", "t_start_us", "duration_us"],
+      "properties": {
+        "entry": {
+          "description": "longtask or long-animation-frame (PerformanceEntry.entryType), or handler (timed by the app).",
+          "enum": ["longtask", "long-animation-frame", "handler"]
+        },
+        "name": {
+          "description": "PerformanceEntry.name, or the handler's name.",
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        "t_start_us": { "$ref": "common.schema.json#/$defs/time_us" },
+        "duration_us": { "$ref": "common.schema.json#/$defs/duration_us" },
+        "blocking_us": {
+          "description": "long-animation-frame: blockingDuration.",
+          "$ref": "common.schema.json#/$defs/duration_us"
+        },
+        "render_start_us": {
+          "description": "long-animation-frame: renderStart.",
+          "$ref": "common.schema.json#/$defs/time_us"
+        },
+        "style_layout_start_us": {
+          "description": "long-animation-frame: styleAndLayoutStart.",
+          "$ref": "common.schema.json#/$defs/time_us"
+        }
+      },
+      "additionalProperties": false
+    },
+    "clock": {
+      "title": "RenderClockCheck",
+      "description": "A result of the display-based frame-clock check (ADR-0003 1d; plan item REN-4): the 5 s self-test after ready, then rolling results. It has no gain field.",
+      "type": "object",
+      "required": ["phase", "pass", "intervals", "median_hz", "spread_us"],
+      "properties": {
+        "phase": { "enum": ["self_test", "rolling"] },
+        "pass": {
+          "description": "Median frame rate within 1 % (at least 1 Hz) of the display's refresh rate, and spread under 0.5 ms.",
+          "type": "boolean"
+        },
+        "intervals": {
+          "description": "Frame intervals the result is based on.",
+          "$ref": "common.schema.json#/$defs/count"
+        },
+        "median_hz": {
+          "description": "1 / median frame interval.",
+          "type": "number",
+          "minimum": 0
+        },
+        "display_hz": {
+          "description": "The display's refresh rate the median was compared with.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "spread_us": {
+          "description": "95th minus 5th percentile of the frame intervals.",
+          "type": "number",
+          "minimum": 0
+        },
+        "warnings": {
+          "description": "Warning codes, for example not_primary_display.",
+          "type": "array",
+          "maxItems": 16,
+          "items": { "$ref": "common.schema.json#/$defs/id" }
+        }
+      }
+    }
+  }
+}

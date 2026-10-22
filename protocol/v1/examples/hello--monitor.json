@@ -1,0 +1,11 @@
+{
+  "type": "hello",
+  "t": 88120,
+  "id": "1",
+  "data": {
+    "protocol": "three-maze/link",
+    "version": "1.0",
+    "role": "monitor",
+    "client": { "impl": "three-maze-control-window", "version": "0.3.0" }
+  }
+}

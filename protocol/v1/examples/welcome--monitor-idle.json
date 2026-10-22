@@ -1,0 +1,15 @@
+{
+  "type": "welcome",
+  "t": 510002230,
+  "re": "1",
+  "data": {
+    "protocol": "three-maze/link",
+    "version": "1.0",
+    "role": "monitor",
+    "client_id": "monitor-1",
+    "runtime": { "impl": "threemaze", "version": "0.3.0" },
+    "heartbeat_ms": 20,
+    "watchdog_ms": 100,
+    "epoch": 0
+  }
+}

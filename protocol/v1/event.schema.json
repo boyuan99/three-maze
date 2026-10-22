@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://three-maze.example/link/v1/event.schema.json",
+  "title": "EventMessage",
+  "description": "Motion client to runtime: one motion event, stamped with the sample it belongs to (SPEC.md section 10; ADR-0002, Stamps).",
+  "type": "object",
+  "required": ["type", "t", "data"],
+  "properties": {
+    "type": { "const": "event" },
+    "t": { "$ref": "common.schema.json#/$defs/message_time" },
+    "data": { "$ref": "#/$defs/data" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "data": {
+      "title": "EventData",
+      "type": "object",
+      "required": ["kind", "seq", "epoch", "t_dev_us", "world"],
+      "properties": {
+        "kind": {
+          "description": "zone: the agent's centre crossed a zone boundary. fall: no floor under the agent. land: back on a floor. teleport_applied: a teleport or reset took effect. seq_gap: samples were lost before this one. guard: the overlap guard of ADR-0001 R6 recovered or undid a move.",
+          "enum": ["zone", "fall", "land", "teleport_applied", "seq_gap", "guard"]
+        },
+        "seq": {
+          "description": "The sample the event belongs to; for teleport_applied, the last sample processed before the teleport.",
+          "$ref": "common.schema.json#/$defs/seq"
+        },
+        "epoch": {
+          "description": "The epoch after the event; for teleport_applied the new epoch.",
+          "$ref": "common.schema.json#/$defs/epoch"
+        },
+        "t_dev_us": {
+          "description": "t_dev_us of sample seq.",
+          "$ref": "common.schema.json#/$defs/time_us"
+        },
+        "world": { "$ref": "common.schema.json#/$defs/world" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "zone" } }, "required": ["kind"] },
+          "then": {
+            "required": ["zone", "edge", "cause"],
+            "properties": {
+              "zone": {
+                "description": "The zone's id.",
+                "$ref": "common.schema.json#/$defs/id"
+              },
+              "edge": {
+                "description": "enter or exit.",
+                "enum": ["enter", "exit"]
+              },
+              "cause": {
+                "description": "move: the agent's own motion. teleport: a teleport moved the agent across the boundary; such events carry the new epoch and are not behaviour (ADR-0002, Stamps).",
+                "enum": ["move", "teleport"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "kind": { "const": "teleport_applied" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "required": ["x", "feet_y", "z", "yaw"],
+            "properties": {
+              "spawn": {
+                "description": "The spawn point teleported to, if the teleport named one.",
+                "$ref": "common.schema.json#/$defs/id"
+              },
+              "x": { "type": "number" },
+              "feet_y": { "type": "number" },
+              "z": { "type": "number" },
+              "yaw": { "type": "number" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "seq_gap" } }, "required": ["kind"] },
+          "then": {
+            "required": ["lost"],
+            "properties": {
+              "lost": {
+                "description": "Samples lost between the previous sample and this one (the sample's gap).",
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4294967295
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "guard" } }, "required": ["kind"] },
+          "then": {
+            "required": ["result"],
+            "properties": {
+              "result": {
+                "description": "recovered: the move was redone and the agent moved; undone: the move was dropped (ADR-0001 R6).",
+                "enum": ["recovered", "undone"]
+              }
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  }
+}

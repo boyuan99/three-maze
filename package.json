@@ -9,6 +9,7 @@
     "build": "vite build",
     "electron:dev": "node start-dev.js",
     "electron:build": "vite build && electron-builder",
+    "protocol:types": "node scripts/gen-link-types.mjs",
     "postinstall": "node setup/setup-python.js",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -20,6 +21,7 @@
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.14.0",
+    "ajv": "8.20.0",
     "pinia": "^3.0.4",
     "three": "0.169.0",
     "vue": "^3.5.12",

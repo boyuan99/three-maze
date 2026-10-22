@@ -1,0 +1,16 @@
+{
+  "type": "event",
+  "t": 9310431,
+  "data": {
+    "kind": "teleport_applied",
+    "seq": 2028,
+    "epoch": 4,
+    "t_dev_us": 9112000,
+    "world": "hallway",
+    "spawn": "start",
+    "x": 0.0,
+    "feet_y": 0.0,
+    "z": 0.0,
+    "yaw": 0.0
+  }
+}
