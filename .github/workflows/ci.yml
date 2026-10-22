@@ -1,7 +1,13 @@
 # Continuous integration on Windows, the rig's operating system (ADR-0001 follow-up).
 #
-#   javascript  Vitest unit tests (test/frontend), TypeScript type check, renderer build
+#   javascript  Vitest unit tests (test/frontend) and the motion suite's fast tier
+#               (test/motion/fast), TypeScript type check, renderer build
 #   python      backend tests (test/backend) against the exact pins of requirements-dev.txt
+#   motion-suite
+#               the motion suite's full tier (test/motion, `npm run test:motion`): ADR-0001's CI
+#               gate on every change to the motion module, the compiler or Rapier. It runs on every
+#               event but tests only when a motion path changed, and otherwise passes, so it can be
+#               a required check (see the job).
 #   e2e         the hardware-free end-to-end bench (test/e2e): only when started by hand
 #               (Actions > CI > Run workflow), because it takes several minutes and has not been
 #               tried on a hosted runner yet. Hosted runners have no GPU, so the bench renders in
@@ -70,6 +76,60 @@ jobs:
           cache-dependency-path: requirements*.txt
       - run: python -m pip install -r requirements-dev.txt
       - run: python -m pytest
+
+  motion-suite:
+    name: Motion suite (full tier, when motion paths change)
+    runs-on: windows-latest
+    # Three times the full tier's runtime on the development PC with one worker (2.9 min,
+    # 2026-10-09, test/motion/README.md) plus about 5 min for checkout, setup and npm ci (estimate)
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # the path filter compares with the base commit
+      # The path filter runs here, not under on: paths. A required check whose workflow on: paths
+      # skips stays pending and blocks the merge; this job always runs and passes when no motion
+      # path changed. Paths: the motion module, the compiler, the suite, the dependency files
+      # (Rapier) and this workflow. Without a base commit to compare with (manual run, new branch,
+      # force push) the suite runs.
+      - name: Check for changes to motion paths
+        id: changes
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          case "$EVENT" in
+            pull_request) base="$PR_BASE" ;;
+            push) base="$PUSH_BEFORE" ;;
+            *) base="" ;;
+          esac
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "No base commit to compare with ($EVENT): running the motion suite"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$base" HEAD -- src/motion src/compiler test/motion \
+            package.json package-lock.json .github/workflows/ci.yml)
+          if [ -n "$changed" ]; then
+            printf 'Motion paths changed since %s:\n%s\n' "$base" "$changed"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No motion path changed since $base: the motion suite is not needed"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.changes.outputs.run == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      # --ignore-scripts: the suite needs no Python venv (as in the javascript job)
+      - if: steps.changes.outputs.run == 'true'
+        run: npm ci --ignore-scripts
+      - if: steps.changes.outputs.run == 'true'
+        run: npm run test:motion
 
   e2e:
     name: End-to-end bench (simulated rig, Electron, software rendering)
