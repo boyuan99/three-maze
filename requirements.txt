@@ -21,7 +21,7 @@ websockets==15.0.1    # WebSocket server for the renderer
 jsonschema==4.26.0    # rig runtime (threemaze/): rig files checked against JSON Schema 2020-12
 
 # Pulled in by nidaqmx
-certifi==2025.11.12
+certifi==2026.7.22
 charset-normalizer==3.4.4
 click==8.3.1
 colorama==0.4.6; sys_platform == "win32"
