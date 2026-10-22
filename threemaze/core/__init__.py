@@ -1,4 +1,5 @@
-"""Pure parts of the rig runtime: session states and the session clock."""
+"""Pure parts of the rig runtime: session states, the session clock and the records a device's
+reader hands on (records.py)."""
 from .clock import ClockAnchor, SessionClock
 from .states import InvalidTransition, SessionState, StateMachine, Transition, TRANSITIONS
 

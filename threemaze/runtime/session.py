@@ -16,10 +16,20 @@ An invalid rig file fails in configure(), so nothing is opened or written for it
 while arming (a device that does not open, a data root that cannot be created) aborts the
 session. Every transition is stamped on the session clock (perf_counter_ns) and anchored to
 the wall clock.
+
+Listeners (add_listener) learn of every transition, on_session_state(session, transition), and
+get every batch of records a device reads, on_device_batch(session, device name, records), as the
+link to the motion worker does (plan item DPR-06b). A session given an asyncio event loop calls
+them on that loop, the device batches through loop.call_soon_threadsafe from the devices' reader
+threads, in the order the records were read; its blocking calls (arm, start, stop, abort) are then
+made from another thread, for example with asyncio.to_thread. Without a loop, listeners are called
+on the thread that made the transition or read the records.
 """
+import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from ..api.devices import Device, DeviceContext, InputDevice, OutputDevice
 from ..api.registry import driver_class
@@ -68,8 +78,10 @@ class DeviceFailure:
 
 
 class Session:
-    def __init__(self, clock=None):
+    def __init__(self, clock=None, *, loop: asyncio.AbstractEventLoop | None = None):
         self.clock = clock if clock is not None else SessionClock()
+        self.loop = loop
+        self.listeners: list[Any] = []
         self._machine = StateMachine(self.clock.now_ns())
         self.rig: RigConfig | None = None
         self.task: TaskSource | None = None
@@ -99,12 +111,45 @@ class Session:
 
     def _go(self, target: SessionState, reason: str | None = None) -> None:
         anchor = self.clock.anchor()
-        self._machine.go(target, anchor.perf_ns, reason)
+        step = self._machine.go(target, anchor.perf_ns, reason)
         self.anchors[target.value] = anchor
         if target is S.ABORTED:
             self.abort_reason = reason
         log.info("session %s: %s%s", self.session_id or "-", target.value,
                  f" ({reason})" if reason else "")
+        self._notify("on_session_state", step)
+
+    # --- listeners ---------------------------------------------------------------------------
+
+    def add_listener(self, listener: Any) -> None:
+        """Call listener.on_session_state(session, transition) and listener.on_device_batch(
+        session, device name, records), where it has them (see the module docstring)."""
+        self.listeners.append(listener)
+
+    def _notify(self, method: str, *args: Any) -> None:
+        if self.loop is None:
+            self._call_listeners(method, args)
+            return
+        try:
+            self.loop.call_soon_threadsafe(self._call_listeners, method, args)
+        except RuntimeError:  # the event loop is closed: nobody listens any more
+            log.error("session %s: %s not delivered: the event loop is closed",
+                      self.session_id or "-", method)
+
+    def _call_listeners(self, method: str, args: tuple) -> None:
+        for listener in list(self.listeners):
+            call = getattr(listener, method, None)
+            if call is None:
+                continue
+            try:
+                call(self, *args)
+            except Exception:  # noqa: BLE001 - one listener must not stop the others
+                log.exception("session %s: listener %r failed in %s", self.session_id or "-",
+                              listener, method)
+
+    def _on_batch(self, device: str, records: list) -> None:
+        """A device's batch, on the loop if the session has one (the devices hand it there)."""
+        self._call_listeners("on_device_batch", (device, records))
 
     # --- lifecycle ---------------------------------------------------------------------------
 
@@ -205,7 +250,8 @@ class Session:
                 raise SessionError(f"device {name!r}: driver {spec.driver!r} is not available")
             ctx = DeviceContext(clock=self.clock, session_dir=self.dir, rig_dir=rig.rig_dir,
                                 calibration=rig.calibration.get(name),
-                                log=logging.getLogger(f"threemaze.devices.{name}"))
+                                log=logging.getLogger(f"threemaze.devices.{name}"),
+                                loop=self.loop, on_batch=self._on_batch)
             device = cls(name, spec.config, ctx)
             self.devices[name] = device  # before open(): a device that fails to open is closed too
             device.open()

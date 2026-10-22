@@ -160,15 +160,92 @@
       "properties": {
         "driver": {
           "description": "Built-in driver.",
-          "enum": ["simulated"]
+          "enum": ["serial_lines", "simulated"]
         }
       },
       "allOf": [
         {
           "if": { "properties": { "driver": { "const": "simulated" } }, "required": ["driver"] },
           "then": { "$ref": "#/$defs/simulatedDevice" }
+        },
+        {
+          "if": { "properties": { "driver": { "const": "serial_lines" } }, "required": ["driver"] },
+          "then": { "$ref": "#/$defs/serialLinesDevice" }
         }
       ]
+    },
+    "serialLinesDevice": {
+      "description": "A device on a serial port of this computer (USB CDC or a UART), read line by line in the profile named here: v1, device protocol v1 (docs/protocol/device-v1.md). With periodUs it streams samples and can serve the motion role; with outputs it drives output channels and can serve the reward role. The times are the waits of the protocol's session sequence (section 6); their defaults are the protocol's proposed ones.",
+      "type": "object",
+      "required": ["driver", "port", "profile"],
+      "additionalProperties": false,
+      "properties": {
+        "driver": { "const": "serial_lines" },
+        "port": {
+          "description": "The serial port: its name (for example COM5 on Windows or /dev/ttyACM0 on Linux) or a pySerial URL (loop:// is a loopback port for tests).",
+          "type": "string",
+          "minLength": 1
+        },
+        "profile": {
+          "description": "How the device's stream is read: v1, device protocol v1. Plan item DPR-04 adds legacy-v0.3.",
+          "enum": ["v1"]
+        },
+        "baud": {
+          "description": "Baud rate; a native USB device ignores it.",
+          "type": "integer",
+          "minimum": 1,
+          "default": 115200
+        },
+        "deviceId": {
+          "description": "When present, the device's hello must report this id (rule H5).",
+          "$ref": "#/$defs/deviceId"
+        },
+        "periodUs": {
+          "description": "The sample period, in microseconds, that the device's hello must declare (rule H5). Present: the device streams samples and can serve the motion role. Absent: its hello must declare 0.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "outputs": {
+          "description": "Output channels the rig uses. At least 1: the device can serve the reward role, and its hello must declare at least as many (key out).",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "openDelayMs": {
+          "description": "Wait after opening the port, for boards that reset when it opens (section 6, step 1).",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 60000,
+          "default": 0
+        },
+        "helloIntervalMs": {
+          "description": "Send hello again this often until the device answers (section 6, step 3).",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60000,
+          "default": 500
+        },
+        "helloTimeoutMs": {
+          "description": "Refuse to arm the session when no hello came within this time (section 6, step 3).",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600000,
+          "default": 5000
+        },
+        "stopTimeoutMs": {
+          "description": "Wait this long for the stop report after stop (section 6, step 7).",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60000,
+          "default": 500
+        },
+        "rawLog": {
+          "description": "Write every line received, and every command, to raw/<device>.tsv in the session folder.",
+          "type": "boolean",
+          "default": true
+        }
+      }
     },
     "simulatedDevice": {
       "description": "The reference simulated device of device protocol v1, in the runtime's own process: no serial port, no hardware. With periodUs it streams samples of three axes (lateral, forward and yaw counts, in the order of the v0.3 stream's fields 7, 8 and 9); with outputs it drives output channels.",

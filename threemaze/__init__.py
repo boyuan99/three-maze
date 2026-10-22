@@ -6,9 +6,10 @@ during phase 1; until then the two live side by side and do not share code.
 
 Packages (layout of the backend-modules design; phase-1 subset):
     api      public names for driver authors (InputDevice, OutputDevice, register)
-    core     pure parts: session states and the session clock
+    core     pure parts: session states, the session clock, the records devices hand on
     runtime  the session: rig file -> devices -> IDLE ... COMPLETE | ABORTED
-    devices  built-in drivers ("simulated")
+    devices  built-in drivers ("simulated", "serial_lines"), the serial reader and the device
+             profiles (plan item DPR-03)
     link     the three-maze/link protocol to the motion worker (plan items DPR-05a, DPR-06b)
     record   the session folder (rig file copy and hash)
     config   rig file v1: loading and validation (rigs/schema/rig-v1.schema.json)
