@@ -29,6 +29,18 @@ const median = (v) => {
 }
 const round = (x, n = 1) => x === null || x === undefined ? x : Math.round(x * 10 ** n) / 10 ** n
 
+/**
+ * x as Python's f"{x:.3f}" writes it (the experiments' data rows). Both round the exact binary value,
+ * but at an exact tie toFixed rounds away from zero and Python to even: 64.5625 is 64.563 in JS and
+ * 64.562 in the data file. At 3 decimals only odd multiples of 1/16 are exact ties.
+ */
+export function pyFixed3 (x) {
+  const sixteenths = x * 16
+  if (!Number.isInteger(sixteenths) || sixteenths % 2 === 0) return x.toFixed(3)
+  const m = Math.floor(Math.abs(x) * 1000) // |x| * 1000 is exactly m + 0.5
+  return (Math.sign(x) * (m % 2 === 0 ? m : m + 1) / 1000).toFixed(3)
+}
+
 // ---------------------------------------------------------------- processes (monitor.json)
 export function processFacts (mon) {
   const procs = mon?.processes || []
@@ -285,7 +297,7 @@ export function sampleCoverage (rows, periodUs, lastReadSeq, updates = [], first
 
   // Match rows to the updates they logged (the row has x, -z and theta of the update), in order. The
   // file has 3 decimals, so -0.0004 is written -0.000: both zeros are the same here
-  const fix3 = (v) => { const t = Number(v).toFixed(3); return t === '-0.000' ? '0.000' : t }
+  const fix3 = (v) => { const t = pyFixed3(Number(v)); return t === '-0.000' ? '0.000' : t }
   const key = (x, y, th) => `${fix3(x)}|${fix3(y)}|${fix3(th)}`
   const loggedAs = new Map() // update index -> sample of the row that logged it
   const rowUpdate = new Map() // row index -> update index

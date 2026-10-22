@@ -55,3 +55,24 @@ describe('MinimalBackendClient.request', () => {
     expect(error).toHaveProperty('code', 'TIMEOUT')
   })
 })
+
+describe('MinimalBackendClient while the backend closes the socket', () => {
+  // `connected` stays true until onclose fires; until then the socket is CLOSING (readyState 2)
+  function closingClient () {
+    const fake = connectedClient()
+    Object.defineProperty(fake.client.ws, 'readyState', { value: 2 })
+    return fake
+  }
+
+  it('drops a fire-and-forget message instead of sending it on the closing socket', () => {
+    const { client, sent } = closingClient()
+    expect(() => client.send('position_update', { seq: 1 })).not.toThrow()
+    expect(sent).toHaveLength(0)
+  })
+
+  it('rejects a request at once', async () => {
+    const { client, sent } = closingClient()
+    await expect(client.request('experiment_stop', {}, 30000)).rejects.toHaveProperty('message', 'Connection closed')
+    expect(sent).toHaveLength(0)
+  })
+})

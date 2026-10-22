@@ -12,7 +12,10 @@ export function connectedClient() {
   const client = new MinimalBackendClient()  // never connects: no URL needed
   const sent: SentMessage[] = []
   client.connected = true
-  client.ws = { send: (message: string) => { sent.push(JSON.parse(message)) } } as unknown as WebSocket
+  client.ws = {
+    readyState: 1, // OPEN; a test sets 2 (CLOSING) to model the backend closing the socket
+    send: (message: string) => { sent.push(JSON.parse(message)) }
+  } as unknown as WebSocket
   const reply = (type: string, data: Record<string, unknown>, requestId?: number) =>
     client.handleMessage(JSON.stringify({ type, data, requestId }))
   return { client, sent, reply }

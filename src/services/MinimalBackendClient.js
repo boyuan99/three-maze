@@ -32,6 +32,8 @@
  *   await backend.disconnect();
  */
 
+const WS_OPEN = 1;  // WebSocket.OPEN
+
 export class MinimalBackendClient {
   constructor(url = null) {
     this.url = url; // Will be set dynamically if null
@@ -196,6 +198,13 @@ export class MinimalBackendClient {
     if (!this.connected || !this.ws) {
       throw new Error('Not connected to backend');
     }
+    // `connected` turns false only in onclose. When the backend closes the socket (for example at
+    // quit), the socket is CLOSING until then: a send would be lost anyway, and Chromium logs
+    // "WebSocket is already in CLOSING or CLOSED state". Drop the message instead.
+    if (this.ws.readyState !== WS_OPEN) {
+      this.log('Dropped (socket closing):', type);
+      return;
+    }
 
     const message = {
       type,
@@ -218,6 +227,10 @@ export class MinimalBackendClient {
     return new Promise((resolve, reject) => {
       if (!this.connected || !this.ws) {
         reject(new Error('Not connected to backend'));
+        return;
+      }
+      if (this.ws.readyState !== WS_OPEN) {  // closing: see send()
+        reject(new Error('Connection closed'));
         return;
       }
 
