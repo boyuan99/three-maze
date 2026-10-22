@@ -1,6 +1,7 @@
 // The motion core (src/motion/core.ts) with movers that have no collisions: gain, heading, seq
-// order, teleports and epochs, gain and freeze at a requested seq, the session maximum speed, no
-// wall clock or randomness in src/motion, and the same results in Node and in a worker bundle.
+// order, teleports and epochs, gain and freeze at a requested seq, the session maximum speed, the
+// zone sensor's place in the event order, no wall clock or randomness in src/motion, and the same
+// results in Node and in a worker bundle.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -8,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createFreeMover, createMotionCore, eyePose, SUB_STEP } from '../../../src/motion/core.ts'
 import type {
   DeviceSample, MotionCore, MotionCoreOptions, MotionEvent, Mover, MoverEvent, PoseRecord,
+  ZoneChange, ZoneSensor,
 } from '../../../src/motion/core.ts'
 import { makeStream, runScript, scriptStream } from './coreScript.ts'
 import type { ScriptResult } from './coreScript.ts'
@@ -397,6 +399,94 @@ describe('stats', () => {
     const core = createMotionCore({ mover, epoch: 3, onEvent: (e) => events.push(e) })
     core.apply(sample(41))
     expect(events).toEqual([{ type: 'fall_start', seq: 41, epoch: 3, t_dev_us: 168_000 }])
+  })
+})
+
+describe('zone sensor', () => {
+  // A sensor that answers each update with the next scripted list of changes and records the
+  // poses it is asked about (src/motion/zones.ts is the real one, test/motion/fast/zones.test.ts)
+  function scripted(...answers: ZoneChange[][]) {
+    const asked: Array<[number, number, number]> = []
+    const sensor: ZoneSensor = {
+      update(x, feetY, z) {
+        asked.push([x, feetY, z])
+        return answers.shift() ?? []
+      },
+    }
+    return { sensor, asked }
+  }
+  const describeEvent = (e: MotionEvent) =>
+    (e.type === 'zone' ? `${e.edge} ${e.zone} ${e.cause}` : e.type)
+
+  it("is asked at the sample's final pose; its changes follow the mover's events", () => {
+    const { sensor, asked } = scripted([], [{ zone: 'b', edge: 'exit' }, { zone: 'a', edge: 'enter' }])
+    const events: MotionEvent[] = []
+    const free = createFreeMover()
+    const mover: Mover = {
+      get x() { return free.x },
+      get feetY() { return free.feetY },
+      get z() { return free.z },
+      airborne: false,
+      contact: false,
+      subStep: free.subStep,
+      endSample: (_, emit) => emit({ type: 'fall_start' }),
+      place: free.place,
+    }
+    const core = createMotionCore({ mover, zones: sensor, onEvent: (e) => events.push(e) })
+    core.apply(sample(0, [0.5, 0, 0]))
+    core.setParams({ cmd_id: 3, apply_seq: 2 })
+    core.apply(sample(2, [0.5, 0, 0])) // after a gap
+    expect(asked).toEqual([[0, 0, -0.5], [0, 0, -1]])
+    // ADR-0002, Clock and order: the agent moves, then the zone exits and entries are dispatched
+    // in the sensor's order; the parameter change takes effect after the sample
+    expect(events.map(describeEvent)).toEqual([
+      'fall_start', 'seq_gap', 'fall_start', 'exit b move', 'enter a move', 'params',
+    ])
+    expect(events.filter((e) => e.type === 'zone')).toEqual([
+      { type: 'zone', seq: 2, epoch: 0, t_dev_us: 12_000, zone: 'b', edge: 'exit', cause: 'move' },
+      { type: 'zone', seq: 2, epoch: 0, t_dev_us: 12_000, zone: 'a', edge: 'enter', cause: 'move' },
+    ])
+  })
+
+  it('is asked after a teleport, whose stamp and new epoch its changes carry', () => {
+    const { sensor, asked } = scripted(
+      [{ zone: 'start', edge: 'enter' }], [], [{ zone: 'start', edge: 'exit' }],
+    )
+    const { core, events } = setup({ zones: sensor, epoch: 2 })
+    core.teleport({ x: 1, z: 2, cause: 'session_start' }) // before the first sample
+    core.apply(sample(5, [0, 0, 0]))
+    expect(core.apply(sample(5, [0, 0, 0]))).toBeNull() // a duplicate: no motion, no zone update
+    core.teleport({ x: 3, z: 4, epoch: 9 })
+    expect(asked).toEqual([[1, 0, 2], [1, 0, 2], [3, 0, 4]])
+    expect(events.map(describeEvent)).toEqual([
+      'teleport', 'enter start teleport', 'seq_regression', 'teleport', 'exit start teleport',
+    ])
+    expect(events.filter((e) => e.type === 'zone')).toEqual([
+      { type: 'zone', seq: null, epoch: 3, t_dev_us: null, zone: 'start', edge: 'enter',
+        cause: 'teleport' },
+      { type: 'zone', seq: 5, epoch: 9, t_dev_us: 24_000, zone: 'start', edge: 'exit',
+        cause: 'teleport' },
+    ])
+  })
+
+  it('refuses a teleport from an event handler while a teleport is dispatched', () => {
+    const { sensor } = scripted([{ zone: 'a', edge: 'enter' }])
+    let error: unknown
+    const core: MotionCore = createMotionCore({
+      mover: createFreeMover(), zones: sensor,
+      onEvent: (e) => {
+        if (e.type !== 'zone') return
+        try {
+          core.teleport({ x: 0, z: 0 })
+        } catch (thrown) {
+          error = thrown
+        }
+      },
+    })
+    core.teleport({ x: 5, z: 5 })
+    expect(String(error)).toMatch(/teleport\(\) called from an event handler during teleport\(\)/)
+    expect(core.epoch).toBe(1)
+    expect(core.teleport({ x: 0, z: 0 }).epoch).toBe(2) // and works again afterwards
   })
 })
 

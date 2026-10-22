@@ -3,12 +3,14 @@
 // (docs/protocol/device-v1.md section 7.2) in seq order, each once, integrates the heading (it is
 // the only heading integrator: the camera takes the pose record's yaw), splits each sample into
 // sub-steps turned by their midpoint heading, and hands them to an injected mover. It also applies
-// gain and freeze from a requested seq, teleports between samples with reset epochs, and stamps
-// every event with its sample's (seq, epoch, t_dev).
+// gain and freeze from a requested seq, teleports between samples with reset epochs, reports zone
+// entries and exits after each sample and each teleport through an injected zone sensor, and
+// stamps every event with its sample's (seq, epoch, t_dev).
 //
 // No wall clock and no randomness: time is the device time carried by the samples, so the same
 // samples give the same poses in the motion worker, in Node and in a replay. No DOM, no Rapier:
-// the mover (./mover.ts, or createFreeMover below) brings the physics.
+// the mover (./mover.ts, or createFreeMover below) and the zone sensor (./zones.ts) bring the
+// physics.
 //
 // Conventions (ADR-0001 R1): lengths in scene units (1 unit = 1 cm), +Y up. Yaw 0 looks down -Z,
 // positive yaw is counter-clockwise seen from above, left is -X; a sample's displacement d is
@@ -123,7 +125,37 @@ export type MotionEvent =
     type: 'params', cmd_id: number, apply_seq: number, gain: Axes<number>, freeze: Axes<boolean>,
   })
   | TeleportEvent
+  | ZoneEvent
   | (Stamp & MoverEvent)
+
+/** A zone the agent's zone point entered or left (ZoneSensor.update). */
+export interface ZoneChange {
+  zone: string
+  edge: 'enter' | 'exit'
+}
+
+/**
+ * The agent's zone point, on its axis at feet + 1.15, entered or left a zone (ADR-0001 R1). After
+ * a sample (cause 'move') the stamp is the sample's. After a teleport (cause 'teleport') it is the
+ * teleport event's: the last sample before it (null before the first sample) and the new epoch;
+ * such events are not the animal's behaviour (ADR-0002, Stamps).
+ */
+export interface ZoneEvent extends ZoneChange {
+  type: 'zone'
+  seq: number | null
+  epoch: number
+  t_dev_us: number | null
+  cause: 'move' | 'teleport'
+}
+
+/**
+ * What the core needs from a zone sensor (./zones.ts): the zones whose membership changed since
+ * the last update, for the agent's pose (x, feetY, z), in dispatch order: exits, then entries,
+ * each by zone id (ADR-0002, Clock and order).
+ */
+export interface ZoneSensor {
+  update(x: number, feetY: number, z: number): readonly ZoneChange[]
+}
 
 /**
  * What the core needs from a mover: the hover mover of ADR-0001 (./mover.ts), or
@@ -215,6 +247,12 @@ export interface MotionStats {
 
 export interface MotionCoreOptions {
   mover: Mover
+  /**
+   * Zones to report (./zones.ts), evaluated at the final pose after every applied sample and
+   * after every teleport; without it the core reports no zone events. Membership starts empty:
+   * a zone the agent starts in is entered at the first sample or teleport.
+   */
+  zones?: ZoneSensor
   /** Heading at the start, rad (yaw 0 looks down -Z); default 0. */
   yaw?: number
   /** Per-axis gain at the start; default 1 on every axis. */
@@ -230,13 +268,15 @@ export interface MotionCore {
    * Applies one sample and returns its pose record, or returns null for a sample whose seq is not
    * after the last applied one (counted, and reported as a seq_regression event). Throws on a
    * malformed sample: the link must never deliver one, and a pose built from it would be wrong.
-   * Also throws when an event handler calls it while it runs.
+   * Also throws when an event handler calls it while apply() or teleport() runs.
    */
   apply(sample: DeviceSample): PoseRecord | null
   /**
-   * Moves the agent between two samples and starts a new epoch; returns the teleport event.
-   * Throws when an event handler calls it during apply(): the mover would then commit the rest of
-   * that sample over the teleport, and the teleport event would name a pose the agent never had.
+   * Moves the agent between two samples and starts a new epoch; returns the teleport event, which
+   * is dispatched before the zone events of the new pose. Throws when an event handler calls it
+   * during apply(): the mover would then commit the rest of that sample over the teleport, and the
+   * teleport event would name a pose the agent never had; or during teleport(): the first
+   * teleport's zone events would follow the second's.
    */
   teleport(command: TeleportCommand): TeleportEvent
   /** Queues a gain or freeze change for after sample apply_seq (at once if that has passed). */
@@ -283,7 +323,7 @@ const reached = (seq: number, target: number) => ((seq - target) >>> 0) < HALF
 
 /** Creates a motion core around a mover. */
 export function createMotionCore(options: MotionCoreOptions): MotionCore {
-  const { mover } = options
+  const { mover, zones } = options
   const emit = options.onEvent ?? (() => {})
   let yaw = options.yaw ?? 0
   let epoch = options.epoch ?? 0
@@ -297,8 +337,8 @@ export function createMotionCore(options: MotionCoreOptions): MotionCore {
   let lastSeq: number | null = null
   let lastTDev: number | null = null
   let pending: ParamsCommand[] = []
-  // apply() is running: its events reach onEvent while the sample is only partly applied
-  let applying = false
+  // apply() or teleport() is running: its events reach onEvent before it has finished
+  let busy: 'apply' | 'teleport' | null = null
   const stats: MotionStats = {
     samples: 0, seqSource: null, seqGaps: 0, seqLost: 0, seqRegressions: 0, frozenSamples: 0,
     teleports: 0, paramChanges: 0, subSteps: 0, maxSubSteps: 0,
@@ -330,14 +370,23 @@ export function createMotionCore(options: MotionCoreOptions): MotionCore {
     })
   }
 
+  // The zone changes at the mover's pose (ADR-0001 R1), dispatched as zone events: exits, then
+  // entries, each by zone id (ADR-0002, Clock and order)
+  function reportZones(cause: ZoneEvent['cause'], seq: number | null, tDev: number | null): void {
+    if (!zones) return
+    for (const { zone, edge } of zones.update(mover.x, mover.feetY, mover.z)) {
+      emit({ type: 'zone', seq, epoch, t_dev_us: tDev, zone, edge, cause })
+    }
+  }
+
   function apply(sample: DeviceSample): PoseRecord | null {
-    if (applying) throw new Error('apply() called from an event handler during apply()')
+    if (busy) throw new Error(`apply() called from an event handler during ${busy}()`)
     checkSample(sample)
-    applying = true
+    busy = 'apply'
     try {
       return applySample(sample)
     } finally {
-      applying = false
+      busy = null
     }
   }
 
@@ -401,6 +450,7 @@ export function createMotionCore(options: MotionCoreOptions): MotionCore {
       seq, epoch, t_dev_us, x: mover.x, feetY: mover.feetY, z: mover.z, yaw,
       contact: mover.contact, airborne: mover.airborne,
     }
+    reportZones('move', seq, t_dev_us)
     if (pending.length) {
       const waiting: ParamsCommand[] = []
       for (const command of pending) {
@@ -413,9 +463,9 @@ export function createMotionCore(options: MotionCoreOptions): MotionCore {
   }
 
   function teleport(command: TeleportCommand): TeleportEvent {
-    if (applying) {
-      throw new Error('teleport() called from an event handler during apply(): teleports run '
-        + 'between samples')
+    if (busy) {
+      throw new Error(`teleport() called from an event handler during ${busy}(): teleports run `
+        + 'between samples, one at a time')
     }
     const { x, z, feetY = 0 } = command
     if (![x, z, feetY].every(finite)) throw new TypeError('teleport: x, z and feetY must be finite')
@@ -426,17 +476,25 @@ export function createMotionCore(options: MotionCoreOptions): MotionCore {
       && (!Number.isSafeInteger(command.epoch) || command.epoch <= epoch)) {
       throw new TypeError(`teleport: epoch ${command.epoch} is not after the current one, ${epoch}`)
     }
-    epoch = command.epoch ?? epoch + 1
-    if (command.yaw !== undefined) yaw = command.yaw
-    mover.place(x, z, feetY)
-    stats.teleports++
-    const event: TeleportEvent = {
-      type: 'teleport', seq: lastSeq, epoch, t_dev_us: lastTDev, after_seq: lastSeq,
-      cmd_id: command.cmd_id ?? null, cause: command.cause ?? null,
-      x: mover.x, feetY: mover.feetY, z: mover.z, yaw,
+    busy = 'teleport'
+    try {
+      epoch = command.epoch ?? epoch + 1
+      if (command.yaw !== undefined) yaw = command.yaw
+      mover.place(x, z, feetY)
+      stats.teleports++
+      const event: TeleportEvent = {
+        type: 'teleport', seq: lastSeq, epoch, t_dev_us: lastTDev, after_seq: lastSeq,
+        cmd_id: command.cmd_id ?? null, cause: command.cause ?? null,
+        x: mover.x, feetY: mover.feetY, z: mover.z, yaw,
+      }
+      emit(event)
+      // the zones re-evaluated at the new pose; their events follow the teleport's, with its
+      // stamp and the new epoch (ADR-0002, Stamps; link protocol v1, rule V3)
+      reportZones('teleport', lastSeq, lastTDev)
+      return event
+    } finally {
+      busy = null
     }
-    emit(event)
-    return event
   }
 
   function setParams(command: ParamsCommand): void {
