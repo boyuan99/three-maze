@@ -12,6 +12,12 @@ every output device is put in its safe state first, then input streams stop, the
 is closed; a failing device does not keep the others from being made safe. Used as a context
 manager, a session that is left by an exception is aborted.
 
+Arming also checks that the data root has room for the session's data and opens the session's
+recorder (plan item DPR-07, threemaze/record/recorder.py): `recorder` takes the device samples,
+poses, events, commands and render reports of the session, and records every state the session
+enters from ARMED on. Once the session has ended, the recorder is closed, its files complete on
+disk, and `recording` holds its summary.
+
 An invalid rig file fails in configure(), so nothing is opened or written for it. A failure
 while arming (a device that does not open, a data root that cannot be created) aborts the
 session. Every transition is stamped on the session clock (perf_counter_ns) and anchored to
@@ -26,6 +32,7 @@ from ..api.registry import driver_class
 from ..config.rig import RigConfig, load_rig
 from ..core.clock import ClockAnchor, SessionClock
 from ..core.states import InvalidTransition, SessionState, StateMachine, Transition
+from ..record.recorder import SessionRecorder, disk_preflight
 from ..record.session_dir import (check_session_id, create_session_dir, default_session_id,
                                   write_rig_copy)
 
@@ -82,6 +89,9 @@ class Session:
         self.anchors: dict[str, ClockAnchor] = {}     # state -> clocks read at the transition
         self.failures: list[DeviceFailure] = []       # device errors while stopping or aborting
         self.abort_reason: str | None = None
+        self.recorder: SessionRecorder | None = None  # from arming until the session has ended
+        self.recording: dict | None = None            # the recorder's summary, once closed
+        self.preflight: dict | None = None            # the free-disk check made when arming
 
     # --- state -------------------------------------------------------------------------------
 
@@ -105,6 +115,18 @@ class Session:
             self.abort_reason = reason
         log.info("session %s: %s%s", self.session_id or "-", target.value,
                  f" ({reason})" if reason else "")
+        if self.recorder is not None:
+            data = {"state": target.value, **({"reason": reason} if reason else {})}
+            try:
+                self.recorder.event("runtime", "state", data=data, t_host_ns=anchor.perf_ns)
+            except Exception as exc:  # noqa: BLE001 - recording must not stop a transition
+                log.error("session %s: the %s state was not recorded: %r", self.session_id,
+                          target.value, exc)
+
+    def _end(self, target: SessionState, reason: str | None = None) -> None:
+        """COMPLETE or ABORTED, then the recording is closed."""
+        self._go(target, reason)
+        self._close_recording()
 
     # --- lifecycle ---------------------------------------------------------------------------
 
@@ -144,9 +166,10 @@ class Session:
             self.dir = create_session_dir(self.data_root, self.session_id)
             write_rig_copy(self.dir, self.rig.raw, self.rig.sha256)
             self._open_devices()
+            self._open_recorder()
         except Exception as exc:
             self._shutdown()
-            self._go(S.ABORTED, f"arming failed: {exc}")
+            self._end(S.ABORTED, f"arming failed: {exc}")
             raise SessionError(f"cannot arm the session: {exc}") from exc
         self._go(S.ARMED)
         return self.dir
@@ -159,7 +182,7 @@ class Session:
                 device.start()
         except Exception as exc:
             self._shutdown()
-            self._go(S.ABORTED, f"starting failed: {exc}")
+            self._end(S.ABORTED, f"starting failed: {exc}")
             raise SessionError(f"cannot start the session: {exc}") from exc
         self._go(S.RUNNING)
 
@@ -169,17 +192,17 @@ class Session:
         self._go(S.STOPPING)
         failures = self._shutdown()
         if failures:
-            self._go(S.ABORTED, "stopping failed: " + "; ".join(
+            self._end(S.ABORTED, "stopping failed: " + "; ".join(
                 f"{f.device}.{f.action}: {f.error}" for f in failures))
         else:
-            self._go(S.COMPLETE)
+            self._end(S.COMPLETE)
 
     def abort(self, reason: str) -> None:
         """Any state that is not final -> ABORTED, outputs made safe first. Never raises because
         a device fails; the failures are in `failures`."""
         self._require(S.ABORTED)
         self._shutdown()
-        self._go(S.ABORTED, reason)
+        self._end(S.ABORTED, reason)
 
     def __enter__(self) -> "Session":
         return self
@@ -217,6 +240,36 @@ class Session:
                 self.outputs[role] = device
             else:
                 raise SessionError(f"device {name!r} cannot serve the {role} role")
+
+    # --- recording -------------------------------------------------------------------------------
+
+    def _open_recorder(self) -> None:
+        """Check the free disk space for the motion device's rate, then open the recorder. Its
+        samples.tsv has one column per column of the calibration matrix, which rule H5 has checked
+        against the axes of the device's hello."""
+        name = self.rig.bindings["motion"]
+        n_axes = len(self.rig.calibration[name]["matrix"][0])
+        info = self.devices[name].describe()
+        period_us = info.get("period_us") or (info.get("hello") or {}).get("period_us")
+        if period_us:
+            self.preflight = disk_preflight(self.data_root, period_us=period_us, n_axes=n_axes)
+        else:
+            log.warning("session %s: device %s states no sample period, so the free disk space"
+                        " was not checked", self.session_id, name)
+        self.recorder = SessionRecorder(self.dir, n_axes=n_axes, seq_source=info.get("seq_source"),
+                                        clock=self.clock)
+
+    def _close_recording(self) -> None:
+        """Close the recorder once; never raises (a failure goes into the summary's errors)."""
+        if self.recorder is None or self.recording is not None:
+            return
+        try:
+            self.recording = self.recorder.close()
+        except Exception as exc:  # noqa: BLE001 - ending the session must not fail here
+            self.recording = {"errors": [f"closing the recorder: {type(exc).__name__}: {exc}"]}
+        if self.recording.get("errors"):
+            log.error("session %s: recording errors: %s", self.session_id,
+                      "; ".join(self.recording["errors"]))
 
     def _shutdown(self) -> list[DeviceFailure]:
         """Every output device safe, input streams stopped, every device closed: each step for
