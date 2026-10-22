@@ -84,14 +84,17 @@ environment `.venv` and installs `requirements-dev.txt` into it: the backend's e
 
 ```bash
 npm test                         # JavaScript unit tests (Vitest, test/frontend)
-npm run typecheck                # TypeScript type check (tsc, tsconfig.json)
+npm run typecheck                # TypeScript type check (tsc, tsconfig.json; src/render without the DOM)
 .venv/Scripts/python -m pytest   # Python backend tests (test/backend); .venv/bin/python on macOS and Linux
 npm run test:e2e                 # end-to-end bench, Windows only, about 1 minute
+npm run test:render              # the render host draws the six shipped mazes in Electron, about 15 s
 ```
 
 None of them needs a Teensy, an NI-DAQ device or a `D:` drive. The end-to-end bench runs the real
 renderer and backend in a hidden Electron window with a simulated Teensy and NI-DAQ; see
-[test/e2e/README.md](test/e2e/README.md). Some backend tests use the same simulated rig
+[test/e2e/README.md](test/e2e/README.md). The render host (`src/render`) and its development page
+are described in [src/render/README.md](src/render/README.md) and
+[test/render/README.md](test/render/README.md). Some backend tests use the same simulated rig
 (`test/e2e/sim`) without Electron, to check that registration fails cleanly when COM3 or the
 `D:` drive is missing.
 

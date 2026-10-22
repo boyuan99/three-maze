@@ -10,10 +10,11 @@ a v0 maze JSON (`public/mazes/*`), quirks included:
 - the physics world as plain data: one world-space solid per collider v0.3 creates, the gravity and
   the player body.
 
-Plan item TS-28. Its users: the DOM-free render host's first content (REN-9); the gate's fallback
-scene input if `compileScene` (TS-04, TS-07, TS-10) is not merged in time; the solids for the
-collider partitioner (MOT-08); and the reference for the migrator's visual and physics equivalence
-tests (TS-10). Once those items land it is a reference only, not a path for paper data.
+Plan item TS-28. Its users: the DOM-free render host's first content (REN-9,
+`src/render/v0Content.ts`); the gate's fallback scene input if `compileScene` (TS-04, TS-07, TS-10)
+is not merged in time; the solids for the collider partitioner (MOT-08); and the reference for the
+migrator's visual and physics equivalence tests (TS-10). Once those items land it is a reference
+only, not a path for paper data.
 
 Line numbers below refer to `src/scenes/serial/PythonCustomScene.vue` at b96ad72 unless a file is
 named.

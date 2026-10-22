@@ -86,7 +86,8 @@ export class NodeTextureLoader {
   }
 }
 
-const servedManager = new THREE.LoadingManager()
+/** A loading manager that sends app URLs ('/mazes/...') to fetchFromPublic */
+export const servedManager = new THREE.LoadingManager()
 servedManager.setURLModifier((url: string) => url.startsWith('/') ? ORIGIN + url : url)
 
 /** The real EXRLoader, fetching from fetchFromPublic */
