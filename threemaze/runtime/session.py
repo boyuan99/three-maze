@@ -18,6 +18,15 @@ poses, events, commands and render reports of the session, and records every sta
 enters from ARMED on. Once the session has ended, the recorder is closed, its files complete on
 disk, and `recording` holds its summary.
 
+The session record (plan item DPR-08a, threemaze/record/session.py) is written when the session
+folder exists, at each change of state, and a last time once the recorder is closed: status
+running until then, complete or aborted after. `record` takes what reaches the runtime later,
+from any thread and without waiting for the disk: the motion worker's hello
+(record.client_hello), the renderer's ready report (passed on by the recorder), the
+rig-information probe (record.set_rig_info) and the build (record.set_build). Before it creates
+its folder, a session looks for sessions of its data root that a runtime left running when it
+ended, marks them crashed and names them in `crashed_sessions`.
+
 An invalid rig file fails in configure(), so nothing is opened or written for it. A failure
 while arming (a device that does not open, a data root that cannot be created) aborts the
 session. Every transition is stamped on the session clock (perf_counter_ns) and anchored to
@@ -33,6 +42,7 @@ from ..config.rig import RigConfig, load_rig
 from ..core.clock import ClockAnchor, SessionClock
 from ..core.states import InvalidTransition, SessionState, StateMachine, Transition
 from ..record.recorder import SessionRecorder, disk_preflight
+from ..record.session import SessionRecord, find_crashed_sessions, mark_crashed
 from ..record.session_dir import (check_session_id, create_session_dir, default_session_id,
                                   write_rig_copy)
 
@@ -92,6 +102,8 @@ class Session:
         self.recorder: SessionRecorder | None = None  # from arming until the session has ended
         self.recording: dict | None = None            # the recorder's summary, once closed
         self.preflight: dict | None = None            # the free-disk check made when arming
+        self.record: SessionRecord | None = None      # session.json, from arming on
+        self.crashed_sessions: list[str] = []         # found and marked when arming
 
     # --- state -------------------------------------------------------------------------------
 
@@ -122,6 +134,12 @@ class Session:
             except Exception as exc:  # noqa: BLE001 - recording must not stop a transition
                 log.error("session %s: the %s state was not recorded: %r", self.session_id,
                           target.value, exc)
+        if self.record is not None:
+            # The last record waits until the recorder has closed its files (_close_recording)
+            try:
+                self.record.state_changed(target.value, anchor, reason, write=not target.final)
+            except Exception as exc:  # noqa: BLE001 - recording must not stop a transition
+                log.error("session %s: session.json not written: %r", self.session_id, exc)
 
     def _end(self, target: SessionState, reason: str | None = None) -> None:
         """COMPLETE or ABORTED, then the recording is closed."""
@@ -157,16 +175,22 @@ class Session:
         self.task = source
 
     def arm(self) -> Path:
-        """CONFIGURED -> ARMED: create the session folder, copy the rig file and its hash into it,
-        open and check every bound device. Returns the session folder."""
+        """CONFIGURED -> ARMED: mark the sessions of the data root that a runtime left running when
+        it ended; create the session folder, copy the rig file and its hash into it and write
+        session.json; open and check every bound device; check the free disk space and open the
+        recorder. Returns the session folder."""
         self._require(S.ARMED)
         if self.task is None:
             raise SessionError("no task source: call set_task() before arm()")
         try:
+            self._mark_crashed_sessions()
             self.dir = create_session_dir(self.data_root, self.session_id)
             write_rig_copy(self.dir, self.rig.raw, self.rig.sha256)
+            self._open_record()
             self._open_devices()
             self._open_recorder()
+            self.record.update(devices=self._describe_devices(), preflight=self.preflight,
+                               write=False)
         except Exception as exc:
             self._shutdown()
             self._end(S.ABORTED, f"arming failed: {exc}")
@@ -243,6 +267,53 @@ class Session:
 
     # --- recording -------------------------------------------------------------------------------
 
+    def _mark_crashed_sessions(self) -> None:
+        """Sessions of the data root that a runtime left open when it ended (it was killed or it
+        crashed): mark each crashed and remember it. A failure here is logged and does not stop
+        the new session."""
+        try:
+            crashed = find_crashed_sessions(self.data_root)
+        except Exception as exc:  # noqa: BLE001 - a damaged data root must not block a session
+            log.error("looking for crashed sessions in %s failed: %r", self.data_root, exc)
+            return
+        for folder in crashed:
+            try:
+                marked = mark_crashed(folder, detected_by=self.session_id)
+            except Exception as exc:  # noqa: BLE001
+                log.error("could not mark session %s as crashed: %r", folder.name, exc)
+                continue
+            if not marked:
+                continue  # closed, or taken by another runtime, since it was found
+            log.warning("session %s was left running by a runtime that ended; marked crashed",
+                        folder.name)
+            self.crashed_sessions.append(folder.name)
+
+    def _open_record(self) -> None:
+        """Write the first session.json (status running, the states so far) under the lock."""
+        record = SessionRecord(self.dir, session_id=self.session_id, rig=self.rig, task=self.task,
+                               data_root=self.data_root)
+        for step in self._machine.history:
+            record.state_changed(step.target.value, self.anchors[step.target.value], step.reason,
+                                 write=False)
+        record.update(crashed_sessions=list(self.crashed_sessions), write=False)
+        record.open()
+        self.record = record
+
+    def _describe_devices(self) -> dict[str, dict]:
+        """Each opened device as the session record states it: its roles, then its driver's
+        description (device protocol v1, section 8.3, for the devices that speak it)."""
+        roles: dict[str, list[str]] = {}
+        for role, name in self.rig.bindings.items():
+            roles.setdefault(name, []).append(role)
+        described = {}
+        for name, device in self.devices.items():
+            try:
+                described[name] = {"roles": roles.get(name, []), **device.describe()}
+            except Exception as exc:  # noqa: BLE001 - one device must not lose the others
+                described[name] = {"roles": roles.get(name, []),
+                                   "describe_error": f"{type(exc).__name__}: {exc}"}
+        return described
+
     def _open_recorder(self) -> None:
         """Check the free disk space for the motion device's rate, then open the recorder. Its
         samples.tsv has one column per column of the calibration matrix, which rule H5 has checked
@@ -257,19 +328,27 @@ class Session:
             log.warning("session %s: device %s states no sample period, so the free disk space"
                         " was not checked", self.session_id, name)
         self.recorder = SessionRecorder(self.dir, n_axes=n_axes, seq_source=info.get("seq_source"),
-                                        clock=self.clock)
+                                        clock=self.clock, on_ready=self.record.render_ready)
+        for name in self.crashed_sessions:
+            self.recorder.event("runtime", "warning", data={
+                "code": "crashed_session", "session": name,
+                "message": "a session of this data root was left running by a runtime that ended;"
+                           " it is marked crashed"})
 
     def _close_recording(self) -> None:
-        """Close the recorder once; never raises (a failure goes into the summary's errors)."""
-        if self.recorder is None or self.recording is not None:
-            return
-        try:
-            self.recording = self.recorder.close()
-        except Exception as exc:  # noqa: BLE001 - ending the session must not fail here
-            self.recording = {"errors": [f"closing the recorder: {type(exc).__name__}: {exc}"]}
-        if self.recording.get("errors"):
-            log.error("session %s: recording errors: %s", self.session_id,
-                      "; ".join(self.recording["errors"]))
+        """Close the recorder, then write the last session record (complete or aborted) and
+        release its lock; once, and never raises (a failure goes into the summary's errors)."""
+        if self.recorder is not None and self.recording is None:
+            try:
+                self.recording = self.recorder.close()
+            except Exception as exc:  # noqa: BLE001 - ending the session must not fail here
+                self.recording = {"errors": [f"closing the recorder: {type(exc).__name__}: {exc}"]}
+            if self.recording.get("errors"):
+                log.error("session %s: recording errors: %s", self.session_id,
+                          "; ".join(self.recording["errors"]))
+        if self.record is not None and not self.record.closed:
+            self.record.finish(self.state.value, devices=self._describe_devices(),
+                               recording=self.recording)
 
     def _shutdown(self) -> list[DeviceFailure]:
         """Every output device safe, input streams stopped, every device closed: each step for

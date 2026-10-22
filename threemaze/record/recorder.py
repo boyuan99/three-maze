@@ -75,9 +75,8 @@ _LONG_TASK_EXTRA = ("blocking_us", "render_start_us", "style_layout_start_us")
 
 # Free-disk preflight: a session is not armed unless the data root has room for an hour of its
 # data, which covers the 30-min sessions of the week-6 gate (ADR-0003, Decision 2) and of REN-25
-# twice over. The hours the free space holds are kept with the session (Session.preflight), so
-# that a longer run, such as ADR-0003's phase-3 soak of 4 to 8 hours, can be checked before it
-# starts.
+# twice over. The hours the free space holds go into the session record (preflight), so that a
+# longer run, such as ADR-0003's phase-3 soak of 4 to 8 hours, can be checked before it starts.
 PREFLIGHT_HOURS = 1
 # Frame rate for the estimate, before the display is known: the experiment-data design measured
 # the frames table at 144 Hz (three-maze-notes design/experiment_data.json, section 6)
@@ -127,11 +126,13 @@ def _as_mapping(record: Any, names: tuple[str, ...], where: str) -> Mapping[str,
 class SessionRecorder:
     def __init__(self, folder: str | Path, *, n_axes: int, seq_source: str | None = None,
                  clock=None, flush_interval_s: float = FLUSH_INTERVAL_S,
-                 on_error: Callable[[str, OSError], None] | None = None):
+                 on_error: Callable[[str, OSError], None] | None = None,
+                 on_ready: Callable[[Mapping[str, Any], int], None] | None = None):
         """folder: the session folder (it exists, and none of the files does). n_axes: sensor axes
         of the motion device (the columns of its calibration matrix). seq_source: "device" or
         "host" (device protocol v1, section 7.2) to check each sample's seq against the previous
-        one and its gap, None not to check. on_error(file, exc): a write failed (writer thread)."""
+        one and its gap, None not to check. on_error(file, exc): a write failed (writer thread).
+        on_ready(data, t_host_ns): a render.report ready arrived (for the session record)."""
         if seq_source not in (None, "device", "host"):
             raise ValueError(f"seq_source {seq_source!r}: device, host or None")
         self.folder = Path(folder)
@@ -140,6 +141,7 @@ class SessionRecorder:
         self.seq_source = seq_source
         self.seq_mismatches = 0
         self._clock = clock if clock is not None else SessionClock()
+        self._on_ready = on_ready
         self._last_seq: int | None = None
         self._lock = threading.Lock()      # orders events and commands with the trial table
         self._closed = False
@@ -305,6 +307,8 @@ class SessionRecorder:
         else:
             self.event("render", kind, data={k: v for k, v in data.items() if k != "kind"},
                        t_host_ns=t)
+            if kind == "ready" and self._on_ready is not None:
+                self._on_ready(data, t)
 
     def _frames(self, data: Mapping[str, Any], origin: int, t: int) -> None:
         world = _field(data, "world", "render.report frames")

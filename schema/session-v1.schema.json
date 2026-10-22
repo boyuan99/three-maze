@@ -1,0 +1,375 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:three-maze:session:1",
+  "title": "three-maze session record, data format v1 (session.json)",
+  "description": "The record of one session: its status, clock anchors and states, the software and the system it ran on, the rig file, the task, every device with its protocol guarantees, what the motion worker and the renderer reported, the free-disk check and the recorder's summary. Written by threemaze/record/session.py (plan item DPR-08a). Reference: docs/data-format-v1.md, section 10.",
+  "type": "object",
+  "required": ["format", "format_version", "session", "status", "state", "abort_reason", "states", "clock", "runtime", "rig", "task", "subject", "devices", "client", "render", "rig_info", "build", "preflight", "crashed_sessions", "recording"],
+  "additionalProperties": false,
+  "properties": {
+    "format": { "const": "three-maze-session" },
+    "format_version": {
+      "description": "The version of data format v1 the session folder follows; a draft number until plan item DPR-26 freezes it as 1.0.0.",
+      "type": "string",
+      "pattern": "^1\\.0\\.0(-draft\\.[1-9][0-9]*)?(?![\\s\\S])"
+    },
+    "session": { "$ref": "#/$defs/session_id" },
+    "status": {
+      "description": "running: the runtime holds the session open (from arming until it has ended). complete: ended as planned; aborted: ended early or after a failure (abort_reason). In both the recorder has closed its files (if it was open), and recording.errors says if any rows did not reach them. crashed: the runtime ended while the session was open; set by a later session that found it.",
+      "enum": ["running", "complete", "aborted", "crashed"]
+    },
+    "state": {
+      "description": "The session state last entered (threemaze/core/states.py).",
+      "enum": ["configured", "armed", "running", "stopping", "complete", "aborted"]
+    },
+    "abort_reason": { "type": ["string", "null"] },
+    "states": {
+      "description": "Every state entered, in order, with the session clock and the wall clock read together.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["state", "perf_ns", "wall_utc", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "state": { "enum": ["configured", "armed", "running", "stopping", "complete", "aborted"] },
+          "perf_ns": { "$ref": "#/$defs/count" },
+          "wall_utc": { "$ref": "#/$defs/wall_utc" },
+          "reason": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "clock": {
+      "type": "object",
+      "required": ["session_clock", "start", "stop"],
+      "additionalProperties": false,
+      "properties": {
+        "session_clock": {
+          "description": "The clock of every t_host_ns: time.perf_counter_ns(), as Python describes it.",
+          "type": "object",
+          "required": ["source", "implementation", "resolution_s", "monotonic", "adjustable"],
+          "additionalProperties": false,
+          "properties": {
+            "source": { "const": "time.perf_counter_ns()" },
+            "implementation": { "type": "string" },
+            "resolution_s": { "type": "number", "exclusiveMinimum": 0 },
+            "monotonic": { "type": "boolean" },
+            "adjustable": { "type": "boolean" }
+          }
+        },
+        "start": { "description": "Anchor at the start (state running); null before.", "$ref": "#/$defs/anchor_or_null" },
+        "stop": { "description": "Anchor at the end (state complete or aborted); null before.", "$ref": "#/$defs/anchor_or_null" }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "required": ["host", "pid", "three_maze", "python", "packages", "os"],
+      "additionalProperties": false,
+      "properties": {
+        "host": { "type": "string" },
+        "pid": { "type": "integer", "minimum": 0 },
+        "three_maze": {
+          "type": "object",
+          "required": ["version", "runtime_version", "git_commit", "git_dirty"],
+          "additionalProperties": false,
+          "properties": {
+            "version": { "type": ["string", "null"] },
+            "runtime_version": { "type": "string" },
+            "git_commit": { "type": ["string", "null"], "pattern": "^[0-9a-f]{40,64}(?![\\s\\S])" },
+            "git_dirty": { "type": ["boolean", "null"] }
+          }
+        },
+        "python": {
+          "type": "object",
+          "required": ["version", "implementation"],
+          "additionalProperties": false,
+          "properties": {
+            "version": { "type": "string" },
+            "implementation": { "type": "string" }
+          }
+        },
+        "packages": {
+          "description": "Every package installed in the runtime's Python environment, by name.",
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "os": {
+          "type": "object",
+          "required": ["platform", "system", "release", "version", "machine"],
+          "additionalProperties": false,
+          "properties": {
+            "platform": { "type": "string" },
+            "system": { "type": "string" },
+            "release": { "type": "string" },
+            "version": { "type": "string" },
+            "machine": { "type": "string" }
+          }
+        }
+      }
+    },
+    "rig": {
+      "type": "object",
+      "required": ["name", "source", "copy", "sha256", "data_root", "bindings", "in_force"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "source": { "description": "The rig file the session was configured with.", "type": "string" },
+        "copy": { "const": "rig.json" },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "data_root": { "type": "string" },
+        "bindings": {
+          "type": "object",
+          "required": ["motion"],
+          "additionalProperties": { "type": "string" }
+        },
+        "in_force": {
+          "description": "The sections whose omitted fields take the schema's defaults, as in force.",
+          "type": "object",
+          "required": ["motion", "backend"],
+          "additionalProperties": false,
+          "properties": {
+            "motion": { "type": "object" },
+            "backend": { "type": "object" }
+          }
+        }
+      }
+    },
+    "task": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["kind", "ref"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "type": "string" },
+            "ref": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "subject": {
+      "description": "Null until the owner decides which subject fields every session records (D16) and plan items DPR-08b and TS-29 enter them.",
+      "type": ["object", "null"]
+    },
+    "devices": {
+      "description": "Every device the session opened, by its name in the rig file.",
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/device" }
+    },
+    "client": {
+      "description": "The motion worker, from its hello (link protocol, C5); null before it connects.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["role", "impl", "version", "protocol_version", "versions", "t_host_ns"],
+          "additionalProperties": false,
+          "properties": {
+            "role": { "const": "motion" },
+            "impl": { "type": "string" },
+            "version": { "type": "string" },
+            "protocol_version": { "type": "string" },
+            "versions": {
+              "description": "Versions of what the motion client runs, by component: electron, chromium, v8, three, rapier3d-compat, ajv.",
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            },
+            "t_host_ns": { "$ref": "#/$defs/count_or_null" }
+          }
+        }
+      ]
+    },
+    "render": {
+      "description": "The render host's ready report (render.report ready; ADR-0003, Decision 3); null before it arrives.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["host", "fallback_reason", "time_origin_us", "t_host_ns"],
+          "properties": {
+            "host": { "enum": ["main", "worker"] },
+            "fallback_reason": { "type": ["string", "null"] },
+            "time_origin_us": { "$ref": "#/$defs/count" },
+            "t_host_ns": { "$ref": "#/$defs/count_or_null" }
+          }
+        }
+      ]
+    },
+    "rig_info": {
+      "description": "What npm run rig:info found on this computer (plan item REN-1: displays, GPU, system, versions), when the launcher passes it; null otherwise.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["schema"],
+          "properties": { "schema": { "const": "three-maze/rig-info@1" } }
+        }
+      ]
+    },
+    "build": {
+      "description": "How the renderer was built and served, and the hash of what it loaded (plan item REN-26); null fields until the launcher says.",
+      "type": "object",
+      "required": ["kind", "dist_sha256"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "type": ["string", "null"], "pattern": "^[a-z][a-z0-9-]{0,31}(?![\\s\\S])" },
+        "dist_sha256": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/sha256" }] }
+      }
+    },
+    "preflight": {
+      "description": "The free-disk check made when the session was armed; null if it was not made.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["free_bytes", "estimate_bytes_per_hour", "hours_required", "hours_available"],
+          "additionalProperties": false,
+          "properties": {
+            "free_bytes": { "$ref": "#/$defs/count" },
+            "estimate_bytes_per_hour": { "$ref": "#/$defs/count" },
+            "hours_required": { "type": "number", "minimum": 0 },
+            "hours_available": { "type": "number", "minimum": 0 }
+          }
+        }
+      ]
+    },
+    "crashed_sessions": {
+      "description": "The folders of the sessions of the data root that this session found left running by a runtime that had ended, and marked crashed.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/session_id" }
+    },
+    "recording": {
+      "description": "The recorder's summary once it has closed its files; null before.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["errors"],
+          "additionalProperties": false,
+          "properties": {
+            "flush_interval_s": { "type": "number", "exclusiveMinimum": 0 },
+            "files": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": ["rows", "dropped"],
+                "additionalProperties": false,
+                "properties": {
+                  "rows": { "$ref": "#/$defs/count" },
+                  "dropped": { "$ref": "#/$defs/count" }
+                }
+              }
+            },
+            "late": { "$ref": "#/$defs/count" },
+            "seq_mismatches": { "$ref": "#/$defs/count" },
+            "rewards_outside_trials": { "$ref": "#/$defs/count" },
+            "trial_warnings": { "$ref": "#/$defs/count" },
+            "errors": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      ]
+    },
+    "crash": {
+      "description": "Only in a crashed session's record: when and by which session the crash was found, and the state the session was last in.",
+      "type": "object",
+      "required": ["detected_wall_utc", "detected_by", "last_state"],
+      "additionalProperties": false,
+      "properties": {
+        "detected_wall_utc": { "$ref": "#/$defs/wall_utc" },
+        "detected_by": { "$ref": "#/$defs/session_id" },
+        "last_state": { "type": ["string", "null"] }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "crashed" } }, "required": ["status"] },
+      "then": { "required": ["crash"] },
+      "else": { "not": { "required": ["crash"] } }
+    },
+    {
+      "if": { "properties": { "status": { "enum": ["complete", "aborted"] } }, "required": ["status"] },
+      "then": { "properties": { "state": { "enum": ["complete", "aborted"] } } }
+    },
+    {
+      "if": { "properties": { "status": { "const": "complete" } }, "required": ["status"] },
+      "then": { "properties": { "state": { "const": "complete" }, "recording": { "type": "object" } } }
+    }
+  ],
+  "$defs": {
+    "count": { "type": "integer", "minimum": 0 },
+    "count_or_null": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/count" }] },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}(?![\\s\\S])" },
+    "session_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}(?![\\s\\S])" },
+    "wall_utc": {
+      "description": "ISO 8601 UTC with microseconds, for example 2026-10-22T20:54:36.206457+00:00.",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}\\+00:00(?![\\s\\S])"
+    },
+    "anchor_or_null": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["perf_ns", "wall_utc"],
+          "additionalProperties": false,
+          "properties": {
+            "perf_ns": { "$ref": "#/$defs/count" },
+            "wall_utc": { "$ref": "#/$defs/wall_utc" }
+          }
+        }
+      ]
+    },
+    "device": {
+      "description": "A device: the roles it serves, then its driver's description. A device read with a protocol profile also states the fields of device protocol v1, section 8.3.",
+      "type": "object",
+      "required": ["roles"],
+      "properties": {
+        "roles": { "type": "array", "items": { "enum": ["motion", "reward"] } },
+        "driver": { "type": "string" },
+        "driver_version": { "type": "string" },
+        "profile": { "enum": ["v1", "legacy-v0.3"] },
+        "hello": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["protocol", "version", "device_id", "period_us", "n_axes", "keys"],
+              "properties": {
+                "protocol": { "const": "threemaze-device" },
+                "version": { "type": "string" },
+                "device_id": { "type": "string" },
+                "period_us": { "$ref": "#/$defs/count" },
+                "n_axes": { "type": "integer", "minimum": 0, "maximum": 16 },
+                "keys": { "type": "object", "additionalProperties": { "type": "string" } }
+              }
+            }
+          ]
+        },
+        "guarantees": {
+          "type": "object",
+          "required": ["hello", "device_seq", "device_time", "window_dt", "checksum", "running_totals", "stop_report"],
+          "additionalProperties": false,
+          "properties": {
+            "hello": { "type": "boolean" },
+            "device_seq": { "type": "boolean" },
+            "device_time": { "type": "boolean" },
+            "window_dt": { "type": "boolean" },
+            "checksum": { "type": "boolean" },
+            "running_totals": { "type": "boolean" },
+            "stop_report": { "type": "boolean" }
+          }
+        },
+        "completeness": { "enum": ["counted", "inferred", "received"] },
+        "integrity": { "enum": ["crc8", "parse-only"] },
+        "seq_source": { "enum": ["device", "host"] },
+        "time_source": { "enum": ["device", "host"] },
+        "counters": { "type": "object", "additionalProperties": { "$ref": "#/$defs/count" } },
+        "output_timing": { "enum": ["hardware", "software", "unreported"] }
+      },
+      "dependentRequired": {
+        "profile": ["hello", "guarantees", "completeness", "integrity", "seq_source", "time_source"]
+      }
+    }
+  }
+}

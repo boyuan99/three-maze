@@ -11,7 +11,7 @@ Packages (layout of the backend-modules design; phase-1 subset):
     devices  built-in drivers ("simulated")
     link     the three-maze/link protocol to the motion worker (plan items DPR-05a, DPR-06b)
     record   the session folder: the rig file copy and hash, the recorder that writes the
-             data tables and logs (docs/data-format-v1.md)
+             data tables and logs, and the session record (docs/data-format-v1.md)
     config   rig file v1: loading and validation (rigs/schema/rig-v1.schema.json)
 
 Nothing here holds a port, channel, data path or calibration constant: they come from the rig

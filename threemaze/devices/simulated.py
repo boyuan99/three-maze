@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from ..api import DeviceContext, DeviceError, InputDevice, OutputDevice, register
+from .guarantees import protocol_record, v1_flags
 from .sim.frame import frame, unframe
 from .sim.model import SimDevice, config_from_entry, config_problems
 from .sim.motion import AXES, MotionError
@@ -256,11 +257,19 @@ class SimulatedDevice(InputDevice, OutputDevice):
         return self._cmd_id
 
     def describe(self) -> dict[str, Any]:
-        return {**super().describe(), "device_id": self.config["deviceId"],
+        info = {**super().describe(), "device_id": self.config["deviceId"],
                 "period_us": self.config.get("periodUs", 0), "axes": self.axis_count(self.config),
                 "outputs": self.config.get("outputs", 0), "hello": self.hello, "files": self.files,
                 "raw_log": f"raw/{self.name}.tsv", "sim_log": f"sim/{self.name}.jsonl",
                 "stop_report": self.stop_report}
+        # Device protocol v1, section 8.3: rule H9 records the profile and the guarantees of each
+        # device, an output device too; every simulated device speaks profile v1, and the stop
+        # report counts once it arrived. The counters come with the serial reader (DPR-03).
+        info.update(protocol_record("v1", v1_flags(hello=self.hello is not None,
+                                                   stop_report=self.stop_report is not None)))
+        if self.config.get("outputs", 0):
+            info["output_timing"] = "hardware" if self.config.get("ack", True) else "unreported"
+        return info
 
     # --- host side ---------------------------------------------------------------------------
 

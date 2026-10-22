@@ -1,6 +1,8 @@
 """docs/data-format-v1.md documents exactly the tables and logs the recorder writes
 (threemaze/record/formats.py): every column with its type and whether it may be empty, every log
-field and whether it is always present, and the format version."""
+field and whether it is always present, every field of session.json
+(schema/session-v1.schema.json), and the format version."""
+import json
 import re
 from pathlib import Path
 
@@ -8,7 +10,9 @@ import pytest
 
 from threemaze.record import formats
 
-DOC = Path(__file__).resolve().parents[3] / "docs" / "data-format-v1.md"
+REPO = Path(__file__).resolve().parents[3]
+DOC = REPO / "docs" / "data-format-v1.md"
+SESSION_SCHEMA = REPO / "schema" / "session-v1.schema.json"
 RAW = "raw_<j>_counts"
 
 
@@ -59,6 +63,11 @@ def test_every_log_field_is_documented(spec):
     assert [name for name, _ in fields] == list(spec.names)
     for field, (name, present) in zip(spec.fields, fields):
         assert (present == "always") == field.required, name
+
+
+def test_every_session_json_field_is_documented():
+    schema = json.loads(SESSION_SCHEMA.read_text(encoding="utf-8"))
+    assert [name for name, _ in documented()["session.json"]] == list(schema["properties"])
 
 
 def test_the_format_version_is_the_documented_one():
