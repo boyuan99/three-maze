@@ -83,6 +83,21 @@ export interface ManifestZone extends Placed {
   shape: ZoneShape
 }
 
+/** What happens where the agent's ground ray finds no floor (ADR-0001 R4). */
+export const FALL_MODES = ['gravity', 'none'] as const
+export type FallMode = (typeof FALL_MODES)[number]
+
+/**
+ * The scene's motion settings, which the mover takes (ADR-0001 R3, R4). The rig's (the eye
+ * height) and the mover's own (radius, skin, controller settings) are not the scene's.
+ */
+export interface ManifestMotion {
+  /** Gravity along +Y, units/s², negative: the scene's value, -981 by default (ADR-0001 R3). */
+  gravity: number
+  /** 'gravity': the agent falls off open edges; 'none': it stops at them (ADR-0001 R4). */
+  fall: FallMode
+}
+
 export interface ColliderManifest {
   format: typeof MANIFEST_FORMAT
   version: typeof MANIFEST_VERSION
@@ -90,6 +105,8 @@ export interface ColliderManifest {
   builder?: string
   /** RAPIER.version() where the manifest was written (MOT-08); instantiate() reports its own. */
   rapierVersion?: string
+  /** The scene's motion settings (MOT-08); the compiler always writes them. */
+  motion?: ManifestMotion
   colliders: ManifestCollider[]
   zones: ManifestZone[]
 }
@@ -260,16 +277,24 @@ const PLACED = ['id', 'translation', 'rotation', 'enabled', 'sources']
 /**
  * Checks that `value` (for example parsed JSON) is a collider manifest and returns it typed.
  * Throws a ManifestError naming the first problem: a missing or unknown field, an unknown shape,
- * flag or layer, a body other than 'fixed', a non-finite number, a rotation that is not a unit
- * quaternion, an id used twice.
+ * flag, layer or fall mode, a body other than 'fixed', a non-finite number, a rotation that is not
+ * a unit quaternion, an id used twice, gravity that is not negative.
  */
 export function validateManifest(value: unknown): ColliderManifest {
   const m = object(value, 'manifest', ['format', 'version', 'colliders', 'zones'],
-    ['builder', 'rapierVersion'])
+    ['builder', 'rapierVersion', 'motion'])
   if (m.format !== MANIFEST_FORMAT) fail('manifest.format', `must be '${MANIFEST_FORMAT}'`)
   if (m.version !== MANIFEST_VERSION) fail('manifest.version', `must be ${MANIFEST_VERSION}`)
   if (m.builder !== undefined) string(m.builder, 'manifest.builder')
   if (m.rapierVersion !== undefined) string(m.rapierVersion, 'manifest.rapierVersion')
+  if (m.motion !== undefined) {
+    const motion = object(m.motion, 'manifest.motion', ['gravity', 'fall'])
+    const g = motion.gravity
+    if (typeof g !== 'number' || !Number.isFinite(g) || g >= 0) {
+      fail('manifest.motion.gravity', 'must be a finite negative number')
+    }
+    oneOf(motion.fall, 'manifest.motion.fall', FALL_MODES, 'fall mode')
+  }
   if (!Array.isArray(m.colliders)) fail('manifest.colliders', 'must be an array')
   if (!Array.isArray(m.zones)) fail('manifest.zones', 'must be an array')
   const ids = new Set<string>()

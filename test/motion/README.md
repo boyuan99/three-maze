@@ -14,7 +14,8 @@ compiler or Rapier" (`docs/adr/0001-player-mover.md:81`). Roadmap phase 1 builds
 The collider tests of `src/motion/instantiate.ts` (MOT-07), the tests of the motion core
 `src/motion/core.ts` with movers that have no collisions (MOT-02) and the hover mover's own tests
 (`src/motion/mover.ts`, MOT-03: eye height, falls, events, worker bundle) are ordinary unit tests
-in `test/frontend/motion/`.
+in `test/frontend/motion/`; those of the collider partitioner, its manifest and its hash
+(`src/compiler/physics/`, MOT-08) in `test/frontend/compiler/`.
 
 ## Layout
 
