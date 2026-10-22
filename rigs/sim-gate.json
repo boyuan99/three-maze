@@ -1,0 +1,47 @@
+{
+  "$schema": "schema/rig-v1.schema.json",
+  "format": "three-maze-rig",
+  "version": 1,
+  "name": "sim-gate",
+  "description": "Simulated rig for the week-6 gate (D6 = a): the simulated device at 20 samples per second on a scripted B1-like trajectory of running bouts, stops and turns, looped, with lick contacts during the stops. The speeds are the v0.3 simulated Teensy's (11.168 cm/s, test/e2e/sim) and twice that; the turn rate and the timing are illustrative, not measured. A recorded stream replaces this trajectory if a raw capture of the owner's device exists (D6): trajectory kind replay. See docs/rig-file-v1.md.",
+  "devices": {
+    "ball": {
+      "driver": "simulated",
+      "deviceId": "sim-ball",
+      "periodUs": 50000,
+      "sensor": { "cmPerCount": 0.0349, "radPerCount": 0.05 },
+      "lick": 1,
+      "trajectory": {
+        "kind": "segments",
+        "loop": true,
+        "segments": [
+          { "durationS": 4, "forwardCmPerS": 11.168 },
+          { "durationS": 2, "forwardCmPerS": 22.336 },
+          { "durationS": 2, "lick": 1 },
+          { "durationS": 1, "yawDegPerS": 45 },
+          { "durationS": 3, "forwardCmPerS": 11.168 },
+          { "durationS": 1, "forwardCmPerS": 5.584, "yawDegPerS": -45 },
+          { "durationS": 1.5, "lick": 1 },
+          { "durationS": 0.5 }
+        ]
+      }
+    },
+    "valve": { "driver": "simulated", "deviceId": "sim-valve", "outputs": 1 }
+  },
+  "bindings": { "motion": "ball", "reward": "valve" },
+  "calibration": {
+    "ball": {
+      "matrix": [
+        [0, 0.0349, 0],
+        [0.0349, 0, 0],
+        [0, 0, 0.05]
+      ],
+      "note": "v0.3's mapping, as in rigs/sim.json"
+    }
+  },
+  "dataRoot": "../data",
+  "safety": {
+    "reward": { "maxPulseMs": 300, "minIntervalMs": 250, "maxTotalMsPerSession": 60000 }
+  },
+  "motion": { "eyeHeight": 3.7 }
+}

@@ -251,6 +251,9 @@ kill <PID>
   - `/components` - Reusable Vue components
 - `/mazes` - Maze configuration files
 - `/electron` - Electron-specific code
+- `/backend`, `/experiments` - the v0.3 Python backend and its experiments
+- `/threemaze` - the v1 rig runtime (Python), replacing the v0.3 backend during phase 1
+- `/rigs` - rig files and their schema ([docs/rig-file-v1.md](docs/rig-file-v1.md))
 - `/public` - Static assets
 - `/protocol` - the link protocol between the rig runtime, the motion worker and monitors:
   schemas, examples and specification ([protocol/v1/SPEC.md](protocol/v1/SPEC.md))

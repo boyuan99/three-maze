@@ -4,6 +4,7 @@ import os
 
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 SIM_ROOT = os.path.dirname(PACKAGE_DIR)          # the directory that has to be on PYTHONPATH
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(SIM_ROOT)))  # holds threemaze/
 
 
 def default_sim_dir():
@@ -18,6 +19,7 @@ LINE_ENDING = b"\r\n"            # Teensy Serial.println()
 INPUT_BUFFER_LIMIT = 1 << 20     # bytes the port buffers before new lines are dropped
 
 SERIAL_MODES = ("ok", "missing", "busy", "silent")
+PROTOCOLS = ("legacy-v0.3", "v1")
 DAQ_MODES = ("ok", "missing")
 DATA_MODES = ("ok", "missing")
 
@@ -27,13 +29,17 @@ class SimConfigError(Exception):
 
 
 class Settings:
-    def __init__(self, sim_dir, speed, serial_mode, daq_mode, data_mode, open_delay_s=0.0):
+    def __init__(self, sim_dir, speed, serial_mode, daq_mode, data_mode, open_delay_s=0.0,
+                 protocol="legacy-v0.3", device_file=None):
         self.sim_dir = sim_dir
         self.speed = speed
         self.serial_mode = serial_mode
         self.daq_mode = daq_mode
         self.data_mode = data_mode
         self.open_delay_s = open_delay_s
+        self.protocol = protocol
+        self.device_file = device_file
+        self.device = None  # the checked THREEMAZE_SIM_DEVICE entry (devicecfg.load), or None
         self.virmen_dir = os.path.join(sim_dir, "VirmenData")
         self.serial_log = os.path.join(sim_dir, "serial.jsonl")
         self.daq_log = os.path.join(sim_dir, "daq.jsonl")
@@ -51,6 +57,9 @@ class Settings:
             "virmen_dir": self.virmen_dir,
             "forward_counts_per_sample": FORWARD_COUNTS_PER_SAMPLE * self.speed,
             "default_period_ms": DEFAULT_PERIOD_MS,
+            "protocol": self.protocol,
+            "device_file": self.device_file,
+            "device": self.device,
         }
 
 
@@ -84,6 +93,10 @@ def from_env(env=None):
     if not (math.isfinite(open_delay_s) and 0 <= open_delay_s <= 600):
         raise SimConfigError(f"THREEMAZE_SIM_OPEN_DELAY_S={raw_delay!r}: expected 0..600 seconds")
 
+    device_file = env.get("THREEMAZE_SIM_DEVICE") or None
+    if device_file is not None:
+        device_file = os.path.normpath(os.path.abspath(device_file))
+
     return Settings(
         sim_dir=sim_dir,
         speed=speed,
@@ -91,4 +104,6 @@ def from_env(env=None):
         daq_mode=_choice(env, "THREEMAZE_SIM_DAQ", DAQ_MODES),
         data_mode=_choice(env, "THREEMAZE_SIM_DATA", DATA_MODES),
         open_delay_s=open_delay_s,
+        protocol=_choice(env, "THREEMAZE_SIM_PROTOCOL", PROTOCOLS),
+        device_file=device_file,
     )

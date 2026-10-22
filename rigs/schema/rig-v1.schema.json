@@ -1,0 +1,451 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:three-maze:rig:1",
+  "title": "three-maze rig file, version 1",
+  "description": "Describes one rig: its devices, which device serves which role, their calibration, where session data go, the safety envelope of its outputs, how its backend starts, and the motion settings that belong to the rig rather than to an experiment (ADR-0001 R3). The rig runtime validates the file before a session is armed and copies it, with its SHA-256, into the session folder. Reference: docs/rig-file-v1.md.",
+  "type": "object",
+  "required": ["format", "version", "name", "devices", "bindings", "calibration", "dataRoot"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "description": "Optional path or URL of this schema, for editors.",
+      "type": "string"
+    },
+    "format": {
+      "description": "Identifies the file as a three-maze rig file.",
+      "const": "three-maze-rig"
+    },
+    "version": {
+      "description": "Major version of the rig file format. Later minor changes only add optional fields.",
+      "type": "integer",
+      "const": 1
+    },
+    "name": {
+      "description": "Name of the rig; part of every session folder name.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+    },
+    "description": {
+      "description": "Free text for people; not interpreted.",
+      "type": "string"
+    },
+    "devices": {
+      "description": "The rig's devices by name. Only devices bound to a role are opened.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/$defs/deviceName" },
+      "additionalProperties": { "$ref": "#/$defs/device" }
+    },
+    "bindings": {
+      "description": "Which device serves each logical role. Tasks name roles, never devices.",
+      "type": "object",
+      "required": ["motion"],
+      "additionalProperties": false,
+      "properties": {
+        "motion": {
+          "description": "The device whose samples move the avatar.",
+          "$ref": "#/$defs/deviceName"
+        },
+        "reward": {
+          "description": "The output device that delivers rewards. A rig without it gives no rewards.",
+          "$ref": "#/$defs/deviceName"
+        }
+      }
+    },
+    "calibration": {
+      "description": "Calibration by device name. The motion device must have an entry.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/deviceName" },
+      "additionalProperties": { "$ref": "#/$defs/deviceCalibration" }
+    },
+    "dataRoot": {
+      "description": "Folder that receives one folder per session. A relative path is relative to the folder of this rig file.",
+      "type": "string",
+      "minLength": 1
+    },
+    "safety": {
+      "description": "Safety envelope per output role. A bound reward device needs an entry. Enforced by the rig runtime before every command (plan item DPR-09).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reward": { "$ref": "#/$defs/pulseEnvelope" }
+      }
+    },
+    "backend": {
+      "description": "How the Electron app starts the rig runtime (read by the launcher, plan item DPR-15b; the runtime itself ignores it).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "description": "spawn: Electron starts the backend; external: the backend is already running; none: no backend.",
+          "enum": ["spawn", "external", "none"],
+          "default": "spawn"
+        },
+        "command": {
+          "description": "Program and arguments for mode spawn.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "cwd": {
+          "description": "Working folder for mode spawn; relative to the folder of this rig file.",
+          "type": "string",
+          "minLength": 1
+        },
+        "env": {
+          "description": "Extra environment variables for mode spawn.",
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "startupTimeoutS": {
+          "description": "How long the launcher waits for the backend's handshake.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "shutdownGraceS": {
+          "description": "How long the launcher waits for the backend to exit before it stops it.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "motion": {
+      "description": "Motion settings of this rig. Every field has a default; every session records the values in force.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "eyeHeight": {
+          "description": "Height of the eye above the avatar's feet, in scene units (cm). ADR-0001 R3: default 3.7, the height v0.3 sessions used (owner, 2026-10-07). ADR-0001's validation covers 3.7; another value needs a re-run of its suite.",
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 3.7
+        },
+        "maxSpeed": {
+          "description": "Fastest running speed, in cm/s, that checks of a scene against this rig assume (for example the zone-thickness lint, ADR-0001 R1). Default 141, the speed up to which ADR-0001 validates the mover (Decision driver 2). Not a clamp: the runtime never limits the speed, and every session records the fastest speed it saw (D10, owner 2026-10-09).",
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 141
+        },
+        "displayMode": {
+          "description": "How the renderer presents poses between samples (plan item MOT-13): smooth interpolates with a delay D; latest shows the newest pose. Absent: the motion core chooses it from the sample period (MOT-13: latest when a sample period is at most half a frame); the mode for paper data is still open (D17).",
+          "enum": ["smooth", "latest"]
+        },
+        "displayDelayUs": {
+          "description": "The delay D of the smooth display mode, in microseconds. Absent: the motion core chooses it (MOT-13).",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  "$defs": {
+    "deviceName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,31}$"
+    },
+    "deviceId": {
+      "description": "Identity of the physical device, as in device protocol v1 (1 to 32 characters).",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]{1,32}$"
+    },
+    "uint32": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    },
+    "device": {
+      "description": "One device. `driver` names the code that talks to it; the other fields depend on the driver.",
+      "type": "object",
+      "required": ["driver"],
+      "properties": {
+        "driver": {
+          "description": "Built-in driver.",
+          "enum": ["simulated"]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "driver": { "const": "simulated" } }, "required": ["driver"] },
+          "then": { "$ref": "#/$defs/simulatedDevice" }
+        }
+      ]
+    },
+    "simulatedDevice": {
+      "description": "The reference simulated device of device protocol v1, in the runtime's own process: no serial port, no hardware. With periodUs it streams samples of three axes (lateral, forward and yaw counts, in the order of the v0.3 stream's fields 7, 8 and 9); with outputs it drives output channels.",
+      "type": "object",
+      "required": ["driver", "deviceId"],
+      "additionalProperties": false,
+      "properties": {
+        "driver": { "const": "simulated" },
+        "deviceId": { "$ref": "#/$defs/deviceId" },
+        "periodUs": {
+          "description": "Sample period in microseconds (50000 for 20 samples/s). Present: the device streams samples and can serve the motion role.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "sensor": {
+          "description": "What one count of each axis is; needed by segments and samples trajectories, which are in cm and degrees or radians.",
+          "type": "object",
+          "required": ["cmPerCount", "radPerCount"],
+          "additionalProperties": false,
+          "properties": {
+            "cmPerCount": { "type": "number", "exclusiveMinimum": 0 },
+            "radPerCount": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "trajectory": {
+          "description": "Where the device's motion comes from. Absent: it never moves (it still sends a sample every period).",
+          "type": "object",
+          "required": ["kind"],
+          "properties": {
+            "kind": { "enum": ["segments", "samples", "replay"] }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "kind": { "const": "segments" } }, "required": ["kind"] },
+              "then": { "$ref": "#/$defs/segmentsTrajectory" }
+            },
+            {
+              "if": { "properties": { "kind": { "enum": ["samples", "replay"] } }, "required": ["kind"] },
+              "then": { "$ref": "#/$defs/fileTrajectory" }
+            }
+          ]
+        },
+        "lick": {
+          "description": "Lick channels it declares in its hello and reports with L lines (0 or 1): edges of the trajectory's lick level.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0
+        },
+        "outputs": {
+          "description": "Number of output channels. At least 1: the device can serve the reward role.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "ack": {
+          "description": "Answer every pulse with an A or X line (hello key ack=1).",
+          "type": "boolean",
+          "default": true
+        },
+        "maxPulseUs": {
+          "description": "The device's own longest pulse; longer ones are refused with X,<cmd_id>,range. Absent: no limit of its own.",
+          "$ref": "#/$defs/uint32"
+        },
+        "onLatencyUs": {
+          "description": "Time from a pulse command to the output going on.",
+          "$ref": "#/$defs/uint32",
+          "default": 0
+        },
+        "hbMs": {
+          "description": "Heartbeat timeout it declares (hello key hb): once it has had a beat command, it closes an open output, and refuses pulses, when no beat came for this long. The session refuses to arm below 300 (device protocol v1, rule H5).",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "fw": {
+          "description": "Firmware version it reports (hello key fw).",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._+-]{1,32}$"
+        },
+        "clockStartUs": {
+          "description": "Its microsecond clock when it is opened.",
+          "$ref": "#/$defs/uint32",
+          "default": 0
+        },
+        "lineEnding": {
+          "description": "lf, or crlf as Serial.println() writes.",
+          "enum": ["lf", "crlf"],
+          "default": "lf"
+        },
+        "faults": {
+          "description": "Faults to inject, each at a sample number of every stream (wrap: of the first). Each is written to the device's log with its sample number.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/fault" }
+        }
+      }
+    },
+    "segmentsTrajectory": {
+      "description": "Piecewise-constant motion: straight runs, turns and stops.",
+      "type": "object",
+      "required": ["kind", "segments"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "const": "segments" },
+        "loop": { "description": "Start again after the last segment.", "type": "boolean", "default": true },
+        "segments": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["durationS"],
+            "additionalProperties": false,
+            "properties": {
+              "durationS": { "description": "Rounded to whole samples, at least one.", "type": "number", "exclusiveMinimum": 0 },
+              "forwardCmPerS": { "type": "number", "default": 0 },
+              "leftCmPerS": { "type": "number", "default": 0 },
+              "yawDegPerS": { "description": "Counter-clockwise from above.", "type": "number", "default": 0 },
+              "lick": { "enum": [0, 1], "default": 0 }
+            }
+          }
+        }
+      }
+    },
+    "fileTrajectory": {
+      "description": "samples: a text file with a header naming forward_cm, left_cm, dyaw_rad and optionally lick, then one row per sample. replay: the counts of a recorded stream, one sample per recorded sample, at this device's period: a raw capture (tools/capture_raw.py) or a text file of device lines, either device protocol v1 S lines with 3 axes or v0.3 13-field lines.",
+      "type": "object",
+      "required": ["kind", "file"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["samples", "replay"] },
+        "file": { "description": "Relative to the folder of this rig file.", "type": "string", "minLength": 1 },
+        "loop": { "description": "Start again after the last sample; otherwise hold still.", "type": "boolean", "default": false }
+      }
+    },
+    "fault": {
+      "type": "object",
+      "required": ["type", "seq"],
+      "properties": {
+        "type": {
+          "description": "drop: samples produced but never sent; badCrc: one digit corrupted under the original checksum; truncate: only the first bytes of a line; split: a line in pieces; burst: lines held back and sent together; silence: no sample or lick line sent for a while (outputs still answer); wrap: the microsecond clock wraps from 4294967295 to 0 between seq - 1 and seq.",
+          "enum": ["drop", "badCrc", "truncate", "split", "burst", "silence", "wrap"]
+        },
+        "seq": { "description": "Sample number it applies to (the first one, for several).", "$ref": "#/$defs/uint32" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "drop" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/faultDrop" }
+        },
+        {
+          "if": { "properties": { "type": { "enum": ["badCrc", "wrap"] } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/faultPlain" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "truncate" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/faultTruncate" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "split" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/faultSplit" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "burst" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/faultBurst" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "silence" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/faultSilence" }
+        }
+      ]
+    },
+    "faultPlain": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "type": {}, "seq": {} }
+    },
+    "faultDrop": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {},
+        "seq": {},
+        "count": { "description": "How many samples in a row.", "type": "integer", "minimum": 1, "default": 1 }
+      }
+    },
+    "faultTruncate": {
+      "type": "object",
+      "required": ["keepBytes"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {},
+        "seq": {},
+        "keepBytes": { "description": "Bytes of the line that are sent (at most all but its last checksum digit); the next line follows them directly.", "type": "integer", "minimum": 1 }
+      }
+    },
+    "faultSplit": {
+      "type": "object",
+      "required": ["pieces", "gapUs"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {},
+        "seq": {},
+        "pieces": { "type": "integer", "minimum": 2, "maximum": 16 },
+        "gapUs": { "description": "Time between pieces; all pieces arrive within one period.", "$ref": "#/$defs/uint32" }
+      }
+    },
+    "faultBurst": {
+      "type": "object",
+      "required": ["count"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {},
+        "seq": {},
+        "count": { "description": "How many lines are held and then sent together with the last of them.", "type": "integer", "minimum": 2 }
+      }
+    },
+    "faultSilence": {
+      "type": "object",
+      "required": ["durationMs"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {},
+        "seq": {},
+        "durationMs": { "description": "No S or L line is sent for this long; the samples of that time are lost.", "type": "integer", "minimum": 1 }
+      }
+    },
+    "deviceCalibration": {
+      "type": "object",
+      "required": ["matrix"],
+      "additionalProperties": false,
+      "properties": {
+        "matrix": {
+          "description": "Calibration matrix C of device protocol v1 (section 7.2): 3 rows (forward cm, left cm, counter-clockwise yaw rad) by one column per sensor axis, in the device's axis order. Entry [r][j] is what one count of axis j adds to row r, so the entries hold the cm per count, the axis signs and the yaw factor.",
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "items": { "type": "number" }
+          }
+        },
+        "date": {
+          "description": "When the calibration was measured (YYYY-MM-DD).",
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "note": {
+          "description": "Free text: how and by whom it was measured.",
+          "type": "string"
+        }
+      }
+    },
+    "pulseEnvelope": {
+      "description": "Limits the runtime enforces on an output's pulses, whatever the task asks for. No defaults: every rig states its own.",
+      "type": "object",
+      "required": ["maxPulseMs", "minIntervalMs", "maxTotalMsPerSession"],
+      "additionalProperties": false,
+      "properties": {
+        "maxPulseMs": {
+          "description": "Longest single pulse, in ms.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "minIntervalMs": {
+          "description": "Shortest time from the end of one pulse to the start of the next, in ms.",
+          "type": "number",
+          "minimum": 0
+        },
+        "maxTotalMsPerSession": {
+          "description": "Most open time, summed over all pulses of one session, in ms.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    }
+  }
+}

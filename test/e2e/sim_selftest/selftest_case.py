@@ -265,6 +265,175 @@ def case_cross_process_busy():
     port.close()
 
 
+# --- legacy stream at other rates and with a trajectory -----------------------------------------
+
+def read_legacy(port, seconds):
+    lines = []
+    deadline = time.perf_counter() + seconds
+    while time.perf_counter() < deadline:
+        if port.in_waiting > 0:
+            line = port.readline().decode("utf-8").strip()
+            if line:
+                lines.append(line)
+        else:
+            time.sleep(0.0005)
+    return lines
+
+
+def case_legacy_rate():
+    import serial
+    period_ms = int(os.environ["THREEMAZE_SELFTEST_PERIOD_MS"])
+    period_us = period_ms * 1000
+    port = serial.Serial(port="COM3", baudrate=115200, timeout=0.001)
+    t0 = time.perf_counter()
+    port.write(f"10000,{period_ms},10,1\n".encode("utf-8"))
+    lines = read_legacy(port, 1.0)
+    elapsed = time.perf_counter() - t0
+    port.write(b"STOP\n")
+    port.close()
+    parsed = [parse_like_hallway04(line) for line in lines]
+    check("lines arrive", len(lines) >= 10, len(lines))
+    check("all lines parse as 13 fields", all(parsed), lines[:2])
+    check("device timestamps step one period",
+          all(int(p["timestamp"]) == period_us * (i + 1) for i, p in enumerate(parsed)),
+          [p["timestamp"] for p in parsed[:3]])
+    check("frameCount counts samples", [p["frameCount"] for p in parsed] == list(range(1, len(parsed) + 1)))
+    check("y=16 x=0 theta=0", all(p["y"] == 16 and p["x"] == 0 and p["theta"] == 0 for p in parsed))
+    expected = elapsed * 1000 / period_ms
+    timing_check(f"about {expected:.0f} lines in {elapsed:.2f} s", len(lines), 0.95 * expected - 2, expected + 1)
+
+
+def case_legacy_fields():
+    import serial
+    port = serial.Serial(port="COM3", baudrate=115200, timeout=0.001)
+    port.write(b"10000,50,10,1\n")
+    lines = read_legacy(port, 0.5)
+    port.close()
+    parsed = [parse_like_hallway04(line) for line in lines]
+    check("all lines parse as 13 fields", len(parsed) >= 6 and all(parsed), lines[:2])
+    fields = [(p["x"], p["y"], p["theta"], p["water"]) for p in parsed]
+    pattern = [(10, 16, 1, 1), (10, 16, 1, 1), (0, -8, 0, 0), (0, -8, 0, 0)]
+    check("fields 7 to 10 follow the trajectory", fields == (pattern * 10)[:len(fields)], fields[:6])
+
+
+# --- device protocol v1 -------------------------------------------------------------------------
+
+def v1_exchange(port, seconds=1.0, pulses=()):
+    """Talk to a v1 device the way the rig runtime does (hello, start, stream, pulses, stop, stop
+    report); returns the exchange as conformance-checker entries and the time it streamed."""
+    from threemaze_sim import conformance
+    entries, buf = [], b""
+
+    def write(record):
+        data = record.encode("ascii") + b"*%02X\n" % conformance.crc8(record.encode("ascii"))
+        entries.append(conformance.Entry(len(entries) + 1, "host", time.perf_counter_ns(), data))
+        port.write(data)
+
+    def read(seconds, until=None):
+        nonlocal buf
+        deadline = time.perf_counter() + seconds
+        while time.perf_counter() < deadline:
+            chunk = port.read(port.in_waiting or 1)
+            if not chunk:
+                continue
+            t = time.perf_counter_ns()
+            buf += chunk
+            while b"\n" in buf:
+                end = buf.index(b"\n") + 1
+                line, buf = buf[:end], buf[end:]
+                entries.append(conformance.Entry(len(entries) + 1, "device", t, line))
+                if until and line.startswith(until):
+                    return True
+        return False
+
+    write("hello")
+    check("H line answers hello", read(1.0, until=b"H,"))
+    t0 = time.perf_counter()
+    write("start")
+    read(seconds)
+    for cmd_id, (channel, width) in enumerate(pulses, 1):
+        write(f"pulse,{cmd_id},{channel},{width}")
+        read(min(width, 100000) / 1e6 + 0.05)
+    write("stop")
+    elapsed = time.perf_counter() - t0
+    check("Z line answers stop", read(1.0, until=b"Z,"))
+    return entries, elapsed
+
+
+def own_events(name):
+    import threemaze_sim.runtime as rt
+    with open(rt.settings.serial_log, encoding="utf-8") as fh:
+        records = [json.loads(line) for line in fh]
+    return [r for r in records if r["pid"] == os.getpid() and r["event"] == name]
+
+
+def device_records(entries, *kinds):
+    return [e.data.split(b"*")[0].decode() for e in entries if e.who == "device" and e.data[:1] in kinds]
+
+
+def case_v1():
+    import serial
+    from threemaze_sim import conformance
+    import threemaze_sim.runtime as rt
+    period_us = rt.settings.device["periodUs"]
+    port = serial.Serial(port="COM3", baudrate=115200, timeout=0.001)
+    entries, elapsed = v1_exchange(port, pulses=[(0, 20000), (0, 900000), (5, 1000)])
+    port.close()
+    report = conformance.check(entries)
+    check("stream conforms to device protocol v1", report.ok, [str(f) for f in report.findings][:10])
+    stats = report.stats
+    check("hello as configured", stats["hello"] == {
+        "device_id": "sim-selftest", "period_us": period_us, "n_axes": 3,
+        "keys": {"fw": "selftest-1", "lick": "1", "out": "1", "ack": "1"}}, stats["hello"])
+    check("every window is one period", stats["dt_us_min"] == stats["dt_us_max"] == period_us,
+          (stats["dt_us_min"], stats["dt_us_max"]))
+    check("no sample lost", stats["seq_gaps"] == 0 and stats["lost_at_end"] == 0, stats)
+    expected = elapsed * 1e6 / period_us
+    timing_check(f"about {expected:.0f} samples in {elapsed:.2f} s", stats["samples"], 0.95 * expected - 2,
+                 expected + 1)
+    licks = own_events("lick")
+    check("every lick edge sent as an L line", stats["lick_edges"] == len(licks) > 0,
+          (stats["lick_edges"], len(licks)))
+    outcomes = device_records(entries, b"A", b"X")
+    acks = [o.split(",") for o in outcomes if o.startswith("A,1,")]
+    width = (int(acks[0][3]) - int(acks[0][2])) % (1 << 32) if acks else None
+    check("pulse 1 done, 20000 us on the device clock", width == 20000, outcomes)
+    check("pulse 2 refused: range; pulse 3 refused: channel",
+          "X,2,range" in outcomes and "X,3,channel" in outcomes, outcomes)
+    offs = own_events("pulse_off")
+    check("sim log has commanded and actual times", bool(offs) and offs[0]["commanded_width_us"] == 20000
+          and offs[0]["width_us"] == 20000 and "t_on_dev_us" in offs[0], offs[:1])
+    check("sim log has the stream", len(own_events("stream_start")) == 1 and len(own_events("stream_stop")) == 1)
+
+
+def case_v1_faults():
+    import serial
+    from threemaze_sim import conformance
+    import threemaze_sim.runtime as rt
+    period_us = rt.settings.device["periodUs"]
+    port = serial.Serial(port="COM3", baudrate=115200, timeout=0.001)
+    entries, _ = v1_exchange(port, seconds=1.0)
+    port.close()
+    report = conformance.check(entries)
+    logged = sorted((f["type"], f["seq"]) for f in own_events("fault"))
+    configured = sorted((f["type"], f["seq"]) for f in rt.settings.device["faults"])
+    check("every fault logged with its sample number", logged == configured, logged)
+    gaps = [f.details["missing"] for f in report.findings if f.rule == "D3"]
+    check("samples lost where the faults dropped them",
+          gaps == [[20, 21], [40], [60, 61], list(range(120, 130))], gaps)
+    check("two corrupted lines rejected (bad CRC; partial line joined to the next)",
+          [f.rule for f in report.findings if f.rule != "D3"] == ["F3", "F3"], [str(f) for f in report.findings])
+    check("the clock wrapped once, without a clock fault", report.stats["clock_wraps"] == 1, report.stats)
+    arrived = {s[0]: s[5] for s in report.samples}
+    check("the split line was reassembled", 80 in arrived, sorted(arrived)[:5])
+    burst = [arrived.get(seq) for seq in range(100, 104)]
+    check("the burst's samples arrived", None not in burst, burst)
+    if None not in burst and 99 in arrived:
+        timing_check("burst arrives together (ms)", (max(burst) - min(burst)) / 1e6, 0, 2)
+        timing_check("burst held back for 3 periods (ms)", (min(burst) - arrived[99]) / 1e6,
+                     3 * period_us / 1e3 + 0.5, 6 * period_us / 1e3)
+
+
 CASES = {name[5:]: fn for name, fn in globals().items() if name.startswith("case_")}
 
 try:

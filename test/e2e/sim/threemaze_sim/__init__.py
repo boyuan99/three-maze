@@ -23,6 +23,9 @@ Environment
     THREEMAZE_SIM_OPEN_DELAY_S  seconds the port open blocks first (default 0; see teensy.py)
     THREEMAZE_SIM_DAQ     ok | missing                        (see daq.py)
     THREEMAZE_SIM_DATA    ok | missing                        (see paths.py)
+    THREEMAZE_SIM_PROTOCOL  legacy-v0.3 (default) | v1: what the simulated serial device speaks
+    THREEMAZE_SIM_DEVICE  JSON file describing the simulated device: required for v1; for
+                          legacy-v0.3 it may give the motion and licks (see devicecfg.py)
     Failure modes and what the real system does on a Windows PC without the devices:
       SERIAL=missing  "could not open port 'COM3': FileNotFoundError(2, 'The system cannot find the
                       file specified.', None, 2)" (identical to real pyserial here; registration fails)
@@ -35,7 +38,9 @@ Environment
 
 What is simulated
     serial.Serial    -> teensy.SimSerial: a Teensy streaming the hallway firmware's 13-field CSV
-                        at the period given by the init string (50 ms for "10000,50,10,1")
+                        at the period given by the init string (50 ms for "10000,50,10,1"), or,
+                        with THREEMAZE_SIM_PROTOCOL=v1, the reference device of device protocol v1
+                        (device_v1.py, the model in threemaze/devices/sim)
     nidaqmx.Task     -> daq.SimTask: an analog output whose writes are logged
     D:\\VirmenData    -> $THREEMAZE_SIM_DIR/VirmenData (paths.py)
     pyserial and nidaqmx are patched right after their first import (importhook.py), so the sim
@@ -68,6 +73,9 @@ def activate():
     from . import config, importhook, paths, runtime, simlog
 
     settings = config.from_env()
+    if settings.device_file is not None or settings.protocol != "legacy-v0.3":
+        from . import devicecfg
+        settings.device = devicecfg.load(settings)
     os.makedirs(settings.sim_dir, exist_ok=True)
     runtime.settings = settings
     runtime.sim_log = simlog.JsonlLog(settings.sim_log)

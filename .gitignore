@@ -68,3 +68,6 @@ ref/
 # the agent tooling (maze generator and validator CLI included), in roadmap phase 2
 # (owner, 2026-10-09)
 prompts/
+
+# Session folders of the simulated rig (rigs/sim.json, dataRoot ../data)
+/data/
