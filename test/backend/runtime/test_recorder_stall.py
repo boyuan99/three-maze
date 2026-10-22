@@ -25,19 +25,17 @@ FRAME_NS = 16_666_667
 
 
 class Tap:
-    """A session listener: the motion device's samples, as the reader hands them to the session,
-    go to the recorder and to the fake motion worker (out)."""
+    """A session listener: the motion device's samples, as the session hands them on after it has
+    given them to its recorder, go to the fake motion worker (out)."""
 
     def __init__(self):
         self.out = queue.SimpleQueue()
 
     def on_device_batch(self, session, device, records):
-        if device != "ball":
-            return
-        samples = [r for r in records if type(r) is DeviceSample]
-        session.recorder.samples(samples)
-        for sample in samples:
-            self.out.put(sample)
+        if device == "ball":
+            for sample in records:
+                if type(sample) is DeviceSample:
+                    self.out.put(sample)
 
 
 @pytest.fixture

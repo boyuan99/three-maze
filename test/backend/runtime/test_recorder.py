@@ -849,7 +849,9 @@ def test_a_session_opens_its_recorder_and_records_its_states(sim_rig_path, tmp_p
     assert session.recorder is not None and session.preflight["free_bytes"] > 0
     session.start()
     session.stop()
-    assert session.recording["errors"] == [] and session.recording["files"][SAMPLES]["rows"] == 0
+    received = session.devices["ball"].describe()["counters"]["samples"]
+    assert session.recording["errors"] == []
+    assert session.recording["files"][SAMPLES]["rows"] == received   # one row per sample
     for name in ALL_FILES:
         assert (folder / name).is_file(), name
     states = [r["data"]["state"] for r in read_log(folder / EVENTS).records]

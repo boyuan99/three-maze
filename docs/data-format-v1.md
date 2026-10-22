@@ -47,7 +47,7 @@ Where the rows come from (the recorder's input interface, `threemaze/record/reco
 
 | File | Rows come from | Through |
 |---|---|---|
-| `samples.tsv` | the device's reader thread (plan item DPR-03), once per accepted sample | `sample()` |
+| `samples.tsv` | the motion device's reader (plan item DPR-03), once per accepted sample, handed on by the session as the reader hands it over | `sample()` |
 | `pose.tsv` | the motion worker's `pose.batch` messages, by the link server (DPR-06b) | `poses()` |
 | `events.jsonl` | the motion worker's `event` messages; `render.report` ready and clock; the task's trial events (TS-13, TS-14); the runtime itself | `motion_event()`, `render_report()`, `event()` |
 | `commands.jsonl` | commands and acks (DPR-05b), output requests and outcomes (DPR-09) | `command()` |
@@ -90,7 +90,7 @@ Wall-clock time stamps nothing; `session.json` keeps the wall clock read togethe
 
 ## 3. samples.tsv
 
-One row per device sample that the runtime accepted (device protocol v1, rules H3 and H4), written when it was received. It is the device sample of device protocol v1, section 7.2, as the link protocol sends it to the motion worker (SPEC.md, section 8), plus its receive time. A sample that the device produced but the runtime never received has no row; the `gap` of the next row counts it. When it knows who numbered the samples (`seq_source`), the recorder checks that each `seq` follows the previous one and its `gap`, and writes a `warning` event (`sample_seq`) when one does not, which can only mean that a sample was handed to it twice or not at all; the row is written all the same.
+One row per device sample that the runtime accepted (device protocol v1, rules H3 and H4), written when it was received. It is the device sample of device protocol v1, section 7.2, as the link protocol sends it to the motion worker (SPEC.md, section 8), plus its receive time. A sample that the device produced but the runtime never received has no row; the `gap` of the next row counts it. The session hands the recorder each sample of its motion device as the device's reader hands it over (plan item DPR-03), before the motion worker gets it. When it knows who numbered the samples (`seq_source`), the recorder checks that each `seq` follows the previous one and its `gap`, and writes a `warning` event (`sample_seq`) when one does not, which can only mean that a sample was handed to it twice or not at all; the row is written all the same. A sample the recorder refuses, such as one with a displacement that is not a finite number, gets no row: the session logs it and writes a `warning` event (`sample_not_recorded`, for the first 10), and the next row's `sample_seq` warning counts it in `seq_mismatches` (section 10).
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -146,7 +146,7 @@ Every non-stream event, one JSON object per line, in the order the runtime recei
 | `task` | `trial_end` | `trial`, `outcome`: a name from the experiment file |
 | `render` | `ready`, `clock` (and any render-report kind a later minor version adds) | the report's fields, `time_origin_us` included (SPEC.md, section 11) |
 | `runtime` | `state` | `state`: the session state entered (from `armed` on), `reason` for `aborted` |
-| `runtime` | `warning` | `code`, `message` and what the warning is about; `sample_seq`: a sample that does not follow the previous one (section 3) |
+| `runtime` | `warning` | `code`, `message` and what the warning is about; `sample_seq`: a sample that does not follow the previous one, `sample_not_recorded`: a sample the recorder refused, by its `seq` (section 3); `crashed_session` (section 10) |
 
 `trial_start` and `trial_end` must carry a stamp; the plan items that add the task's events to the link protocol (TS-13, TS-14, DPR-05b) map them onto these kinds.
 

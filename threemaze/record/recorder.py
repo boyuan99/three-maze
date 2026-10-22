@@ -14,19 +14,21 @@ One SessionRecorder per session writes the tables and logs of the session folder
 Every input method checks its input and turns it into lines on the caller's thread, raises
 RecordError for a value it cannot record (nothing of that call is written then), and hands the
 lines to the writer thread (writer.py), which flushes and fsyncs about once a second; none of them
-waits for the disk. A sample therefore gets its row from the reader alone, whatever the motion
-worker or the renderer does: v0.3 wrote a row only when the renderer reported a pose, which is
-where its four data-logging defects and the stale first row came from (test/e2e/README.md, Known
-limits).
+waits for the disk. A sample therefore gets its row as soon as the session receives it from the
+reader, whatever the motion worker or the renderer does: v0.3 wrote a row only when the renderer
+reported a pose, which is where its four data-logging defects and the stale first row came from
+(test/e2e/README.md, Known limits).
 
 Input interface, and who calls it (the link protocol's messages are protocol/v1):
 
-    sample(s), samples(batch)   the device's reader (plan item DPR-03), on its own thread, once
-                                per accepted sample: a device sample (device protocol v1, section
-                                7.2) as the link protocol's sample (seq, t_dev_us, dt_us, d, raw,
-                                flags, gap) plus t_host_ns, the session clock at the read that
-                                completed its line (rule H1); a mapping, or an object with these
-                                attributes (such as a frozen dataclass of the reader's)
+    sample(s), samples(batch)   the session (threemaze/runtime/session.py), once per sample that
+                                the motion device's reader (plan item DPR-03) accepted, when the
+                                reader hands it over: on the reader's thread, or on the session's
+                                event loop. A device sample (device protocol v1, section 7.2) as
+                                the link protocol's sample (seq, t_dev_us, dt_us, d, raw, flags,
+                                gap) plus t_host_ns, the session clock at the read that completed
+                                its line (rule H1); a mapping, or an object with these attributes
+                                (such as the reader's DeviceSample, threemaze/core/records.py)
     poses(data)                 the link server (DPR-06b): the data of a pose.batch message
     motion_event(data)          the link server: the data of an event message; stale=True for an
                                 event of an old epoch (DPR-06b)
