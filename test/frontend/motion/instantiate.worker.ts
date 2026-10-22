@@ -8,7 +8,7 @@ import { runChecks } from './instantiateChecks.ts'
 self.onmessage = async (event: MessageEvent<ColliderManifest>) => {
   try {
     await RAPIER.init()
-    self.postMessage({ ok: true, results: runChecks(RAPIER, event.data) })
+    self.postMessage({ ok: true, result: runChecks(RAPIER, event.data) })
   } catch (error) {
     const text = error instanceof Error ? error.stack ?? error.message : String(error)
     self.postMessage({ ok: false, error: text })
