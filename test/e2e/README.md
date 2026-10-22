@@ -194,7 +194,9 @@ with `--no-wait` it refuses at once. Waiting runs get the lock in the order they
   for functional v1 scenarios, which will take their ports from the environment (`freePort()` in
   `lib/ports.mjs`) so that several can run at once. Shared holders never run alongside an
   exclusive one, and a waiting exclusive run blocks new shared holders. No scenario uses the
-  shared mode yet (v1 scenarios arrive with DPR-18a).
+  shared mode yet (v1 scenarios arrive with DPR-18a). Outside this bench, the render host's smoke
+  test (`test/render/smoke.mjs`) takes the lock shared and the stall suite
+  (`test/perf/stall/run.mjs`) exclusive.
 
 `results.json` records the lock (`bench_lock`: its id, mode, how long the run waited and held it,
 and any stale holder it removed) and the machine load (`machine_load`, from
