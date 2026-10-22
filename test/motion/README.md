@@ -13,9 +13,10 @@ compiler or Rapier" (`docs/adr/0001-player-mover.md:81`). Roadmap phase 1 builds
 | MOT-05b (week 4) | the same cases on the TypeScript mover through the motion core, by switching the suite's driver |
 
 The collider tests of `src/motion/instantiate.ts` (MOT-07), the tests of the motion core
-`src/motion/core.ts` with movers that have no collisions (MOT-02) and the hover mover's own tests
-(`src/motion/mover.ts`, MOT-03: eye height, falls, events, worker bundle) are ordinary unit tests
-in `test/frontend/motion/`.
+`src/motion/core.ts` with movers that have no collisions (MOT-02), the hover mover's own tests
+(`src/motion/mover.ts`, MOT-03: eye height, falls, events, worker bundle) and those of the pose
+history (`src/motion/poseHistory.ts`, MOT-13: display modes, with the motion-core design's
+display simulation) are ordinary unit tests in `test/frontend/motion/`.
 
 ## Layout
 
