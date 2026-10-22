@@ -93,6 +93,7 @@ class Session:
         self.outputs: dict[str, OutputDevice] = {}    # role -> device
         self.anchors: dict[str, ClockAnchor] = {}     # state -> clocks read at the transition
         self.failures: list[DeviceFailure] = []       # device errors while stopping or aborting
+        self.alarms: list[dict[str, Any]] = []         # raise_alarm(), for the session record
         self.abort_reason: str | None = None
 
     # --- state -------------------------------------------------------------------------------
@@ -150,6 +151,30 @@ class Session:
     def _on_batch(self, device: str, records: list) -> None:
         """A device's batch, on the loop if the session has one (the devices hand it there)."""
         self._call_listeners("on_device_batch", (device, records))
+
+    def raise_alarm(self, source: str, reason: str, **fields: Any) -> dict[str, Any]:
+        """Record a session alarm: something that puts the session's data at risk and that the
+        operator must see, such as samples the motion worker does not take as fast as they come
+        (plan item DPR-06b). The session goes on and keeps the alarm for its record (plan item
+        DPR-08a); acting on alarms is the watchdog's (plan item DPR-11)."""
+        alarm = {"t_ns": self.clock.now_ns(), "source": source, "reason": reason, **fields}
+        self.alarms.append(alarm)
+        log.error("session %s: alarm from %s: %s", self.session_id or "-", source, reason)
+        return alarm
+
+    def motion_link_device(self) -> dict[str, Any] | None:
+        """The motion device's profile and guarantee level as the link protocol's welcome gives
+        them (protocol/v1/common.schema.json, MotionDevice): from the open device once the session
+        is armed, before that from the rig file; None if its driver cannot say."""
+        device = self.inputs.get("motion")
+        link_device = getattr(device, "link_device", None)
+        info = link_device() if link_device is not None else None
+        if info is not None or self.rig is None:
+            return info
+        name = self.rig.bindings["motion"]
+        spec = self.rig.devices[name]
+        describe = getattr(driver_class(spec.driver), "link_device_for", None)
+        return describe(spec.config, self.rig.calibration.get(name)) if describe else None
 
     # --- lifecycle ---------------------------------------------------------------------------
 

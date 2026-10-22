@@ -89,14 +89,16 @@ class VirtualSimPort:
 
     seed: random pieces of 1 to max_piece bytes (None: everything at once). until_us: the device's
     clock does not advance past this time, so a stream started at time 0 sends exactly the samples
-    whose windows end by then."""
+    whose windows end by then. step_us: the clock advances at least this far at a time, so that a
+    read gets every line of that stretch, as a USB packet holds several lines."""
 
-    def __init__(self, device, *, seed=1, max_piece=48, until_us=None, timeout=0.05):
+    def __init__(self, device, *, seed=1, max_piece=48, until_us=None, step_us=0, timeout=0.05):
         self.device = device
         self.timeout = timeout
         self.is_open = True
         self.now = 0
         self.until_us = until_us
+        self.step_us = step_us
         self._rng = random.Random(seed) if seed is not None else None
         self._max_piece = max_piece
         self._buf = bytearray()
@@ -110,7 +112,10 @@ class VirtualSimPort:
             return
         due = self.device.next_due()
         if due is not None and (self.until_us is None or due <= self.until_us):
-            self.now = max(self.now, due)
+            target = max(due, self.now + self.step_us)
+            if self.until_us is not None:
+                target = min(target, self.until_us)
+            self.now = max(self.now, target)
             for delivery in self.device.advance(self.now):
                 self._buf += delivery.data
 
