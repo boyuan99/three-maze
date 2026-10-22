@@ -1,0 +1,368 @@
+{
+  "maze": "public/mazes/Example01.json",
+  "basePath": "mazes/",
+  "window": [1920, 1080],
+  "scene": {
+    "background": null,
+    "environment": null,
+    "fog": null,
+    "backgroundBlurriness": 0,
+    "backgroundIntensity": 1,
+    "backgroundRotation": [0, 0, 0, "XYZ"],
+    "environmentIntensity": 1,
+    "environmentRotation": [0, 0, 0, "XYZ"],
+    "overrideMaterial": null,
+    "children": [
+      {
+        "type": "AmbientLight",
+        "name": "",
+        "visible": true,
+        "castShadow": false,
+        "receiveShadow": false,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+        "light": {
+          "color": {
+            "hex": "#ffffff",
+            "linear": [1, 1, 1]
+          },
+          "intensity": 0.5
+        },
+        "children": []
+      },
+      {
+        "type": "DirectionalLight",
+        "name": "",
+        "visible": true,
+        "castShadow": true,
+        "receiveShadow": false,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [5, 5, 5],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 5, 5, 1],
+        "light": {
+          "color": {
+            "hex": "#ffffff",
+            "linear": [1, 1, 1]
+          },
+          "intensity": 1,
+          "target": {
+            "position": [0, 0, 0],
+            "inSceneGraph": false
+          },
+          "shadow": {
+            "mapSize": [512, 512],
+            "bias": 0,
+            "normalBias": 0,
+            "radius": 1,
+            "blurSamples": 8,
+            "camera": {
+              "type": "OrthographicCamera",
+              "near": 0.5,
+              "far": 500,
+              "zoom": 1,
+              "left": -5,
+              "right": 5,
+              "top": 5,
+              "bottom": -5,
+              "view": null,
+              "projectionMatrix": [0.2, 0, 0, 0, 0, 0.2, 0, 0, 0, 0, -0.004004004004004004, 0, 0, 0, -1.002002002002002, 1]
+            }
+          }
+        },
+        "children": []
+      },
+      {
+        "type": "Mesh",
+        "name": "",
+        "visible": true,
+        "castShadow": false,
+        "receiveShadow": true,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+        "geometry": {
+          "type": "BoxGeometry",
+          "parameters": {
+            "width": 10,
+            "height": 0.1,
+            "depth": 10,
+            "widthSegments": 1,
+            "heightSegments": 1,
+            "depthSegments": 1
+          },
+          "vertexCount": 24,
+          "indexCount": 36,
+          "groups": 6
+        },
+        "material": {
+          "type": "MeshStandardMaterial",
+          "color": {
+            "hex": "#808080",
+            "linear": [0.21586050010324415, 0.21586050010324415, 0.21586050010324415]
+          },
+          "emissive": {
+            "hex": "#000000",
+            "linear": [0, 0, 0]
+          },
+          "metalness": 0.1,
+          "roughness": 0.7,
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "alphaTest": 0,
+          "side": 0,
+          "envMapIntensity": 1,
+          "blending": 1,
+          "lightMapIntensity": 1,
+          "aoMapIntensity": 1,
+          "bumpScale": 1,
+          "displacementScale": 1,
+          "displacementBias": 0,
+          "transparent": false,
+          "depthTest": true,
+          "depthWrite": true,
+          "fog": true,
+          "flatShading": false,
+          "wireframe": false,
+          "toneMapped": true,
+          "vertexColors": false,
+          "visible": true,
+          "maps": {}
+        },
+        "worldBox": {
+          "min": [-5, -0.05000000074505806, -5],
+          "max": [5, 0.05000000074505806, 5]
+        },
+        "children": []
+      },
+      {
+        "type": "Mesh",
+        "name": "",
+        "visible": true,
+        "castShadow": true,
+        "receiveShadow": false,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [0, 2, 0],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 2, 0, 1],
+        "geometry": {
+          "type": "SphereGeometry",
+          "parameters": {
+            "radius": 0.5,
+            "widthSegments": 32,
+            "heightSegments": 16,
+            "phiStart": 0,
+            "phiLength": 6.283185307179586,
+            "thetaStart": 0,
+            "thetaLength": 3.141592653589793
+          },
+          "vertexCount": 561,
+          "indexCount": 2880,
+          "groups": 0
+        },
+        "material": {
+          "type": "MeshStandardMaterial",
+          "color": {
+            "hex": "#ff0000",
+            "linear": [1, 0, 0]
+          },
+          "emissive": {
+            "hex": "#000000",
+            "linear": [0, 0, 0]
+          },
+          "metalness": 0.3,
+          "roughness": 0.5,
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "alphaTest": 0,
+          "side": 0,
+          "envMapIntensity": 1,
+          "blending": 1,
+          "lightMapIntensity": 1,
+          "aoMapIntensity": 1,
+          "bumpScale": 1,
+          "displacementScale": 1,
+          "displacementBias": 0,
+          "transparent": false,
+          "depthTest": true,
+          "depthWrite": true,
+          "fog": true,
+          "flatShading": false,
+          "wireframe": false,
+          "toneMapped": true,
+          "vertexColors": false,
+          "visible": true,
+          "maps": {}
+        },
+        "worldBox": {
+          "min": [-0.5, 1.5, -0.5],
+          "max": [0.5, 2.5, 0.5]
+        },
+        "children": []
+      },
+      {
+        "type": "Object3D",
+        "name": "",
+        "visible": true,
+        "castShadow": false,
+        "receiveShadow": false,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [0, 2.1, 0],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 2.1, 0, 1],
+        "children": [
+          {
+            "type": "Object3D",
+            "name": "",
+            "visible": true,
+            "castShadow": false,
+            "receiveShadow": false,
+            "frustumCulled": true,
+            "renderOrder": 0,
+            "layers": 1,
+            "position": [0, 0, 0],
+            "rotation": [0, 0, 0, "XYZ"],
+            "scale": [1, 1, 1],
+            "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 2.1, 0, 1],
+            "children": [
+              {
+                "type": "PerspectiveCamera",
+                "name": "",
+                "visible": true,
+                "castShadow": false,
+                "receiveShadow": false,
+                "frustumCulled": true,
+                "renderOrder": 0,
+                "layers": 1,
+                "position": [0, 1.6, 0],
+                "rotation": [0, 0, 0, "XYZ"],
+                "scale": [1, 1, 1],
+                "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 3.7, 0, 1],
+                "camera": {
+                  "type": "PerspectiveCamera",
+                  "fov": 75,
+                  "aspect": 1.7777777777777777,
+                  "near": 0.1,
+                  "far": 1000,
+                  "zoom": 1,
+                  "focus": 10,
+                  "filmGauge": 35,
+                  "filmOffset": 0,
+                  "view": null,
+                  "projectionMatrix": [0.7330642722231783, 0, 0, 0, 0, 1.3032253728412058, 0, 0, 0, 0, -1.0002000200020003, -1, 0, 0, -0.20002000200020004, 0]
+                },
+                "children": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "camera": {
+      "path": [4, 0, 0],
+      "worldPosition": [0, 3.7, 0],
+      "worldQuaternion": [0, 0, 0, 1],
+      "worldDirection": [0, 0, -1]
+    }
+  },
+  "renderer": {
+    "canvas": "the scene canvas",
+    "parameters": {
+      "antialias": true,
+      "toneMapping": 4,
+      "toneMappingExposure": 1
+    },
+    "calls": [
+      ["setSize", 1920, 1080, true]
+    ],
+    "writes": [
+      ["shadowMap.enabled", true],
+      ["physicallyCorrectLights", true]
+    ]
+  },
+  "physics": {
+    "gravity": [0, -500, 0],
+    "bodies": [
+      {
+        "type": "Fixed",
+        "translation": [0, 0, 0],
+        "rotation": [0, 0, 0, 1],
+        "linearDamping": 0,
+        "angularDamping": 0
+      },
+      {
+        "type": "Dynamic",
+        "translation": [0, 2, 0],
+        "rotation": [0, 0, 0, 1],
+        "linearDamping": 0,
+        "angularDamping": 0
+      },
+      {
+        "type": "Dynamic",
+        "translation": [0, 0.5, 0],
+        "rotation": [0, 0, 0, 1],
+        "linearDamping": 0,
+        "angularDamping": 0
+      }
+    ],
+    "colliders": [
+      {
+        "body": 0,
+        "shape": {
+          "type": "Cuboid",
+          "halfExtents": [5, 0.05000000074505806, 5]
+        },
+        "translation": [0, 0, 0],
+        "rotation": [0, 0, 0, 1],
+        "friction": 0.800000011920929,
+        "restitution": 0,
+        "density": 1,
+        "sensor": false
+      },
+      {
+        "body": 1,
+        "shape": {
+          "type": "Ball",
+          "radius": 0.5
+        },
+        "translation": [0, 2, 0],
+        "rotation": [0, 0, 0, 1],
+        "friction": 0.30000001192092896,
+        "restitution": 0.699999988079071,
+        "density": 1,
+        "sensor": false
+      },
+      {
+        "body": 2,
+        "shape": {
+          "type": "Ball",
+          "radius": 0.5
+        },
+        "translation": [0, 0.5, 0],
+        "rotation": [0, 0, 0, 1],
+        "friction": 0,
+        "restitution": 0,
+        "density": 1,
+        "sensor": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,1306 @@
+{
+  "maze": "public/mazes/HallwaySerialMigrated/HallwaySerialMigrated.json",
+  "basePath": "mazes/HallwaySerialMigrated/",
+  "window": [1920, 1080],
+  "scene": {
+    "background": null,
+    "environment": null,
+    "fog": null,
+    "backgroundBlurriness": 0,
+    "backgroundIntensity": 1,
+    "backgroundRotation": [0, 0, 0, "XYZ"],
+    "environmentIntensity": 1,
+    "environmentRotation": [0, 0, 0, "XYZ"],
+    "overrideMaterial": null,
+    "children": [
+      {
+        "type": "AmbientLight",
+        "name": "",
+        "visible": true,
+        "castShadow": false,
+        "receiveShadow": false,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [0, 0, 0],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+        "light": {
+          "color": {
+            "hex": "#ffffff",
+            "linear": [1, 1, 1]
+          },
+          "intensity": 0.6
+        },
+        "children": []
+      },
+      {
+        "type": "PointLight",
+        "name": "",
+        "visible": true,
+        "castShadow": true,
+        "receiveShadow": false,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [0, 8, 0],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 8, 0, 1],
+        "light": {
+          "color": {
+            "hex": "#ffffff",
+            "linear": [1, 1, 1]
+          },
+          "intensity": 1.2,
+          "distance": 50,
+          "decay": 2,
+          "shadow": {
+            "mapSize": [512, 512],
+            "bias": 0,
+            "normalBias": 0,
+            "radius": 1,
+            "blurSamples": 8,
+            "camera": {
+              "type": "PerspectiveCamera",
+              "fov": 90,
+              "aspect": 1,
+              "near": 0.5,
+              "far": 500,
+              "zoom": 1,
+              "focus": 10,
+              "filmGauge": 35,
+              "filmOffset": 0,
+              "view": null,
+              "projectionMatrix": [1.0000000000000002, 0, 0, 0, 0, 1.0000000000000002, 0, 0, 0, 0, -1.002002002002002, -1, 0, 0, -1.001001001001001, 0]
+            }
+          }
+        },
+        "children": []
+      },
+      {
+        "type": "PointLight",
+        "name": "",
+        "visible": true,
+        "castShadow": true,
+        "receiveShadow": false,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [0, 8, -60],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 8, -60, 1],
+        "light": {
+          "color": {
+            "hex": "#ffffff",
+            "linear": [1, 1, 1]
+          },
+          "intensity": 1,
+          "distance": 50,
+          "decay": 2,
+          "shadow": {
+            "mapSize": [512, 512],
+            "bias": 0,
+            "normalBias": 0,
+            "radius": 1,
+            "blurSamples": 8,
+            "camera": {
+              "type": "PerspectiveCamera",
+              "fov": 90,
+              "aspect": 1,
+              "near": 0.5,
+              "far": 500,
+              "zoom": 1,
+              "focus": 10,
+              "filmGauge": 35,
+              "filmOffset": 0,
+              "view": null,
+              "projectionMatrix": [1.0000000000000002, 0, 0, 0, 0, 1.0000000000000002, 0, 0, 0, 0, -1.002002002002002, -1, 0, 0, -1.001001001001001, 0]
+            }
+          }
+        },
+        "children": []
+      },
+      {
+        "type": "PointLight",
+        "name": "",
+        "visible": true,
+        "castShadow": true,
+        "receiveShadow": false,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [0, 8, 60],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 8, 60, 1],
+        "light": {
+          "color": {
+            "hex": "#ffffff",
+            "linear": [1, 1, 1]
+          },
+          "intensity": 1,
+          "distance": 50,
+          "decay": 2,
+          "shadow": {
+            "mapSize": [512, 512],
+            "bias": 0,
+            "normalBias": 0,
+            "radius": 1,
+            "blurSamples": 8,
+            "camera": {
+              "type": "PerspectiveCamera",
+              "fov": 90,
+              "aspect": 1,
+              "near": 0.5,
+              "far": 500,
+              "zoom": 1,
+              "focus": 10,
+              "filmGauge": 35,
+              "filmOffset": 0,
+              "view": null,
+              "projectionMatrix": [1.0000000000000002, 0, 0, 0, 0, 1.0000000000000002, 0, 0, 0, 0, -1.002002002002002, -1, 0, 0, -1.001001001001001, 0]
+            }
+          }
+        },
+        "children": []
+      },
+      {
+        "type": "Mesh",
+        "name": "",
+        "visible": true,
+        "castShadow": false,
+        "receiveShadow": true,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [0, -0.5, 0],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, -0.5, 0, 1],
+        "geometry": {
+          "type": "BoxGeometry",
+          "parameters": {
+            "width": 20,
+            "height": 1,
+            "depth": 200,
+            "widthSegments": 1,
+            "heightSegments": 1,
+            "depthSegments": 1
+          },
+          "vertexCount": 24,
+          "indexCount": 36,
+          "groups": 6
+        },
+        "material": {
+          "type": "MeshStandardMaterial",
+          "color": {
+            "hex": "#ffffff",
+            "linear": [1, 1, 1]
+          },
+          "emissive": {
+            "hex": "#000000",
+            "linear": [0, 0, 0]
+          },
+          "metalness": 0.1,
+          "roughness": 0.7,
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "alphaTest": 0,
+          "side": 0,
+          "envMapIntensity": 1,
+          "blending": 1,
+          "lightMapIntensity": 1,
+          "aoMapIntensity": 1,
+          "bumpScale": 1,
+          "displacementScale": 1,
+          "displacementBias": 0,
+          "transparent": false,
+          "depthTest": true,
+          "depthWrite": true,
+          "fog": true,
+          "flatShading": false,
+          "wireframe": false,
+          "toneMapped": true,
+          "vertexColors": false,
+          "visible": true,
+          "maps": {
+            "map": {
+              "label": "/mazes/HallwaySerialMigrated/assets/Chess_Pattern.jpg",
+              "class": "Texture",
+              "mapping": 300,
+              "wrapS": 1000,
+              "wrapT": 1000,
+              "repeat": [0.2, 2],
+              "offset": [0, 0],
+              "center": [0, 0],
+              "rotation": 0,
+              "flipY": true,
+              "colorSpace": "",
+              "generateMipmaps": true,
+              "magFilter": 1006,
+              "minFilter": 1008,
+              "anisotropy": 1,
+              "type": 1009,
+              "format": 1023,
+              "premultiplyAlpha": false,
+              "unpackAlignment": 4,
+              "image": null
+            }
+          }
+        },
+        "worldBox": {
+          "min": [-10, -1, -100],
+          "max": [10, 0, 100]
+        },
+        "children": []
+      },
+      {
+        "type": "Mesh",
+        "name": "",
+        "visible": true,
+        "castShadow": false,
+        "receiveShadow": true,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [0, -0.5, 115],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, -0.5, 115, 1],
+        "geometry": {
+          "type": "BoxGeometry",
+          "parameters": {
+            "width": 20,
+            "height": 1,
+            "depth": 30,
+            "widthSegments": 1,
+            "heightSegments": 1,
+            "depthSegments": 1
+          },
+          "vertexCount": 24,
+          "indexCount": 36,
+          "groups": 6
+        },
+        "material": {
+          "type": "MeshStandardMaterial",
+          "color": {
+            "hex": "#0000ff",
+            "linear": [0, 0, 1]
+          },
+          "emissive": {
+            "hex": "#000000",
+            "linear": [0, 0, 0]
+          },
+          "metalness": 0.2,
+          "roughness": 0.7,
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "alphaTest": 0,
+          "side": 0,
+          "envMapIntensity": 1,
+          "blending": 1,
+          "lightMapIntensity": 1,
+          "aoMapIntensity": 1,
+          "bumpScale": 1,
+          "displacementScale": 1,
+          "displacementBias": 0,
+          "transparent": false,
+          "depthTest": true,
+          "depthWrite": true,
+          "fog": true,
+          "flatShading": false,
+          "wireframe": false,
+          "toneMapped": true,
+          "vertexColors": false,
+          "visible": true,
+          "maps": {}
+        },
+        "worldBox": {
+          "min": [-10, -1, 100],
+          "max": [10, 0, 130]
+        },
+        "children": []
+      },
+      {
+        "type": "Mesh",
+        "name": "",
+        "visible": true,
+        "castShadow": false,
+        "receiveShadow": true,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [0, -0.5, -115],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, -0.5, -115, 1],
+        "geometry": {
+          "type": "BoxGeometry",
+          "parameters": {
+            "width": 20,
+            "height": 1,
+            "depth": 30,
+            "widthSegments": 1,
+            "heightSegments": 1,
+            "depthSegments": 1
+          },
+          "vertexCount": 24,
+          "indexCount": 36,
+          "groups": 6
+        },
+        "material": {
+          "type": "MeshStandardMaterial",
+          "color": {
+            "hex": "#0000ff",
+            "linear": [0, 0, 1]
+          },
+          "emissive": {
+            "hex": "#000000",
+            "linear": [0, 0, 0]
+          },
+          "metalness": 0.2,
+          "roughness": 0.7,
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "alphaTest": 0,
+          "side": 0,
+          "envMapIntensity": 1,
+          "blending": 1,
+          "lightMapIntensity": 1,
+          "aoMapIntensity": 1,
+          "bumpScale": 1,
+          "displacementScale": 1,
+          "displacementBias": 0,
+          "transparent": false,
+          "depthTest": true,
+          "depthWrite": true,
+          "fog": true,
+          "flatShading": false,
+          "wireframe": false,
+          "toneMapped": true,
+          "vertexColors": false,
+          "visible": true,
+          "maps": {}
+        },
+        "worldBox": {
+          "min": [-10, -1, -130],
+          "max": [10, 0, -100]
+        },
+        "children": []
+      },
+      {
+        "type": "Mesh",
+        "name": "",
+        "visible": true,
+        "castShadow": true,
+        "receiveShadow": true,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [-10.5, 5, 0],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -10.5, 5, 0, 1],
+        "geometry": {
+          "type": "BoxGeometry",
+          "parameters": {
+            "width": 1,
+            "height": 10,
+            "depth": 200,
+            "widthSegments": 1,
+            "heightSegments": 1,
+            "depthSegments": 1
+          },
+          "vertexCount": 24,
+          "indexCount": 36,
+          "groups": 6
+        },
+        "material": {
+          "type": "MeshStandardMaterial",
+          "color": {
+            "hex": "#ffffff",
+            "linear": [1, 1, 1]
+          },
+          "emissive": {
+            "hex": "#000000",
+            "linear": [0, 0, 0]
+          },
+          "metalness": 0.1,
+          "roughness": 0.7,
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "alphaTest": 0,
+          "side": 0,
+          "envMapIntensity": 1,
+          "blending": 1,
+          "lightMapIntensity": 1,
+          "aoMapIntensity": 1,
+          "bumpScale": 1,
+          "displacementScale": 1,
+          "displacementBias": 0,
+          "transparent": false,
+          "depthTest": true,
+          "depthWrite": true,
+          "fog": true,
+          "flatShading": false,
+          "wireframe": false,
+          "toneMapped": true,
+          "vertexColors": false,
+          "visible": true,
+          "maps": {
+            "map": {
+              "label": "/mazes/HallwaySerialMigrated/assets/Chess_Pattern.jpg",
+              "class": "Texture",
+              "mapping": 300,
+              "wrapS": 1000,
+              "wrapT": 1000,
+              "repeat": [2, 0.1],
+              "offset": [0, 0],
+              "center": [0, 0],
+              "rotation": 0,
+              "flipY": true,
+              "colorSpace": "",
+              "generateMipmaps": true,
+              "magFilter": 1006,
+              "minFilter": 1008,
+              "anisotropy": 1,
+              "type": 1009,
+              "format": 1023,
+              "premultiplyAlpha": false,
+              "unpackAlignment": 4,
+              "image": null
+            }
+          }
+        },
+        "worldBox": {
+          "min": [-11, 0, -100],
+          "max": [-10, 10, 100]
+        },
+        "children": []
+      },
+      {
+        "type": "Mesh",
+        "name": "",
+        "visible": true,
+        "castShadow": true,
+        "receiveShadow": true,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [10.5, 5, 0],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 10.5, 5, 0, 1],
+        "geometry": {
+          "type": "BoxGeometry",
+          "parameters": {
+            "width": 1,
+            "height": 10,
+            "depth": 200,
+            "widthSegments": 1,
+            "heightSegments": 1,
+            "depthSegments": 1
+          },
+          "vertexCount": 24,
+          "indexCount": 36,
+          "groups": 6
+        },
+        "material": {
+          "type": "MeshStandardMaterial",
+          "color": {
+            "hex": "#ffffff",
+            "linear": [1, 1, 1]
+          },
+          "emissive": {
+            "hex": "#000000",
+            "linear": [0, 0, 0]
+          },
+          "metalness": 0.1,
+          "roughness": 0.7,
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "alphaTest": 0,
+          "side": 0,
+          "envMapIntensity": 1,
+          "blending": 1,
+          "lightMapIntensity": 1,
+          "aoMapIntensity": 1,
+          "bumpScale": 1,
+          "displacementScale": 1,
+          "displacementBias": 0,
+          "transparent": false,
+          "depthTest": true,
+          "depthWrite": true,
+          "fog": true,
+          "flatShading": false,
+          "wireframe": false,
+          "toneMapped": true,
+          "vertexColors": false,
+          "visible": true,
+          "maps": {
+            "map": {
+              "label": "/mazes/HallwaySerialMigrated/assets/Chess_Pattern.jpg",
+              "class": "Texture",
+              "mapping": 300,
+              "wrapS": 1000,
+              "wrapT": 1000,
+              "repeat": [2, 0.1],
+              "offset": [0, 0],
+              "center": [0, 0],
+              "rotation": 0,
+              "flipY": true,
+              "colorSpace": "",
+              "generateMipmaps": true,
+              "magFilter": 1006,
+              "minFilter": 1008,
+              "anisotropy": 1,
+              "type": 1009,
+              "format": 1023,
+              "premultiplyAlpha": false,
+              "unpackAlignment": 4,
+              "image": null
+            }
+          }
+        },
+        "worldBox": {
+          "min": [10, 0, -100],
+          "max": [11, 10, 100]
+        },
+        "children": []
+      },
+      {
+        "type": "Mesh",
+        "name": "",
+        "visible": true,
+        "castShadow": true,
+        "receiveShadow": true,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [-10.5, 5, 115],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -10.5, 5, 115, 1],
+        "geometry": {
+          "type": "BoxGeometry",
+          "parameters": {
+            "width": 1,
+            "height": 10,
+            "depth": 30,
+            "widthSegments": 1,
+            "heightSegments": 1,
+            "depthSegments": 1
+          },
+          "vertexCount": 24,
+          "indexCount": 36,
+          "groups": 6
+        },
+        "material": {
+          "type": "MeshStandardMaterial",
+          "color": {
+            "hex": "#0000ff",
+            "linear": [0, 0, 1]
+          },
+          "emissive": {
+            "hex": "#000000",
+            "linear": [0, 0, 0]
+          },
+          "metalness": 0.2,
+          "roughness": 0.7,
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "alphaTest": 0,
+          "side": 0,
+          "envMapIntensity": 1,
+          "blending": 1,
+          "lightMapIntensity": 1,
+          "aoMapIntensity": 1,
+          "bumpScale": 1,
+          "displacementScale": 1,
+          "displacementBias": 0,
+          "transparent": false,
+          "depthTest": true,
+          "depthWrite": true,
+          "fog": true,
+          "flatShading": false,
+          "wireframe": false,
+          "toneMapped": true,
+          "vertexColors": false,
+          "visible": true,
+          "maps": {}
+        },
+        "worldBox": {
+          "min": [-11, 0, 100],
+          "max": [-10, 10, 130]
+        },
+        "children": []
+      },
+      {
+        "type": "Mesh",
+        "name": "",
+        "visible": true,
+        "castShadow": true,
+        "receiveShadow": true,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [10.5, 5, 115],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 10.5, 5, 115, 1],
+        "geometry": {
+          "type": "BoxGeometry",
+          "parameters": {
+            "width": 1,
+            "height": 10,
+            "depth": 30,
+            "widthSegments": 1,
+            "heightSegments": 1,
+            "depthSegments": 1
+          },
+          "vertexCount": 24,
+          "indexCount": 36,
+          "groups": 6
+        },
+        "material": {
+          "type": "MeshStandardMaterial",
+          "color": {
+            "hex": "#0000ff",
+            "linear": [0, 0, 1]
+          },
+          "emissive": {
+            "hex": "#000000",
+            "linear": [0, 0, 0]
+          },
+          "metalness": 0.2,
+          "roughness": 0.7,
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "alphaTest": 0,
+          "side": 0,
+          "envMapIntensity": 1,
+          "blending": 1,
+          "lightMapIntensity": 1,
+          "aoMapIntensity": 1,
+          "bumpScale": 1,
+          "displacementScale": 1,
+          "displacementBias": 0,
+          "transparent": false,
+          "depthTest": true,
+          "depthWrite": true,
+          "fog": true,
+          "flatShading": false,
+          "wireframe": false,
+          "toneMapped": true,
+          "vertexColors": false,
+          "visible": true,
+          "maps": {}
+        },
+        "worldBox": {
+          "min": [10, 0, 100],
+          "max": [11, 10, 130]
+        },
+        "children": []
+      },
+      {
+        "type": "Mesh",
+        "name": "",
+        "visible": true,
+        "castShadow": true,
+        "receiveShadow": true,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [-10.5, 5, -115],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -10.5, 5, -115, 1],
+        "geometry": {
+          "type": "BoxGeometry",
+          "parameters": {
+            "width": 1,
+            "height": 10,
+            "depth": 30,
+            "widthSegments": 1,
+            "heightSegments": 1,
+            "depthSegments": 1
+          },
+          "vertexCount": 24,
+          "indexCount": 36,
+          "groups": 6
+        },
+        "material": {
+          "type": "MeshStandardMaterial",
+          "color": {
+            "hex": "#0000ff",
+            "linear": [0, 0, 1]
+          },
+          "emissive": {
+            "hex": "#000000",
+            "linear": [0, 0, 0]
+          },
+          "metalness": 0.2,
+          "roughness": 0.7,
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "alphaTest": 0,
+          "side": 0,
+          "envMapIntensity": 1,
+          "blending": 1,
+          "lightMapIntensity": 1,
+          "aoMapIntensity": 1,
+          "bumpScale": 1,
+          "displacementScale": 1,
+          "displacementBias": 0,
+          "transparent": false,
+          "depthTest": true,
+          "depthWrite": true,
+          "fog": true,
+          "flatShading": false,
+          "wireframe": false,
+          "toneMapped": true,
+          "vertexColors": false,
+          "visible": true,
+          "maps": {}
+        },
+        "worldBox": {
+          "min": [-11, 0, -130],
+          "max": [-10, 10, -100]
+        },
+        "children": []
+      },
+      {
+        "type": "Mesh",
+        "name": "",
+        "visible": true,
+        "castShadow": true,
+        "receiveShadow": true,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [10.5, 5, -115],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 10.5, 5, -115, 1],
+        "geometry": {
+          "type": "BoxGeometry",
+          "parameters": {
+            "width": 1,
+            "height": 10,
+            "depth": 30,
+            "widthSegments": 1,
+            "heightSegments": 1,
+            "depthSegments": 1
+          },
+          "vertexCount": 24,
+          "indexCount": 36,
+          "groups": 6
+        },
+        "material": {
+          "type": "MeshStandardMaterial",
+          "color": {
+            "hex": "#0000ff",
+            "linear": [0, 0, 1]
+          },
+          "emissive": {
+            "hex": "#000000",
+            "linear": [0, 0, 0]
+          },
+          "metalness": 0.2,
+          "roughness": 0.7,
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "alphaTest": 0,
+          "side": 0,
+          "envMapIntensity": 1,
+          "blending": 1,
+          "lightMapIntensity": 1,
+          "aoMapIntensity": 1,
+          "bumpScale": 1,
+          "displacementScale": 1,
+          "displacementBias": 0,
+          "transparent": false,
+          "depthTest": true,
+          "depthWrite": true,
+          "fog": true,
+          "flatShading": false,
+          "wireframe": false,
+          "toneMapped": true,
+          "vertexColors": false,
+          "visible": true,
+          "maps": {}
+        },
+        "worldBox": {
+          "min": [10, 0, -130],
+          "max": [11, 10, -100]
+        },
+        "children": []
+      },
+      {
+        "type": "Mesh",
+        "name": "",
+        "visible": true,
+        "castShadow": true,
+        "receiveShadow": true,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [0, 5, 100.5],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 5, 100.5, 1],
+        "geometry": {
+          "type": "BoxGeometry",
+          "parameters": {
+            "width": 20,
+            "height": 10,
+            "depth": 1,
+            "widthSegments": 1,
+            "heightSegments": 1,
+            "depthSegments": 1
+          },
+          "vertexCount": 24,
+          "indexCount": 36,
+          "groups": 6
+        },
+        "material": {
+          "type": "MeshStandardMaterial",
+          "color": {
+            "hex": "#0000ff",
+            "linear": [0, 0, 1]
+          },
+          "emissive": {
+            "hex": "#000000",
+            "linear": [0, 0, 0]
+          },
+          "metalness": 0.2,
+          "roughness": 0.7,
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "alphaTest": 0,
+          "side": 0,
+          "envMapIntensity": 1,
+          "blending": 1,
+          "lightMapIntensity": 1,
+          "aoMapIntensity": 1,
+          "bumpScale": 1,
+          "displacementScale": 1,
+          "displacementBias": 0,
+          "transparent": false,
+          "depthTest": true,
+          "depthWrite": true,
+          "fog": true,
+          "flatShading": false,
+          "wireframe": false,
+          "toneMapped": true,
+          "vertexColors": false,
+          "visible": true,
+          "maps": {}
+        },
+        "worldBox": {
+          "min": [-10, 0, 100],
+          "max": [10, 10, 101]
+        },
+        "children": []
+      },
+      {
+        "type": "Mesh",
+        "name": "",
+        "visible": true,
+        "castShadow": true,
+        "receiveShadow": true,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [0, 5, -100.5],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 5, -100.5, 1],
+        "geometry": {
+          "type": "BoxGeometry",
+          "parameters": {
+            "width": 20,
+            "height": 10,
+            "depth": 1,
+            "widthSegments": 1,
+            "heightSegments": 1,
+            "depthSegments": 1
+          },
+          "vertexCount": 24,
+          "indexCount": 36,
+          "groups": 6
+        },
+        "material": {
+          "type": "MeshStandardMaterial",
+          "color": {
+            "hex": "#0000ff",
+            "linear": [0, 0, 1]
+          },
+          "emissive": {
+            "hex": "#000000",
+            "linear": [0, 0, 0]
+          },
+          "metalness": 0.2,
+          "roughness": 0.7,
+          "emissiveIntensity": 1,
+          "opacity": 1,
+          "alphaTest": 0,
+          "side": 0,
+          "envMapIntensity": 1,
+          "blending": 1,
+          "lightMapIntensity": 1,
+          "aoMapIntensity": 1,
+          "bumpScale": 1,
+          "displacementScale": 1,
+          "displacementBias": 0,
+          "transparent": false,
+          "depthTest": true,
+          "depthWrite": true,
+          "fog": true,
+          "flatShading": false,
+          "wireframe": false,
+          "toneMapped": true,
+          "vertexColors": false,
+          "visible": true,
+          "maps": {}
+        },
+        "worldBox": {
+          "min": [-10, 0, -101],
+          "max": [10, 10, -100]
+        },
+        "children": []
+      },
+      {
+        "type": "Object3D",
+        "name": "",
+        "visible": true,
+        "castShadow": false,
+        "receiveShadow": false,
+        "frustumCulled": true,
+        "renderOrder": 0,
+        "layers": 1,
+        "position": [0, 2.1, 0],
+        "rotation": [0, 0, 0, "XYZ"],
+        "scale": [1, 1, 1],
+        "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 2.1, 0, 1],
+        "children": [
+          {
+            "type": "Object3D",
+            "name": "",
+            "visible": true,
+            "castShadow": false,
+            "receiveShadow": false,
+            "frustumCulled": true,
+            "renderOrder": 0,
+            "layers": 1,
+            "position": [0, 0, 0],
+            "rotation": [0, 0, 0, "XYZ"],
+            "scale": [1, 1, 1],
+            "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 2.1, 0, 1],
+            "children": [
+              {
+                "type": "PerspectiveCamera",
+                "name": "",
+                "visible": true,
+                "castShadow": false,
+                "receiveShadow": false,
+                "frustumCulled": true,
+                "renderOrder": 0,
+                "layers": 1,
+                "position": [0, 1.6, 0],
+                "rotation": [0, 0, 0, "XYZ"],
+                "scale": [1, 1, 1],
+                "matrixWorld": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 3.7, 0, 1],
+                "camera": {
+                  "type": "PerspectiveCamera",
+                  "fov": 75,
+                  "aspect": 1.7777777777777777,
+                  "near": 0.1,
+                  "far": 1000,
+                  "zoom": 1,
+                  "focus": 10,
+                  "filmGauge": 35,
+                  "filmOffset": 0,
+                  "view": null,
+                  "projectionMatrix": [0.7330642722231783, 0, 0, 0, 0, 1.3032253728412058, 0, 0, 0, 0, -1.0002000200020003, -1, 0, 0, -0.20002000200020004, 0]
+                },
+                "children": []
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "camera": {
+      "path": [15, 0, 0],
+      "worldPosition": [0, 3.7, 0],
+      "worldQuaternion": [0, 0, 0, 1],
+      "worldDirection": [0, 0, -1]
+    }
+  },
+  "renderer": {
+    "canvas": "the scene canvas",
+    "parameters": {
+      "antialias": true,
+      "toneMapping": 4,
+      "toneMappingExposure": 1
+    },
+    "calls": [
+      ["setSize", 1920, 1080, true]
+    ],
+    "writes": [
+      ["shadowMap.enabled", true],
+      ["physicallyCorrectLights", true]
+    ]
+  },
+  "physics": {
+    "gravity": [0, -500, 0],
+    "bodies": [
+      {
+        "type": "Fixed",
+        "translation": [0, -0.5, 0],
+        "rotation": [0, 0, 0, 1],
+        "linearDamping": 0,
+        "angularDamping": 0
+      },
+      {
+        "type": "Fixed",
+        "translation": [0, -0.5, 115],
+        "rotation": [0, 0, 0, 1],
+        "linearDamping": 0,
+        "angularDamping": 0
+      },
+      {
+        "type": "Fixed",
+        "translation": [0, -0.5, -115],
+        "rotation": [0, 0, 0, 1],
+        "linearDamping": 0,
+        "angularDamping": 0
+      },
+      {
+        "type": "Fixed",
+        "translation": [-10.5, 5, 0],
+        "rotation": [0, 0, 0, 1],
+        "linearDamping": 0,
+        "angularDamping": 0
+      },
+      {
+        "type": "Fixed",
+        "translation": [10.5, 5, 0],
+        "rotation": [0, 0, 0, 1],
+        "linearDamping": 0,
+        "angularDamping": 0
+      },
+      {
+        "type": "Fixed",
+        "translation": [-10.5, 5, 115],
+        "rotation": [0, 0, 0, 1],
+        "linearDamping": 0,
+        "angularDamping": 0
+      },
+      {
+        "type": "Fixed",
+        "translation": [10.5, 5, 115],
+        "rotation": [0, 0, 0, 1],
+        "linearDamping": 0,
+        "angularDamping": 0
+      },
+      {
+        "type": "Fixed",
+        "translation": [-10.5, 5, -115],
+        "rotation": [0, 0, 0, 1],
+        "linearDamping": 0,
+        "angularDamping": 0
+      },
+      {
+        "type": "Fixed",
+        "translation": [10.5, 5, -115],
+        "rotation": [0, 0, 0, 1],
+        "linearDamping": 0,
+        "angularDamping": 0
+      },
+      {
+        "type": "Fixed",
+        "translation": [0, 5, 100.5],
+        "rotation": [0, 0, 0, 1],
+        "linearDamping": 0,
+        "angularDamping": 0
+      },
+      {
+        "type": "Fixed",
+        "translation": [0, 5, -100.5],
+        "rotation": [0, 0, 0, 1],
+        "linearDamping": 0,
+        "angularDamping": 0
+      },
+      {
+        "type": "Dynamic",
+        "translation": [0, 0.5, 0],
+        "rotation": [0, 0, 0, 1],
+        "linearDamping": 0,
+        "angularDamping": 0
+      }
+    ],
+    "colliders": [
+      {
+        "body": 0,
+        "shape": {
+          "type": "Cuboid",
+          "halfExtents": [10, 0.5, 100]
+        },
+        "translation": [0, -0.5, 0],
+        "rotation": [0, 0, 0, 1],
+        "friction": 0.5,
+        "restitution": 0,
+        "density": 1,
+        "sensor": false
+      },
+      {
+        "body": 1,
+        "shape": {
+          "type": "Cuboid",
+          "halfExtents": [10, 0.5, 15]
+        },
+        "translation": [0, -0.5, 115],
+        "rotation": [0, 0, 0, 1],
+        "friction": 0.5,
+        "restitution": 0,
+        "density": 1,
+        "sensor": false
+      },
+      {
+        "body": 2,
+        "shape": {
+          "type": "Cuboid",
+          "halfExtents": [10, 0.5, 15]
+        },
+        "translation": [0, -0.5, -115],
+        "rotation": [0, 0, 0, 1],
+        "friction": 0.5,
+        "restitution": 0,
+        "density": 1,
+        "sensor": false
+      },
+      {
+        "body": 3,
+        "shape": {
+          "type": "Cuboid",
+          "halfExtents": [0.5, 5, 100]
+        },
+        "translation": [-10.5, 5, 0],
+        "rotation": [0, 0, 0, 1],
+        "friction": 0.5,
+        "restitution": 0,
+        "density": 1,
+        "sensor": false
+      },
+      {
+        "body": 4,
+        "shape": {
+          "type": "Cuboid",
+          "halfExtents": [0.5, 5, 100]
+        },
+        "translation": [10.5, 5, 0],
+        "rotation": [0, 0, 0, 1],
+        "friction": 0.5,
+        "restitution": 0,
+        "density": 1,
+        "sensor": false
+      },
+      {
+        "body": 5,
+        "shape": {
+          "type": "Cuboid",
+          "halfExtents": [0.5, 5, 15]
+        },
+        "translation": [-10.5, 5, 115],
+        "rotation": [0, 0, 0, 1],
+        "friction": 0.5,
+        "restitution": 0,
+        "density": 1,
+        "sensor": false
+      },
+      {
+        "body": 6,
+        "shape": {
+          "type": "Cuboid",
+          "halfExtents": [0.5, 5, 15]
+        },
+        "translation": [10.5, 5, 115],
+        "rotation": [0, 0, 0, 1],
+        "friction": 0.5,
+        "restitution": 0,
+        "density": 1,
+        "sensor": false
+      },
+      {
+        "body": 7,
+        "shape": {
+          "type": "Cuboid",
+          "halfExtents": [0.5, 5, 15]
+        },
+        "translation": [-10.5, 5, -115],
+        "rotation": [0, 0, 0, 1],
+        "friction": 0.5,
+        "restitution": 0,
+        "density": 1,
+        "sensor": false
+      },
+      {
+        "body": 8,
+        "shape": {
+          "type": "Cuboid",
+          "halfExtents": [0.5, 5, 15]
+        },
+        "translation": [10.5, 5, -115],
+        "rotation": [0, 0, 0, 1],
+        "friction": 0.5,
+        "restitution": 0,
+        "density": 1,
+        "sensor": false
+      },
+      {
+        "body": 9,
+        "shape": {
+          "type": "Cuboid",
+          "halfExtents": [10, 5, 0.5]
+        },
+        "translation": [0, 5, 100.5],
+        "rotation": [0, 0, 0, 1],
+        "friction": 0.5,
+        "restitution": 0,
+        "density": 1,
+        "sensor": false
+      },
+      {
+        "body": 10,
+        "shape": {
+          "type": "Cuboid",
+          "halfExtents": [10, 5, 0.5]
+        },
+        "translation": [0, 5, -100.5],
+        "rotation": [0, 0, 0, 1],
+        "friction": 0.5,
+        "restitution": 0,
+        "density": 1,
+        "sensor": false
+      },
+      {
+        "body": 11,
+        "shape": {
+          "type": "Ball",
+          "radius": 0.5
+        },
+        "translation": [0, 0.5, 0],
+        "rotation": [0, 0, 0, 1],
+        "friction": 0,
+        "restitution": 0,
+        "density": 1,
+        "sensor": false
+      }
+    ]
+  }
+}
