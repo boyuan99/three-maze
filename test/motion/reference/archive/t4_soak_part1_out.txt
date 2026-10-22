@@ -1,0 +1,21 @@
+Part 1: composite soak, 4 seeds x 5 min, vertical walls only (s4_obstacles). Overlap = r 0.5 footprint depth > 0.02 (common.mjs)
+  @ 20/s split 40 adopted top2.0 samples 24000 KCC calls 361660 overlap>0.02 0 worst -0.020 escapes 0 guard reverts 0 recoveries 0 (clear 0) fix contacts 0 itCap 0 max|n_y| kept by KCC 0.0e+0 path efficiency 55.8% 880.8 us/sample (max 7928)
+  @ 20/s split 40 U+RS top2.0 samples 24000 KCC calls 975489 overlap>0.02 0 worst -0.020 escapes 0 guard reverts 0 recoveries 0 (clear 0) fix contacts 323095 itCap 0 max|n_y| kept by KCC 0.0e+0 path efficiency 55.8% 1235.0 us/sample (max 7466)
+  @ 20/s split 40 U+RS top4.15 samples 24000 KCC calls 977149 overlap>0.02 0 worst -0.020 escapes 0 guard reverts 0 recoveries 0 (clear 0) fix contacts 323090 itCap 0 max|n_y| kept by KCC 0.0e+0 path efficiency 55.8% 1217.2 us/sample (max 8165)
+      trajectories identical to adopted top2.0: U+RS top2.0 no, U+RS top4.15 no
+  @120/s split 40 adopted top2.0 samples 144000 KCC calls 421920 overlap>0.02 0 worst -0.019 escapes 0 guard reverts 0 recoveries 0 (clear 0) fix contacts 0 itCap 0 max|n_y| kept by KCC 0.0e+0 path efficiency 55.8% 184.0 us/sample (max 4441)
+  @120/s split 40 U+RS top2.0 samples 144000 KCC calls 1133792 overlap>0.02 0 worst -0.018 escapes 0 guard reverts 0 recoveries 0 (clear 0) fix contacts 374407 itCap 0 max|n_y| kept by KCC 0.0e+0 path efficiency 55.8% 236.9 us/sample (max 5335)
+  @120/s split 40 U+RS top4.15 samples 144000 KCC calls 1135898 overlap>0.02 0 worst -0.018 escapes 0 guard reverts 0 recoveries 0 (clear 0) fix contacts 374409 itCap 0 max|n_y| kept by KCC 0.0e+0 path efficiency 55.8% 234.5 us/sample (max 4866)
+      trajectories identical to adopted top2.0: U+RS top2.0 no, U+RS top4.15 no
+  @250/s split 40 adopted top2.0 samples 300000 KCC calls 509500 overlap>0.02 0 worst -0.019 escapes 0 guard reverts 0 recoveries 0 (clear 0) fix contacts 0 itCap 0 max|n_y| kept by KCC 0.0e+0 path efficiency 55.9% 107.9 us/sample (max 4746)
+  @250/s split 40 U+RS top2.0 samples 300000 KCC calls 1362955 overlap>0.02 0 worst -0.019 escapes 0 guard reverts 0 recoveries 0 (clear 0) fix contacts 448874 itCap 0 max|n_y| kept by KCC 0.0e+0 path efficiency 55.9% 139.1 us/sample (max 5447)
+  @250/s split 40 U+RS top4.15 samples 300000 KCC calls 1365500 overlap>0.02 0 worst -0.020 escapes 0 guard reverts 0 recoveries 0 (clear 0) fix contacts 448839 itCap 0 max|n_y| kept by KCC 0.0e+0 path efficiency 55.9% 140.1 us/sample (max 5715)
+      trajectories identical to adopted top2.0: U+RS top2.0 no, U+RS top4.15 no
+  @ 20/s split  - adopted top2.0 samples 24000 KCC calls 361660 overlap>0.02 0 worst 0.020 escapes 0 guard reverts 2952 recoveries 0 (clear 0) fix contacts 0 itCap 0 max|n_y| kept by KCC 0.0e+0 path efficiency 55.5% 658.1 us/sample (max 87332)
+  @ 20/s split  - U+RS top2.0 samples 24000 KCC calls 974354 overlap>0.02 0 worst 0.020 escapes 0 guard reverts 0 recoveries 22 (clear 22) fix contacts 325589 itCap 218 max|n_y| kept by KCC 0.0e+0 path efficiency 55.7% 851.3 us/sample (max 6214)
+  @ 20/s split  - U+RS top4.15 samples 24000 KCC calls 978570 overlap>0.02 0 worst 0.019 escapes 0 guard reverts 21 recoveries 5 (clear 5) fix contacts 326233 itCap 234 max|n_y| kept by KCC 0.0e+0 path efficiency 55.7% 868.2 us/sample (max 6187)
+      trajectories identical to adopted top2.0: U+RS top2.0 no, U+RS top4.15 no
+  @120/s split  - adopted top2.0 samples 144000 KCC calls 421920 overlap>0.02 0 worst 0.019 escapes 0 guard reverts 3636 recoveries 0 (clear 0) fix contacts 0 itCap 0 max|n_y| kept by KCC 0.0e+0 path efficiency 55.5% 140.4 us/sample (max 18965)
+  @120/s split  - U+RS top2.0 samples 144000 KCC calls 1132689 overlap>0.02 0 worst 0.020 escapes 0 guard reverts 0 recoveries 19 (clear 19) fix contacts 377319 itCap 267 max|n_y| kept by KCC 0.0e+0 path efficiency 55.8% 166.8 us/sample (max 4393)
+  @120/s split  - U+RS top4.15 samples 144000 KCC calls 1137327 overlap>0.02 2 worst 0.021 escapes 0 guard reverts 0 recoveries 11 (clear 11) fix contacts 378097 itCap 268 max|n_y| kept by KCC 0.0e+0 path efficiency 55.8% 165.9 us/sample (max 7032)
+      trajectories identical to adopted top2.0: U+RS top2.0 no, U+RS top4.15 no
