@@ -75,8 +75,8 @@ whole numbers written without a fraction or exponent (`50000`, not `50000.0` or 
 | `motion.displayMode` | no | chosen by the motion core | `smooth` (interpolate with a delay D) or `latest` (newest pose), plan item MOT-13. Absent, the motion core chooses from the sample period (`latest` when a sample period is at most half a frame, MOT-13); the mode for paper data is open (D17). |
 | `motion.displayDelayUs` | no | chosen by the motion core | D of the smooth mode, in µs. |
 
-The sample rate is not a separate field: it is the motion device's own setting (`periodUs` for the
-simulated device), which the device's hello is checked against.
+The sample rate is not a separate field: it is the motion device's own setting (`periodUs` of the
+`simulated` and `serial_lines` drivers), which the device's hello is checked against.
 
 ### Driver `simulated`
 
@@ -103,20 +103,51 @@ port (`THREEMAZE_SIM_PROTOCOL=v1`, [test/e2e/README.md](../test/e2e/README.md)).
 | `lineEnding` | `"lf"` | `"crlf"` writes lines as `Serial.println()` does. |
 | `faults` | none | Faults at sample numbers of every stream, each written to its log with that number: `drop` (`count` samples produced, never sent), `badCrc` (a digit corrupted under the original checksum), `truncate` (only the first `keepBytes` bytes; the next line follows them), `split` (`pieces` pieces `gapUs` apart, within one period), `burst` (`count` lines held and sent together), `silence` (no sample or lick line for `durationMs`; outputs still answer), `wrap` (its clock wraps from 4294967295 to 0 between `seq` − 1 and `seq`, first stream). |
 
-Until the serial reader of plan item DPR-03 reads every device, the driver does the host's part of
-the protocol's session sequence itself (device-v1.md section 6): it sends `stop` and `hello` when
-the session is armed and refuses to arm if the hello's device id, period or axes differ from the
-rig file or from the calibration's columns, or if it declares a heartbeat timeout below 300 ms
-(rule H5); it sends `start` and `stop` with the session; and a device with outputs gets `stop`,
-which closes them, whenever outputs are made safe (a device that also streams then sends its stop
-report). It sends no heartbeat yet (rule H7, plan items DPR-03 and DPR-09). It does not
-parse samples yet. Each device writes two files into the session folder:
+The simulated device is read as a device on a serial port is, by the reader and the host's side of
+the protocol that the `serial_lines` driver below uses (plan item DPR-03,
+`threemaze/devices/serial_lines.py`): it gets `stop` and `hello` when the session is armed, and the
+session refuses to arm if the hello's device id, period or axes differ from the rig file or from
+the calibration's columns, or if it declares a heartbeat timeout below 300 ms (rule H5); from then
+on a device that declares a heartbeat timeout gets a `beat` every 50 ms (rule H7); it gets `start`
+and `stop` with the session; and a device with outputs gets `stop`, which closes them, whenever
+outputs are made safe (a device that also streams then sends its stop report). Each device writes
+two files into the session folder:
 
 - `raw/<device>.tsv`: every line the device sent, stamped with the session clock at the read that
   completed it, and every command, in the raw capture format of `tools/capture_raw.py` ("three-maze
   raw capture 1"); `test/e2e/sim/threemaze_sim/conformance.py` checks it;
 - `sim/<device>.jsonl`: the device's own log: every command, stream start and stop, lick edge and
-  fault, and every pulse with its commanded and actual on and off times.
+  fault, and every pulse with its commanded and actual on and off times; and the runtime's calls
+  (open, start, safe_state, stop, close) with the hello it received.
+
+### Driver `serial_lines`
+
+A device on a serial port of this computer (USB CDC or a UART), read line by line in the profile
+its entry names: in phase 1 `v1`, [device protocol v1](protocol/device-v1.md); plan item DPR-04
+adds `legacy-v0.3`. One reader thread per device blocks in the port's read (with a 50 ms timeout,
+so that it can be stopped; it never polls the runtime's event loop), reassembles the lines however
+their bytes arrive, stamps each with the session clock at the read that completed it, checks it
+(framing, checksum, fields, sequence numbers and device time: device-v1.md section 7), counts every
+rejected line by cause, writes every line to the raw-line log, and hands the device samples, with
+the device's other records, to the runtime. The host's side of the session sequence runs as for
+the simulated device above (section 6). The waits are the protocol's proposed defaults.
+
+| Field | Default | Meaning |
+|---|---|---|
+| `port` | required | The port: its name (`COM5` on Windows, `/dev/ttyACM0` on Linux) or a pySerial URL (`loop://` is a loopback port for tests). |
+| `profile` | required | `v1`: device protocol v1. |
+| `baud` | `115200` | Baud rate; a native USB device ignores it. |
+| `deviceId` | none | When given, the hello must report this id (rule H5). |
+| `periodUs` | | The sample period, in µs, that the hello must declare. Present: the device streams samples and can serve `motion`. Absent: its hello must declare 0. |
+| `outputs` | `0` | Output channels the rig uses. At least 1: the device can serve `reward`, and its hello must declare at least as many (key `out`). |
+| `openDelayMs` | `0` | Wait after opening the port, for boards that reset when it opens (section 6, step 1). |
+| `helloIntervalMs` | `500` | Send `hello` again this often until the device answers (step 3). |
+| `helloTimeoutMs` | `5000` | Refuse to arm the session when no hello came within this time (step 3). |
+| `stopTimeoutMs` | `500` | Wait this long for the stop report after `stop` (step 7). |
+| `rawLog` | `true` | Write the raw-line log `raw/<device>.tsv` in the session folder. |
+
+The number of sensor axes is not a field: the hello reports it, and it must equal the number of
+columns of the device's calibration matrix.
 
 ## Validation
 
@@ -146,7 +177,7 @@ files:
 
 | v0.3 | Where | Rig file v1 |
 |---|---|---|
-| serial port `COM3`, 115200 baud | `experiments/hallway04_experiment.py:156-157` | the motion device's entry (serial drivers: plan items DPR-03, DPR-04) |
+| serial port `COM3`, 115200 baud | `experiments/hallway04_experiment.py:156-157` | the motion device's entry: `port` and `baud` of the `serial_lines` driver (its legacy-v0.3 profile: plan item DPR-04) |
 | NI-DAQ channel `Dev1/ao0` | `experiments/hallway04_experiment.py:190-191` | the reward device's entry (NI driver: plan item DPR-10) |
 | data folder `D:\VirmenData` | `experiments/hallway04_experiment.py:214` | `dataRoot` |
 | `ENCODER_TO_CM` 0.0349, yaw 0.05 rad per count | `experiments/hallway04_experiment.py:84`, `:287-288`; 0.0364 in `hallway_experiment.py:75` | `calibration.<device>.matrix` |
@@ -178,7 +209,7 @@ owner's device replaces it if one is captured (D6): set its trajectory to `repla
 
 ## Later in phase 1
 
-Plan items that extend this format: the `lick` role (DPR-25), a serial driver for device protocol
-v1 (DPR-03) and its legacy-v0.3 profile settings (DPR-04), the NI-DAQ analog-output driver
-(DPR-10), the µL-to-pulse-width calibration of the reward device (DPR-09) and the launcher's use
-of `backend` (DPR-15b). The data root and the subject fields every session records are open (D16).
+Plan items that extend this format: the `lick` role (DPR-25), the legacy-v0.3 profile of the
+`serial_lines` driver and its settings (DPR-04), the NI-DAQ analog-output driver (DPR-10), the
+µL-to-pulse-width calibration of the reward device (DPR-09) and the launcher's use of `backend`
+(DPR-15b). The data root and the subject fields every session records are open (D16).

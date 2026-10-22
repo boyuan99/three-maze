@@ -1,13 +1,11 @@
 """samples.tsv through a 10 s render stall (plan item DPR-07): the simulated device streams device
-protocol v1 at 1,000 samples per second in real time, and each sample is recorded from the
-device's reader thread when its line arrives, while the stimulus side (the motion worker's poses
-and the render host's frames) stops for 10 s and then catches up. samples.tsv must hold one row per
-sample line the device sent, stamped with the time its line was read, and those rows must reach
-the disk during the stall. In v0.3 a row was written only when the renderer reported a pose, so a
-stalled renderer lost rows (test/e2e/README.md, Known limits).
-
-The serial reader of plan item DPR-03 is built apart; MiniReader below does only what this test
-needs of it (device protocol v1, section 7.2), from the lines the driver's reader thread logs.
+protocol v1 at 1,000 samples per second in real time, its lines are read by the serial reader of
+plan item DPR-03, and each sample is recorded when the reader hands it to the session, while the
+stimulus side (the motion worker's poses and the render host's frames) stops for 10 s and then
+catches up. samples.tsv must hold one row per sample line the device sent, stamped with the time
+its line was read, and those rows must reach the disk during the stall. In v0.3 a row was written
+only when the renderer reported a pose, so a stalled renderer lost rows (test/e2e/README.md, Known
+limits).
 """
 import queue
 import threading
@@ -15,79 +13,46 @@ import time
 
 import pytest
 
-from threemaze.devices import simulated
-from threemaze.devices.sim.frame import int32, unframe
+from threemaze.core.records import DeviceSample
+from threemaze.devices.sim.frame import int32
 from threemaze.record import read_table
 from threemaze.record.formats import FRAMES, POSES, SAMPLES
 from threemaze.runtime import Session, TaskSource
 from threemaze_sim import conformance
 
-U32 = 1 << 32
 STALL_S = 10.0
 FRAME_NS = 16_666_667
 
 
-class MiniReader:
-    """S lines -> device samples: seq, gap, unwrapped t_dev_us, dt_us, counts from the running
-    totals, d = C * raw (ascending axes, double precision)."""
+class Tap:
+    """A session listener: the motion device's samples, as the reader hands them to the session,
+    go to the recorder and to the fake motion worker (out)."""
 
-    def __init__(self, matrix):
-        self.matrix = matrix
-        self.recorder = None
-        self.prev = None
-        self.out = queue.SimpleQueue()   # to the fake motion worker
+    def __init__(self):
+        self.out = queue.SimpleQueue()
 
-    def line(self, t_ns, data):
-        record = unframe(data)
-        if record is None or not record.startswith("S,") or self.recorder is None:
+    def on_device_batch(self, session, device, records):
+        if device != "ball":
             return
-        fields = record.split(",")
-        seq, t_us, dt_us, flags = (int(v) for v in fields[1:5])
-        totals = [int(v) for v in fields[5:]]
-        if self.prev is None:
-            gap, t_dev, raw = seq, t_us, totals
-        else:
-            p_seq, p_t_us, p_t_dev, p_totals = self.prev
-            gap = (seq - p_seq - 1) % U32
-            dt_us = (t_us - p_t_us) % U32
-            t_dev = p_t_dev + dt_us
-            raw = [int32(a - b) for a, b in zip(totals, p_totals)]
-        self.prev = (seq, t_us, t_dev, totals)
-        d = []
-        for row in self.matrix:
-            total = 0.0
-            for c, count in zip(row, raw):
-                total += c * count
-            d.append(total)
-        sample = {"seq": seq, "t_dev_us": t_dev, "t_host_ns": t_ns, "dt_us": dt_us, "gap": gap,
-                  "flags": flags, "raw": raw, "d": d}
-        self.recorder.sample(sample)
-        self.out.put(sample)
+        samples = [r for r in records if type(r) is DeviceSample]
+        session.recorder.samples(samples)
+        for sample in samples:
+            self.out.put(sample)
 
 
 @pytest.fixture
-def reader(monkeypatch, sim_rig_data):
-    matrix = sim_rig_data["calibration"]["ball"]["matrix"]
-    mini = MiniReader(matrix)
-    real_line = simulated.RawCapture.line
-
-    def line(capture, t_ns, data):
-        real_line(capture, t_ns, data)
-        if capture.path.name == "ball.tsv":
-            mini.line(t_ns, data)
-
-    monkeypatch.setattr(simulated.RawCapture, "line", line)
-    return mini
+def reader():
+    return Tap()
 
 
 def test_samples_are_recorded_on_receipt_through_a_10_s_stall(sim_rig_data, write_rig, tmp_path,
                                                                reader):
     sim_rig_data["devices"]["ball"]["periodUs"] = 1000
     session = Session()
+    session.add_listener(reader)
     session.configure(write_rig(sim_rig_data), data_root=tmp_path)
     session.set_task(TaskSource("declarative", "test-task"))
     folder = session.arm()
-    reader.recorder = session.recorder
     stalled = threading.Event()
     done = threading.Event()
 
@@ -104,8 +69,8 @@ def test_samples_are_recorded_on_receipt_through_a_10_s_stall(sim_rig_data, writ
                     s = reader.out.get_nowait()
                 except queue.Empty:
                     break
-                x += s["d"][0]
-                poses.append({"seq": s["seq"], "epoch": 0, "t_dev_us": s["t_dev_us"], "x": x,
+                x += s.d[0]
+                poses.append({"seq": s.seq, "epoch": 0, "t_dev_us": s.t_dev_us, "x": x,
                               "feet_y": 0.0, "z": 0.0, "yaw": 0.0, "contact": False,
                               "airborne": False})
             for start in range(0, len(poses), 1000):

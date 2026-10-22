@@ -3,8 +3,9 @@ a device's stream gives, and what a session can claim from them. Every session r
 for each device (rule H9), so that a claim about lost or corrupted samples names the level of the
 device that produced the data.
 
-Pure: the profile and what the device sent decide. The legacy-v0.3 profile's flags (rule L7) come
-with its adapter (plan item DPR-04).
+Pure: the profile and what the device sent decide. The profile that reads a device uses these to
+state its record and the link protocol's guarantee level (threemaze/devices/profiles: v1.py); the
+legacy-v0.3 profile's flags (rule L7) come with its adapter (plan item DPR-04).
 """
 from collections.abc import Mapping
 from typing import Any
@@ -41,7 +42,7 @@ def levels(flags: Mapping[str, bool]) -> dict[str, str]:
 
 def protocol_record(profile: str, flags: Mapping[str, bool]) -> dict[str, Any]:
     """The fields of section 8.3 that the profile and the flags decide (the parsed hello, the
-    counters and, for output devices, output_timing come from the device's driver)."""
+    counters and, for output devices, output_timing come from what the profile read)."""
     if set(flags) != set(FLAGS):
         raise ValueError(f"guarantee flags must be exactly {', '.join(FLAGS)}")
     return {"profile": profile, "guarantees": {name: bool(flags[name]) for name in FLAGS},

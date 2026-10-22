@@ -135,6 +135,13 @@ def schema_defaults(section: str) -> dict[str, Any]:
     return {key: sub["default"] for key, sub in props.items() if "default" in sub}
 
 
+def device_defaults(definition: str) -> dict[str, Any]:
+    """The schema's default value of every field of one of its $defs that has one, for example
+    "serialLinesDevice": a driver reads its rig-file entry with these filled in."""
+    props = load_schema()["$defs"][definition].get("properties", {})
+    return {key: sub["default"] for key, sub in props.items() if "default" in sub}
+
+
 def validate_fragment(instance: Any, definition: str, base: str = "") -> list[RigIssue]:
     """Validate a value against one of the schema's $defs (for example "simulatedDevice"), the
     way it is validated inside a rig file; pointers start with `base`."""

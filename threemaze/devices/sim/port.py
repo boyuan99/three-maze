@@ -3,8 +3,8 @@
 Pacer maps the device's microsecond time line onto time.perf_counter_ns() (time 0 = when the
 Pacer was created) and hands each delivery to a sink at its time, from its own thread. SimPort is
 a serial port in the runtime's own process: the subset of pyserial's Serial API that a reader
-uses (read, readline, in_waiting, write, reset_input_buffer, close, timeout), with a bounded input
-buffer like a driver's.
+uses (read, readline, in_waiting, write, reset_input_buffer, cancel_read, close, timeout), with a
+bounded input buffer like a driver's.
 
 Timing: the thread sleeps with time.sleep, which is high resolution on Windows from Python 3.11
 (lock and Event timeouts are not, so they only wait when nothing is due), at most 2 ms at a time
@@ -84,6 +84,7 @@ class SimPort:
         self._buf = bytearray()
         self._limit = buffer_limit
         self._cv = threading.Condition()
+        self._cancel = False
         self._on_drop = on_drop
         self.pacer = Pacer(device, self._receive, name=name)
         self.pacer.start()
@@ -108,7 +109,8 @@ class SimPort:
             raise OSError("port closed")
         deadline = None if self.timeout is None else time.monotonic() + self.timeout
         with self._cv:
-            while len(self._buf) < size and self.is_open and self.timeout != 0:
+            while (len(self._buf) < size and self.is_open and not self._cancel
+                   and self.timeout != 0):
                 if deadline is None:
                     self._cv.wait()
                 else:
@@ -116,9 +118,16 @@ class SimPort:
                     if remaining <= 0:
                         break
                     self._cv.wait(remaining)
+            self._cancel = False
             out = bytes(self._buf[:size])
             del self._buf[:size]
             return out
+
+    def cancel_read(self) -> None:
+        """End a read() that waits, now, with what has arrived (as pyserial's cancel_read)."""
+        with self._cv:
+            self._cancel = True
+            self._cv.notify_all()
 
     def readline(self) -> bytes:
         line = bytearray()
