@@ -72,7 +72,7 @@ function publicFile(url: string) {
 
 /** TextureLoader without an <img>: an empty Texture, delivered asynchronously like the real one */
 export class NodeTextureLoader {
-  load(url: string, onLoad?: (texture: unknown) => void, _onProgress?: unknown, onError?: (error: unknown) => void) {
+  load(url: string, onLoad?: (texture: THREE.Texture) => void, _onProgress?: unknown, onError?: (error: unknown) => void) {
     const texture = new THREE.Texture()
     setTimeout(() => {
       if (!publicFile(url)) {
@@ -95,10 +95,11 @@ export class NodeEXRLoader extends EXRLoader {
     super(servedManager)
   }
 
-  load(url: string, onLoad?: (texture: unknown) => void, onProgress?: unknown, onError?: (error: unknown) => void) {
-    return super.load(url, (texture: object) => {
+  override load(url: string, onLoad?: (texture: THREE.DataTexture, texData: object) => void,
+    onProgress?: (event: ProgressEvent) => void, onError?: (error: unknown) => void) {
+    return super.load(url, (texture, texData) => {
       textureUrls.set(texture, url)
-      onLoad?.(texture)
+      onLoad?.(texture, texData)
     }, onProgress, onError)
   }
 }
@@ -122,8 +123,8 @@ export async function fetchFromPublic(request: Request) {
 
 /** The port's loaders, built on the same stand-ins as v0.3's */
 export const nodeLoaders = {
-  texture: (url: string) => new Promise<unknown>((resolve, reject) => new NodeTextureLoader().load(url, resolve, undefined, reject)),
-  skybox: (url: string) => new Promise<unknown>((resolve, reject) => new NodeEXRLoader().load(url, resolve, undefined, reject))
+  texture: (url: string) => new Promise<THREE.Texture>((resolve, reject) => new NodeTextureLoader().load(url, resolve, undefined, reject)),
+  skybox: (url: string) => new Promise<THREE.Texture>((resolve, reject) => new NodeEXRLoader().load(url, resolve, undefined, reject))
 }
 
 // --- The renderer stand-in ---
@@ -160,7 +161,7 @@ export function rendererRecorder() {
       setPixelRatio: (ratio: number) => { record.calls.push(['setPixelRatio', ratio]) }
     }
     return new Proxy(renderer, recordWrites(''))
-  } as unknown as new (parameters: Record<string, unknown>) => unknown
+  } as unknown as new (parameters: THREE.WebGLRendererParameters) => THREE.WebGLRenderer
   return { RecordingRenderer, records }
 }
 
@@ -317,7 +318,9 @@ export async function recordV03(config: V0SceneConfig, maze: string, logs = sile
 export async function recordPort(config: V0SceneConfig, maze: string): Promise<LoaderRecord> {
   const { RecordingRenderer, records } = rendererRecorder()
   const build = await buildV0Scene(structuredClone(config), { aspect: WINDOW.innerWidth / WINDOW.innerHeight, loaders: nodeLoaders })
-  createV0Renderer({ canvas: SCENE_CANVAS, width: WINDOW.innerWidth, height: WINDOW.innerHeight, WebGLRenderer: RecordingRenderer })
+  // The stand-in only checks which canvas it was given, by identity
+  const canvas = SCENE_CANVAS as unknown as OffscreenCanvas
+  createV0Renderer({ canvas, width: WINDOW.innerWidth, height: WINDOW.innerHeight, WebGLRenderer: RecordingRenderer })
   return {
     maze,
     basePath: config._basePath ?? '',

@@ -11,7 +11,8 @@ export const V0_RENDERER_PARAMETERS = {
 }
 
 export interface V0RendererOptions {
-  canvas: unknown
+  /** The canvas: an HTMLCanvasElement, or an OffscreenCanvas */
+  canvas: NonNullable<THREE.WebGLRendererParameters['canvas']>
   /** v0.3: window.innerWidth and window.innerHeight (:583) */
   width: number
   height: number
@@ -21,12 +22,17 @@ export interface V0RendererOptions {
    */
   updateStyle?: boolean
   /** The renderer class; tests pass a recording stand-in, since Node has no WebGL */
-  WebGLRenderer?: new (parameters: Record<string, unknown>) => THREE.WebGLRenderer
+  WebGLRenderer?: new (parameters: THREE.WebGLRendererParameters) => THREE.WebGLRenderer
 }
+
+/** The r169 renderer as v0.3 writes to it: physicallyCorrectLights is not one of its properties */
+type V0WrittenRenderer = THREE.WebGLRenderer & { physicallyCorrectLights?: boolean }
 
 export function createV0Renderer(options: V0RendererOptions): THREE.WebGLRenderer {
   const { canvas, width, height, updateStyle = true, WebGLRenderer = THREE.WebGLRenderer } = options
-  const renderer = new WebGLRenderer({ canvas, ...V0_RENDERER_PARAMETERS })
+  // toneMapping and toneMappingExposure are not constructor parameters in r169 (quirk 8)
+  const parameters: THREE.WebGLRendererParameters = { canvas, ...V0_RENDERER_PARAMETERS }
+  const renderer: V0WrittenRenderer = new WebGLRenderer(parameters)
   renderer.setSize(width, height, updateStyle)   // no setPixelRatio: the pixel ratio stays 1
   renderer.shadowMap.enabled = true               // whatever the JSON's renderer.shadows says (:584)
   renderer.physicallyCorrectLights = true         // not a WebGLRenderer property in r169 (:585)

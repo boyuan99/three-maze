@@ -132,7 +132,9 @@ label the scene in the UI.
   rotates an object, gives a size 0 or a texture without `repeat`). It also checks that each solid
   carries its mesh's position and rotation, on the mazes and on a fixture with a rotated box.
 - **DOM-free:** a scan for DOM globals and DOM-bound loaders in this folder, and a type check of this
-  folder with only the ES2022 library (no DOM, no Node types).
+  folder with only the ES2022 library (no DOM, no Node types). three's declarations name DOM types
+  (`HTMLCanvasElement` among the renderer's canvas types); declaration files are not checked
+  (`skipLibCheck`), so the check holds this folder's own code to the ES2022 library.
 - **Plain Node:** a child `node --experimental-strip-types` process builds the six mazes from these
   files and must give the same scene descriptions and solids as the build under Vitest. The test is
   skipped on a Node without type stripping (before 22.6).
@@ -162,5 +164,9 @@ erasable TypeScript only, so Node runs them by stripping types (on Node 22.16, t
 with `node --experimental-strip-types`; the "Plain Node" test above checks it). How the project's
 Node scripts run TypeScript is owner decision D4; nothing here depends on its outcome.
 
-`src/types/three-shim.d.ts` declares `three` loosely (every name is `any`) because three 0.169.0 ships
-no types. TODO(D3): remove the shim when @types/three is added, and fix any type errors that appear.
+three 0.169.0 ships no TypeScript declarations. Its types come from `@types/three` 0.169.0, a
+development dependency pinned to the same release (plan decision D3, option a;
+`docs/adr/0004-dependency-versions.md`, amendment 2026-10-22). They replaced a temporary shim that
+declared every name `any`. `describe.ts` reads three's `is*` flags and the subclass parameters by
+name rather than through the declared classes, so it records whatever a builder puts in the scene
+graph.
