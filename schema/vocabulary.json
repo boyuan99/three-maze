@@ -1,0 +1,124 @@
+{
+  "$comment": "The declarative task vocabulary (ADR-0005 F5): every action and task-event category an experiment file can name, phase 2 included. ADR-0002 keeps the format within 12 actions and 6 event categories, and phase 2 extends the same format, so its names count too; test/frontend/vocabulary.test.ts fails CI over budget or when a generated file is stale. After an edit, run `npm run vocabulary`, which writes schema/generated/vocabulary.schema.json, src/task/vocabulary.generated.ts and threemaze/core/vocabulary.py. phase 1: accepted by format 1.0; phase 2: name reserved, rejected until a later minor version (ADR-0005 F6, F10). formerNames: names from v0.3, the designs and the prototypes, kept for did-you-mean diagnostics; never reuse one.",
+  "identifier": "^[A-Za-z][A-Za-z0-9_]*$",
+  "actions": [
+    {
+      "name": "reward",
+      "phase": 1,
+      "summary": "Ask the rig runtime for one reward on the rig's reward role, as a pulse width (durationMs) or, on a rig whose file holds a valve calibration, a volume (volumeUl); the runtime applies the rig file's safety envelope (ADR-0002).",
+      "examples": [{ "reward": { "durationMs": 70 } }, { "reward": { "volumeUl": 4 } }],
+      "formerNames": ["water", "deliverWater"]
+    },
+    {
+      "name": "teleport",
+      "phase": 1,
+      "summary": "Move the agent to a spawn of the current world between two samples: feet snapped to the floor, epoch + 1, zone exits with cause \"teleport\" (ADR-0001 R4; ADR-0002, Stamps).",
+      "examples": [{ "teleport": "start" }]
+    },
+    {
+      "name": "freeze",
+      "phase": 1,
+      "summary": "Discard locomotion input (true) or apply it again (false); discarded samples are still logged.",
+      "examples": [{ "freeze": true }, { "freeze": false }],
+      "formerNames": ["lock_motion"]
+    },
+    {
+      "name": "display",
+      "phase": 1,
+      "operations": ["blank", "on"],
+      "summary": "Show black instead of the world (blank; the blanking colour of D14 a) or the world again (on); frames are rendered and logged either way. A blank inter-trial interval is display blank plus a timer.",
+      "examples": [{ "display": "blank" }, { "display": "on" }],
+      "formerNames": ["blackout"]
+    },
+    {
+      "name": "timer",
+      "phase": 1,
+      "operations": ["start", "cancel"],
+      "summary": "Start a named timer for a duration in seconds, or cancel it; a started timer fires timer:<id> on the first device sample with t_dev >= its due time (ADR-0002, Clock and order).",
+      "examples": [{ "timer": { "start": "iti", "duration": 2 } }, { "timer": { "cancel": "iti" } }],
+      "formerNames": ["startTimer", "cancelTimer", "set_timer", "cancel_timer"]
+    },
+    {
+      "name": "trial",
+      "phase": 1,
+      "operations": ["start", "end"],
+      "summary": "Start the next planned trial, or end the open one with an outcome that goes to the trials table.",
+      "examples": [{ "trial": "start" }, { "trial": { "end": "rewarded" } }],
+      "formerNames": ["startTrial", "endTrial", "start_trial", "end_trial"]
+    },
+    {
+      "name": "set",
+      "phase": 1,
+      "summary": "Assign task variables.",
+      "examples": [{ "set": { "lastChoice": "left" } }]
+    },
+    {
+      "name": "endSession",
+      "phase": 1,
+      "summary": "End the session after the current sample.",
+      "examples": [{ "endSession": {} }]
+    },
+    {
+      "name": "setGain",
+      "phase": 2,
+      "summary": "Scale forward, lateral and yaw motion by per-axis factors from the next sample; gain 1 stays exact.",
+      "pending": "Joins format 1.0 if experiment B2 runs on v1.0-rc (owner decision D13, open)."
+    },
+    {
+      "name": "setCue",
+      "phase": 2,
+      "summary": "Switch a cue object to one of its declared states."
+    },
+    {
+      "name": "emit",
+      "phase": 2,
+      "summary": "Send a message with data to a plugin or an external controller."
+    },
+    {
+      "name": "switchWorld",
+      "phase": 2,
+      "summary": "Switch to another world of the experiment, with a transition (multi-world experiments)."
+    }
+  ],
+  "eventCategories": [
+    {
+      "name": "enter",
+      "phase": 1,
+      "form": "enter:<zone>",
+      "summary": "The agent's axis point at feet + 1.15 entered the zone in this sample (ADR-0001 R1).",
+      "formerNames": ["zone_enter"]
+    },
+    {
+      "name": "exit",
+      "phase": 1,
+      "form": "exit:<zone>",
+      "summary": "The agent's axis point left the zone in this sample; the exits a teleport causes carry cause \"teleport\".",
+      "formerNames": ["zone_exit"]
+    },
+    {
+      "name": "timer",
+      "phase": 1,
+      "form": "timer:<timer>",
+      "summary": "The timer started with that id is due: the first device sample with t_dev >= its due time."
+    },
+    {
+      "name": "input",
+      "phase": 2,
+      "form": "input:<name>",
+      "summary": "A non-motion input such as a lick, dispatched in arrival order before zone events (ADR-0002, Clock and order).",
+      "pending": "input:lick joins format 1.0 only if lick-contingent reward is needed (owner decision D29, open)."
+    },
+    {
+      "name": "message",
+      "phase": 2,
+      "form": "message:<topic>",
+      "summary": "A message from a plugin or an external controller."
+    },
+    {
+      "name": "world",
+      "phase": 2,
+      "form": "world:switched",
+      "summary": "The switch to another world has completed (multi-world experiments)."
+    }
+  ]
+}

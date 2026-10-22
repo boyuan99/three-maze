@@ -11,6 +11,7 @@
     "electron:build": "vite build && electron-builder",
     "protocol:types": "node scripts/gen-link-types.mjs",
     "postinstall": "node setup/setup-python.js",
+    "vocabulary": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/vocabulary/generate.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:motion": "vitest run --config test/motion/vitest.config.mjs",
