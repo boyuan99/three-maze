@@ -308,9 +308,10 @@ describe('DOM-free', () => {
     expect(found).toEqual([])
   })
 
+  // three's types (@types/three) name DOM types such as HTMLCanvasElement; skipLibCheck leaves
+  // declaration files unchecked, so only this folder's own code is held to the ES2022 library
   it('src/compat/v0 type-checks without the DOM library', () => {
-    const shim = path.join(REPO_ROOT, 'src', 'types', 'three-shim.d.ts')
-    const program = ts.createProgram([...files, shim], {
+    const program = ts.createProgram(files, {
       lib: ['lib.es2022.d.ts'], types: [], strict: true, noEmit: true, skipLibCheck: true,
       target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler,
       allowImportingTsExtensions: true, allowJs: true, verbatimModuleSyntax: true, erasableSyntaxOnly: true

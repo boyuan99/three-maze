@@ -1,0 +1,1607 @@
+{
+  "schema": "three-maze/stall-summary@1",
+  "started": "2026-10-22T21:05:20.282Z",
+  "ended": "2026-10-22T21:10:17.539Z",
+  "params": {
+    "stalls": [
+      50,
+      100
+    ],
+    "modes": [
+      "main",
+      "worker"
+    ],
+    "repeats": 3,
+    "seconds": 20,
+    "every": 1000,
+    "warm": 60,
+    "window": "offscreen",
+    "osrHz": 60,
+    "gpu": "high",
+    "softwareGl": false,
+    "noWait": false,
+    "lockWait": 3600
+  },
+  "versions": {
+    "electron": "44.7.0",
+    "chrome": "152.0.7977.130",
+    "node": "24.21.0"
+  },
+  "gl": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 (0x00002F04) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "bench_lock": {
+    "id": "273c2cf4-c16b-4dd5-a5c7-83b1ef332274",
+    "mode": "exclusive",
+    "acquired": "2026-10-22T21:05:17.565Z",
+    "waited_s": 34.3,
+    "held_s": 300,
+    "stale_removed": 0
+  },
+  "machine_load": {
+    "start": {
+      "schema": "three-maze/machine-load@1",
+      "taken_at": "2026-10-22T21:05:17.566Z",
+      "os": "Windows 11 Pro 10.0.26200 x64",
+      "cpu_model": "Intel(R) Core(TM) i9-14900K",
+      "logical_cpus": 32,
+      "memory_mb": {
+        "total": 65312,
+        "free": 45491
+      },
+      "cpu_busy_pct": 5.9,
+      "cpu_window_s": 1,
+      "top_processes": {
+        "window_s": 1.03,
+        "cpu_pct_of_machine": true,
+        "list": [
+          {
+            "cpu_pct": 0.2,
+            "working_set_mb": 92
+          },
+          {
+            "cpu_pct": 0.1,
+            "working_set_mb": 19
+          },
+          {
+            "cpu_pct": 0.1,
+            "working_set_mb": 295
+          },
+          {
+            "cpu_pct": 0.1,
+            "working_set_mb": 122
+          },
+          {
+            "cpu_pct": 0.1,
+            "working_set_mb": 82
+          },
+          {
+            "cpu_pct": 0.1,
+            "working_set_mb": 52
+          },
+          {
+            "cpu_pct": 0,
+            "working_set_mb": 67
+          },
+          {
+            "cpu_pct": 0,
+            "working_set_mb": 4
+          },
+          {
+            "cpu_pct": 0,
+            "working_set_mb": 1
+          },
+          {
+            "cpu_pct": 0,
+            "working_set_mb": 4
+          }
+        ]
+      },
+      "gpu_engines_pct": {},
+      "nvidia": {
+        "gpus": [
+          {
+            "name": "NVIDIA GeForce RTX 5070",
+            "util_pct": 0,
+            "mem_used_mb": 1448,
+            "mem_total_mb": 12227
+          }
+        ]
+      },
+      "three_maze_by_name": {
+        "bash.exe": 11,
+        "tail.exe": 2,
+        "python.exe": 9
+      },
+      "three_maze_processes": [
+        {
+          "pid": 4508,
+          "ppid": 29884,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 23156,
+          "ppid": 4508,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 16892,
+          "ppid": 16184,
+          "name": "tail.exe"
+        },
+        {
+          "pid": 29364,
+          "ppid": 29884,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 34400,
+          "ppid": 29364,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 29240,
+          "ppid": 29884,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 34220,
+          "ppid": 29240,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 32952,
+          "ppid": 7824,
+          "name": "tail.exe"
+        },
+        {
+          "pid": 36464,
+          "ppid": 29884,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 24780,
+          "ppid": 36464,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 31948,
+          "ppid": 29884,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 21000,
+          "ppid": 31948,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 32316,
+          "ppid": 21000,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 672,
+          "ppid": 32316,
+          "name": "python.exe"
+        },
+        {
+          "pid": 7860,
+          "ppid": 4352,
+          "name": "python.exe"
+        },
+        {
+          "pid": 34028,
+          "ppid": 4352,
+          "name": "python.exe"
+        },
+        {
+          "pid": 35868,
+          "ppid": 7860,
+          "name": "python.exe"
+        },
+        {
+          "pid": 25984,
+          "ppid": 4352,
+          "name": "python.exe"
+        },
+        {
+          "pid": 10036,
+          "ppid": 34028,
+          "name": "python.exe"
+        },
+        {
+          "pid": 32828,
+          "ppid": 4352,
+          "name": "python.exe"
+        },
+        {
+          "pid": 15264,
+          "ppid": 25984,
+          "name": "python.exe"
+        },
+        {
+          "pid": 31940,
+          "ppid": 32828,
+          "name": "python.exe"
+        }
+      ]
+    },
+    "end": {
+      "schema": "three-maze/machine-load@1",
+      "taken_at": "2026-10-22T21:10:14.832Z",
+      "os": "Windows 11 Pro 10.0.26200 x64",
+      "cpu_model": "Intel(R) Core(TM) i9-14900K",
+      "logical_cpus": 32,
+      "memory_mb": {
+        "total": 65312,
+        "free": 45716
+      },
+      "cpu_busy_pct": 1.4,
+      "cpu_window_s": 1,
+      "top_processes": {
+        "window_s": 1.04,
+        "cpu_pct_of_machine": true,
+        "list": [
+          {
+            "cpu_pct": 0.2,
+            "working_set_mb": 82
+          },
+          {
+            "cpu_pct": 0.1,
+            "working_set_mb": 122
+          },
+          {
+            "cpu_pct": 0.1,
+            "working_set_mb": 92
+          },
+          {
+            "cpu_pct": 0.1,
+            "working_set_mb": 554
+          },
+          {
+            "cpu_pct": 0,
+            "working_set_mb": 19
+          },
+          {
+            "cpu_pct": 0,
+            "working_set_mb": 67
+          },
+          {
+            "cpu_pct": 0,
+            "working_set_mb": 4
+          },
+          {
+            "cpu_pct": 0,
+            "working_set_mb": 1
+          },
+          {
+            "cpu_pct": 0,
+            "working_set_mb": 4
+          },
+          {
+            "cpu_pct": 0,
+            "working_set_mb": 2
+          }
+        ]
+      },
+      "gpu_engines_pct": {},
+      "nvidia": {
+        "gpus": [
+          {
+            "name": "NVIDIA GeForce RTX 5070",
+            "util_pct": 0,
+            "mem_used_mb": 1448,
+            "mem_total_mb": 12227
+          }
+        ]
+      },
+      "three_maze_by_name": {
+        "bash.exe": 19,
+        "tail.exe": 2,
+        "node.exe": 1
+      },
+      "three_maze_processes": [
+        {
+          "pid": 4508,
+          "ppid": 29884,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 23156,
+          "ppid": 4508,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 16892,
+          "ppid": 16184,
+          "name": "tail.exe"
+        },
+        {
+          "pid": 29364,
+          "ppid": 29884,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 34400,
+          "ppid": 29364,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 29240,
+          "ppid": 29884,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 34220,
+          "ppid": 29240,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 32952,
+          "ppid": 7824,
+          "name": "tail.exe"
+        },
+        {
+          "pid": 36464,
+          "ppid": 29884,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 24780,
+          "ppid": 36464,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 34952,
+          "ppid": 29884,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 35652,
+          "ppid": 34952,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 35104,
+          "ppid": 35652,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 25496,
+          "ppid": 35104,
+          "name": "node.exe"
+        },
+        {
+          "pid": 27708,
+          "ppid": 29884,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 33736,
+          "ppid": 27708,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 29080,
+          "ppid": 29884,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 31584,
+          "ppid": 29080,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 32228,
+          "ppid": 29884,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 2664,
+          "ppid": 32228,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 33300,
+          "ppid": 29884,
+          "name": "bash.exe"
+        },
+        {
+          "pid": 34636,
+          "ppid": 33300,
+          "name": "bash.exe"
+        }
+      ]
+    }
+  },
+  "runs": [
+    {
+      "run": "50ms-main-1",
+      "clock": {
+        "label": "fallback clock",
+        "source": "offscreen frame timer at 60 Hz",
+        "medianHz": 59.88,
+        "displayHz": 60
+      },
+      "hz": 59.88,
+      "spreadMs": 0.2,
+      "raf": {
+        "intervals": 1200,
+        "late": 21,
+        "missed": 21,
+        "expected": 1221,
+        "missedPct": 1.72,
+        "maxIntervalMs": 33.4
+      },
+      "entry": {
+        "intervals": 1200,
+        "late": 21,
+        "missed": 43,
+        "expected": 1243,
+        "missedPct": 3.459,
+        "maxIntervalMs": 61.1
+      },
+      "netDeficit": 18.5,
+      "stalls": {
+        "injected": 21,
+        "durationMs": {
+          "n": 21,
+          "mean": 50,
+          "p50": 50,
+          "p95": 50,
+          "p99": 50,
+          "max": 50
+        }
+      },
+      "mainThreadTasks": {
+        "longTasks": 4,
+        "longTaskMs": {
+          "n": 4,
+          "mean": 50,
+          "p50": 50,
+          "p95": 50,
+          "p99": 50,
+          "max": 50
+        },
+        "longAnimationFrames": 20,
+        "longAnimationFrameMs": {
+          "n": 20,
+          "mean": 50.87,
+          "p50": 50.1,
+          "p95": 53,
+          "p99": 60.9,
+          "max": 60.9
+        }
+      },
+      "cpuDuringPct": {
+        "interval_s": 2,
+        "samples": 10,
+        "mean_busy_pct": 3.4,
+        "p95_busy_pct": 6.1,
+        "max_busy_pct": 6.1
+      }
+    },
+    {
+      "run": "50ms-worker-1",
+      "clock": {
+        "label": "fallback clock",
+        "source": "offscreen frame timer at 60 Hz",
+        "medianHz": 59.88,
+        "displayHz": 60
+      },
+      "hz": 59.88,
+      "spreadMs": 0.2,
+      "raf": {
+        "intervals": 1200,
+        "late": 0,
+        "missed": 0,
+        "expected": 1200,
+        "missedPct": 0,
+        "maxIntervalMs": 16.8
+      },
+      "entry": {
+        "intervals": 1200,
+        "late": 0,
+        "missed": 0,
+        "expected": 1200,
+        "missedPct": 0,
+        "maxIntervalMs": 18.8
+      },
+      "netDeficit": -2.4,
+      "stalls": {
+        "injected": 20,
+        "durationMs": {
+          "n": 20,
+          "mean": 50,
+          "p50": 50,
+          "p95": 50,
+          "p99": 50,
+          "max": 50
+        }
+      },
+      "mainThreadTasks": {
+        "longTasks": 10,
+        "longTaskMs": {
+          "n": 10,
+          "mean": 50,
+          "p50": 50,
+          "p95": 50,
+          "p99": 50,
+          "max": 50
+        },
+        "longAnimationFrames": 10,
+        "longAnimationFrameMs": {
+          "n": 10,
+          "mean": 50.05,
+          "p50": 50.1,
+          "p95": 50.1,
+          "p99": 50.1,
+          "max": 50.1
+        }
+      },
+      "cpuDuringPct": {
+        "interval_s": 2,
+        "samples": 10,
+        "mean_busy_pct": 3.6,
+        "p95_busy_pct": 5.3,
+        "max_busy_pct": 5.3
+      }
+    },
+    {
+      "run": "100ms-main-1",
+      "clock": {
+        "label": "fallback clock",
+        "source": "offscreen frame timer at 60 Hz",
+        "medianHz": 59.88,
+        "displayHz": 60
+      },
+      "hz": 59.88,
+      "spreadMs": 0.2,
+      "raf": {
+        "intervals": 1200,
+        "late": 22,
+        "missed": 89,
+        "expected": 1289,
+        "missedPct": 6.905,
+        "maxIntervalMs": 100
+      },
+      "entry": {
+        "intervals": 1200,
+        "late": 22,
+        "missed": 120,
+        "expected": 1320,
+        "missedPct": 9.091,
+        "maxIntervalMs": 115.8
+      },
+      "netDeficit": 86.4,
+      "stalls": {
+        "injected": 22,
+        "durationMs": {
+          "n": 22,
+          "mean": 100,
+          "p50": 100,
+          "p95": 100,
+          "p99": 100,
+          "max": 100
+        }
+      },
+      "mainThreadTasks": {
+        "longTasks": 22,
+        "longTaskMs": {
+          "n": 22,
+          "mean": 100,
+          "p50": 100,
+          "p95": 100,
+          "p99": 100,
+          "max": 100
+        },
+        "longAnimationFrames": 22,
+        "longAnimationFrameMs": {
+          "n": 22,
+          "mean": 105.686,
+          "p50": 100.3,
+          "p95": 115.3,
+          "p99": 115.7,
+          "max": 115.7
+        }
+      },
+      "cpuDuringPct": {
+        "interval_s": 2,
+        "samples": 11,
+        "mean_busy_pct": 3.9,
+        "p95_busy_pct": 6.5,
+        "max_busy_pct": 6.5
+      }
+    },
+    {
+      "run": "100ms-worker-1",
+      "clock": {
+        "label": "fallback clock",
+        "source": "offscreen frame timer at 60 Hz",
+        "medianHz": 59.88,
+        "displayHz": 60
+      },
+      "hz": 59.88,
+      "spreadMs": 0.1,
+      "raf": {
+        "intervals": 1200,
+        "late": 0,
+        "missed": 0,
+        "expected": 1200,
+        "missedPct": 0,
+        "maxIntervalMs": 16.8
+      },
+      "entry": {
+        "intervals": 1200,
+        "late": 0,
+        "missed": 0,
+        "expected": 1200,
+        "missedPct": 0,
+        "maxIntervalMs": 18.6
+      },
+      "netDeficit": -2.4,
+      "stalls": {
+        "injected": 20,
+        "durationMs": {
+          "n": 20,
+          "mean": 100,
+          "p50": 100,
+          "p95": 100,
+          "p99": 100,
+          "max": 100
+        }
+      },
+      "mainThreadTasks": {
+        "longTasks": 20,
+        "longTaskMs": {
+          "n": 20,
+          "mean": 100,
+          "p50": 100,
+          "p95": 100,
+          "p99": 100,
+          "max": 100
+        },
+        "longAnimationFrames": 20,
+        "longAnimationFrameMs": {
+          "n": 20,
+          "mean": 99.98,
+          "p50": 100,
+          "p95": 100.1,
+          "p99": 100.1,
+          "max": 100.1
+        }
+      },
+      "cpuDuringPct": {
+        "interval_s": 2,
+        "samples": 10,
+        "mean_busy_pct": 6,
+        "p95_busy_pct": 8.1,
+        "max_busy_pct": 8.1
+      }
+    },
+    {
+      "run": "50ms-main-2",
+      "clock": {
+        "label": "fallback clock",
+        "source": "offscreen frame timer at 60 Hz",
+        "medianHz": 59.88,
+        "displayHz": 60
+      },
+      "hz": 59.88,
+      "spreadMs": 0.2,
+      "raf": {
+        "intervals": 1200,
+        "late": 21,
+        "missed": 23,
+        "expected": 1223,
+        "missedPct": 1.881,
+        "maxIntervalMs": 50
+      },
+      "entry": {
+        "intervals": 1200,
+        "late": 21,
+        "missed": 48,
+        "expected": 1248,
+        "missedPct": 3.846,
+        "maxIntervalMs": 67.1
+      },
+      "netDeficit": 20.5,
+      "stalls": {
+        "injected": 21,
+        "durationMs": {
+          "n": 21,
+          "mean": 50,
+          "p50": 50,
+          "p95": 50,
+          "p99": 50,
+          "max": 50
+        }
+      },
+      "mainThreadTasks": {
+        "longTasks": 9,
+        "longTaskMs": {
+          "n": 9,
+          "mean": 50,
+          "p50": 50,
+          "p95": 50,
+          "p99": 50,
+          "max": 50
+        },
+        "longAnimationFrames": 21,
+        "longAnimationFrameMs": {
+          "n": 21,
+          "mean": 54.314,
+          "p50": 50.2,
+          "p95": 66.3,
+          "p99": 67.3,
+          "max": 67.3
+        }
+      },
+      "cpuDuringPct": {
+        "interval_s": 2,
+        "samples": 10,
+        "mean_busy_pct": 6,
+        "p95_busy_pct": 7.6,
+        "max_busy_pct": 7.6
+      }
+    },
+    {
+      "run": "50ms-worker-2",
+      "clock": {
+        "label": "fallback clock",
+        "source": "offscreen frame timer at 60 Hz",
+        "medianHz": 59.88,
+        "displayHz": 60
+      },
+      "hz": 59.88,
+      "spreadMs": 0.1,
+      "raf": {
+        "intervals": 1200,
+        "late": 0,
+        "missed": 0,
+        "expected": 1200,
+        "missedPct": 0,
+        "maxIntervalMs": 16.8
+      },
+      "entry": {
+        "intervals": 1200,
+        "late": 0,
+        "missed": 0,
+        "expected": 1200,
+        "missedPct": 0,
+        "maxIntervalMs": 18.7
+      },
+      "netDeficit": -2.4,
+      "stalls": {
+        "injected": 20,
+        "durationMs": {
+          "n": 20,
+          "mean": 50,
+          "p50": 50,
+          "p95": 50,
+          "p99": 50,
+          "max": 50
+        }
+      },
+      "mainThreadTasks": {
+        "longTasks": 9,
+        "longTaskMs": {
+          "n": 9,
+          "mean": 50,
+          "p50": 50,
+          "p95": 50,
+          "p99": 50,
+          "max": 50
+        },
+        "longAnimationFrames": 9,
+        "longAnimationFrameMs": {
+          "n": 9,
+          "mean": 50.089,
+          "p50": 50.1,
+          "p95": 50.3,
+          "p99": 50.3,
+          "max": 50.3
+        }
+      },
+      "cpuDuringPct": {
+        "interval_s": 2,
+        "samples": 10,
+        "mean_busy_pct": 2.8,
+        "p95_busy_pct": 4.7,
+        "max_busy_pct": 4.7
+      }
+    },
+    {
+      "run": "100ms-main-2",
+      "clock": {
+        "label": "fallback clock",
+        "source": "offscreen frame timer at 60 Hz",
+        "medianHz": 59.88,
+        "displayHz": 60
+      },
+      "hz": 59.88,
+      "spreadMs": 0.2,
+      "raf": {
+        "intervals": 1200,
+        "late": 22,
+        "missed": 89,
+        "expected": 1289,
+        "missedPct": 6.905,
+        "maxIntervalMs": 100.1
+      },
+      "entry": {
+        "intervals": 1200,
+        "late": 22,
+        "missed": 117,
+        "expected": 1317,
+        "missedPct": 8.884,
+        "maxIntervalMs": 116.8
+      },
+      "netDeficit": 86.4,
+      "stalls": {
+        "injected": 22,
+        "durationMs": {
+          "n": 22,
+          "mean": 100,
+          "p50": 100,
+          "p95": 100,
+          "p99": 100,
+          "max": 100
+        }
+      },
+      "mainThreadTasks": {
+        "longTasks": 22,
+        "longTaskMs": {
+          "n": 22,
+          "mean": 100,
+          "p50": 100,
+          "p95": 100,
+          "p99": 100,
+          "max": 100
+        },
+        "longAnimationFrames": 22,
+        "longAnimationFrameMs": {
+          "n": 22,
+          "mean": 104.791,
+          "p50": 100.2,
+          "p95": 115.8,
+          "p99": 116.8,
+          "max": 116.8
+        }
+      },
+      "cpuDuringPct": {
+        "interval_s": 2,
+        "samples": 11,
+        "mean_busy_pct": 3.7,
+        "p95_busy_pct": 9.6,
+        "max_busy_pct": 9.6
+      }
+    },
+    {
+      "run": "100ms-worker-2",
+      "clock": {
+        "label": "fallback clock",
+        "source": "offscreen frame timer at 60 Hz",
+        "medianHz": 59.88,
+        "displayHz": 60
+      },
+      "hz": 59.88,
+      "spreadMs": 0.2,
+      "raf": {
+        "intervals": 1200,
+        "late": 0,
+        "missed": 0,
+        "expected": 1200,
+        "missedPct": 0,
+        "maxIntervalMs": 16.8
+      },
+      "entry": {
+        "intervals": 1200,
+        "late": 0,
+        "missed": 0,
+        "expected": 1200,
+        "missedPct": 0,
+        "maxIntervalMs": 18.6
+      },
+      "netDeficit": -2.4,
+      "stalls": {
+        "injected": 20,
+        "durationMs": {
+          "n": 20,
+          "mean": 100,
+          "p50": 100,
+          "p95": 100,
+          "p99": 100,
+          "max": 100
+        }
+      },
+      "mainThreadTasks": {
+        "longTasks": 19,
+        "longTaskMs": {
+          "n": 19,
+          "mean": 100,
+          "p50": 100,
+          "p95": 100,
+          "p99": 100,
+          "max": 100
+        },
+        "longAnimationFrames": 19,
+        "longAnimationFrameMs": {
+          "n": 19,
+          "mean": 100.026,
+          "p50": 100,
+          "p95": 100.1,
+          "p99": 100.1,
+          "max": 100.1
+        }
+      },
+      "cpuDuringPct": {
+        "interval_s": 2,
+        "samples": 10,
+        "mean_busy_pct": 5.1,
+        "p95_busy_pct": 7,
+        "max_busy_pct": 7
+      }
+    },
+    {
+      "run": "50ms-main-3",
+      "clock": {
+        "label": "fallback clock",
+        "source": "offscreen frame timer at 60 Hz",
+        "medianHz": 59.88,
+        "displayHz": 60
+      },
+      "hz": 59.88,
+      "spreadMs": 0.2,
+      "raf": {
+        "intervals": 1200,
+        "late": 21,
+        "missed": 23,
+        "expected": 1223,
+        "missedPct": 1.881,
+        "maxIntervalMs": 50
+      },
+      "entry": {
+        "intervals": 1200,
+        "late": 21,
+        "missed": 47,
+        "expected": 1247,
+        "missedPct": 3.769,
+        "maxIntervalMs": 68
+      },
+      "netDeficit": 20.5,
+      "stalls": {
+        "injected": 21,
+        "durationMs": {
+          "n": 21,
+          "mean": 50,
+          "p50": 50,
+          "p95": 50,
+          "p99": 50,
+          "max": 50
+        }
+      },
+      "mainThreadTasks": {
+        "longTasks": 7,
+        "longTaskMs": {
+          "n": 7,
+          "mean": 50,
+          "p50": 50,
+          "p95": 50,
+          "p99": 50,
+          "max": 50
+        },
+        "longAnimationFrames": 20,
+        "longAnimationFrameMs": {
+          "n": 20,
+          "mean": 53.81,
+          "p50": 50.1,
+          "p95": 67.4,
+          "p99": 67.9,
+          "max": 67.9
+        }
+      },
+      "cpuDuringPct": {
+        "interval_s": 2,
+        "samples": 10,
+        "mean_busy_pct": 4.2,
+        "p95_busy_pct": 7.6,
+        "max_busy_pct": 7.6
+      }
+    },
+    {
+      "run": "50ms-worker-3",
+      "clock": {
+        "label": "fallback clock",
+        "source": "offscreen frame timer at 60 Hz",
+        "medianHz": 59.88,
+        "displayHz": 60
+      },
+      "hz": 59.88,
+      "spreadMs": 0.2,
+      "raf": {
+        "intervals": 1200,
+        "late": 0,
+        "missed": 0,
+        "expected": 1200,
+        "missedPct": 0,
+        "maxIntervalMs": 16.8
+      },
+      "entry": {
+        "intervals": 1200,
+        "late": 0,
+        "missed": 0,
+        "expected": 1200,
+        "missedPct": 0,
+        "maxIntervalMs": 18.6
+      },
+      "netDeficit": -2.4,
+      "stalls": {
+        "injected": 20,
+        "durationMs": {
+          "n": 20,
+          "mean": 50,
+          "p50": 50,
+          "p95": 50,
+          "p99": 50,
+          "max": 50
+        }
+      },
+      "mainThreadTasks": {
+        "longTasks": 14,
+        "longTaskMs": {
+          "n": 14,
+          "mean": 50,
+          "p50": 50,
+          "p95": 50,
+          "p99": 50,
+          "max": 50
+        },
+        "longAnimationFrames": 14,
+        "longAnimationFrameMs": {
+          "n": 14,
+          "mean": 50.043,
+          "p50": 50,
+          "p95": 50.1,
+          "p99": 50.1,
+          "max": 50.1
+        }
+      },
+      "cpuDuringPct": {
+        "interval_s": 2,
+        "samples": 10,
+        "mean_busy_pct": 3.5,
+        "p95_busy_pct": 6.6,
+        "max_busy_pct": 6.6
+      }
+    },
+    {
+      "run": "100ms-main-3",
+      "clock": {
+        "label": "fallback clock",
+        "source": "offscreen frame timer at 60 Hz",
+        "medianHz": 59.88,
+        "displayHz": 60
+      },
+      "hz": 59.88,
+      "spreadMs": 0.2,
+      "raf": {
+        "intervals": 1200,
+        "late": 22,
+        "missed": 89,
+        "expected": 1289,
+        "missedPct": 6.905,
+        "maxIntervalMs": 100.1
+      },
+      "entry": {
+        "intervals": 1200,
+        "late": 22,
+        "missed": 123,
+        "expected": 1323,
+        "missedPct": 9.297,
+        "maxIntervalMs": 116.3
+      },
+      "netDeficit": 86.4,
+      "stalls": {
+        "injected": 22,
+        "durationMs": {
+          "n": 22,
+          "mean": 100,
+          "p50": 100,
+          "p95": 100,
+          "p99": 100,
+          "max": 100
+        }
+      },
+      "mainThreadTasks": {
+        "longTasks": 22,
+        "longTaskMs": {
+          "n": 22,
+          "mean": 100,
+          "p50": 100,
+          "p95": 100,
+          "p99": 100,
+          "max": 100
+        },
+        "longAnimationFrames": 22,
+        "longAnimationFrameMs": {
+          "n": 22,
+          "mean": 109.645,
+          "p50": 111.1,
+          "p95": 116,
+          "p99": 116.3,
+          "max": 116.3
+        }
+      },
+      "cpuDuringPct": {
+        "interval_s": 2,
+        "samples": 11,
+        "mean_busy_pct": 4.7,
+        "p95_busy_pct": 5.8,
+        "max_busy_pct": 5.8
+      }
+    },
+    {
+      "run": "100ms-worker-3",
+      "clock": {
+        "label": "fallback clock",
+        "source": "offscreen frame timer at 60 Hz",
+        "medianHz": 59.88,
+        "displayHz": 60
+      },
+      "hz": 59.88,
+      "spreadMs": 0.2,
+      "raf": {
+        "intervals": 1200,
+        "late": 0,
+        "missed": 0,
+        "expected": 1200,
+        "missedPct": 0,
+        "maxIntervalMs": 16.8
+      },
+      "entry": {
+        "intervals": 1200,
+        "late": 0,
+        "missed": 0,
+        "expected": 1200,
+        "missedPct": 0,
+        "maxIntervalMs": 18.6
+      },
+      "netDeficit": -2.4,
+      "stalls": {
+        "injected": 20,
+        "durationMs": {
+          "n": 20,
+          "mean": 100.015,
+          "p50": 100,
+          "p95": 100,
+          "p99": 100.3,
+          "max": 100.3
+        }
+      },
+      "mainThreadTasks": {
+        "longTasks": 19,
+        "longTaskMs": {
+          "n": 19,
+          "mean": 100,
+          "p50": 100,
+          "p95": 100,
+          "p99": 100,
+          "max": 100
+        },
+        "longAnimationFrames": 19,
+        "longAnimationFrameMs": {
+          "n": 19,
+          "mean": 100.005,
+          "p50": 100,
+          "p95": 100.2,
+          "p99": 100.4,
+          "max": 100.4
+        }
+      },
+      "cpuDuringPct": {
+        "interval_s": 2,
+        "samples": 10,
+        "mean_busy_pct": 3.7,
+        "p95_busy_pct": 6.7,
+        "max_busy_pct": 6.7
+      }
+    }
+  ],
+  "conditions": [
+    {
+      "condition": "50ms-main",
+      "runs": 3,
+      "clocks": [
+        "fallback clock",
+        "fallback clock",
+        "fallback clock"
+      ],
+      "hz": {
+        "values": [
+          59.88,
+          59.88,
+          59.88
+        ],
+        "median": 59.88,
+        "min": 59.88,
+        "max": 59.88
+      },
+      "lateIntervals": {
+        "values": [
+          21,
+          21,
+          21
+        ],
+        "median": 21,
+        "min": 21,
+        "max": 21
+      },
+      "missedRaf": {
+        "values": [
+          21,
+          23,
+          23
+        ],
+        "median": 23,
+        "min": 21,
+        "max": 23
+      },
+      "missedRafPct": {
+        "values": [
+          1.72,
+          1.881,
+          1.881
+        ],
+        "median": 1.881,
+        "min": 1.72,
+        "max": 1.881
+      },
+      "missedEntry": {
+        "values": [
+          43,
+          48,
+          47
+        ],
+        "median": 47,
+        "min": 43,
+        "max": 48
+      },
+      "missedEntryPct": {
+        "values": [
+          3.459,
+          3.846,
+          3.769
+        ],
+        "median": 3.769,
+        "min": 3.459,
+        "max": 3.846
+      },
+      "maxRafIntervalMs": {
+        "values": [
+          33.4,
+          50,
+          50
+        ],
+        "median": 50,
+        "min": 33.4,
+        "max": 50
+      },
+      "maxEntryIntervalMs": {
+        "values": [
+          61.1,
+          67.1,
+          68
+        ],
+        "median": 67.1,
+        "min": 61.1,
+        "max": 68
+      },
+      "netDeficit": {
+        "values": [
+          18.5,
+          20.5,
+          20.5
+        ],
+        "median": 20.5,
+        "min": 18.5,
+        "max": 20.5
+      }
+    },
+    {
+      "condition": "50ms-worker",
+      "runs": 3,
+      "clocks": [
+        "fallback clock",
+        "fallback clock",
+        "fallback clock"
+      ],
+      "hz": {
+        "values": [
+          59.88,
+          59.88,
+          59.88
+        ],
+        "median": 59.88,
+        "min": 59.88,
+        "max": 59.88
+      },
+      "lateIntervals": {
+        "values": [
+          0,
+          0,
+          0
+        ],
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "missedRaf": {
+        "values": [
+          0,
+          0,
+          0
+        ],
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "missedRafPct": {
+        "values": [
+          0,
+          0,
+          0
+        ],
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "missedEntry": {
+        "values": [
+          0,
+          0,
+          0
+        ],
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "missedEntryPct": {
+        "values": [
+          0,
+          0,
+          0
+        ],
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "maxRafIntervalMs": {
+        "values": [
+          16.8,
+          16.8,
+          16.8
+        ],
+        "median": 16.8,
+        "min": 16.8,
+        "max": 16.8
+      },
+      "maxEntryIntervalMs": {
+        "values": [
+          18.8,
+          18.7,
+          18.6
+        ],
+        "median": 18.7,
+        "min": 18.6,
+        "max": 18.8
+      },
+      "netDeficit": {
+        "values": [
+          -2.4,
+          -2.4,
+          -2.4
+        ],
+        "median": -2.4,
+        "min": -2.4,
+        "max": -2.4
+      }
+    },
+    {
+      "condition": "100ms-main",
+      "runs": 3,
+      "clocks": [
+        "fallback clock",
+        "fallback clock",
+        "fallback clock"
+      ],
+      "hz": {
+        "values": [
+          59.88,
+          59.88,
+          59.88
+        ],
+        "median": 59.88,
+        "min": 59.88,
+        "max": 59.88
+      },
+      "lateIntervals": {
+        "values": [
+          22,
+          22,
+          22
+        ],
+        "median": 22,
+        "min": 22,
+        "max": 22
+      },
+      "missedRaf": {
+        "values": [
+          89,
+          89,
+          89
+        ],
+        "median": 89,
+        "min": 89,
+        "max": 89
+      },
+      "missedRafPct": {
+        "values": [
+          6.905,
+          6.905,
+          6.905
+        ],
+        "median": 6.905,
+        "min": 6.905,
+        "max": 6.905
+      },
+      "missedEntry": {
+        "values": [
+          120,
+          117,
+          123
+        ],
+        "median": 120,
+        "min": 117,
+        "max": 123
+      },
+      "missedEntryPct": {
+        "values": [
+          9.091,
+          8.884,
+          9.297
+        ],
+        "median": 9.091,
+        "min": 8.884,
+        "max": 9.297
+      },
+      "maxRafIntervalMs": {
+        "values": [
+          100,
+          100.1,
+          100.1
+        ],
+        "median": 100.1,
+        "min": 100,
+        "max": 100.1
+      },
+      "maxEntryIntervalMs": {
+        "values": [
+          115.8,
+          116.8,
+          116.3
+        ],
+        "median": 116.3,
+        "min": 115.8,
+        "max": 116.8
+      },
+      "netDeficit": {
+        "values": [
+          86.4,
+          86.4,
+          86.4
+        ],
+        "median": 86.4,
+        "min": 86.4,
+        "max": 86.4
+      }
+    },
+    {
+      "condition": "100ms-worker",
+      "runs": 3,
+      "clocks": [
+        "fallback clock",
+        "fallback clock",
+        "fallback clock"
+      ],
+      "hz": {
+        "values": [
+          59.88,
+          59.88,
+          59.88
+        ],
+        "median": 59.88,
+        "min": 59.88,
+        "max": 59.88
+      },
+      "lateIntervals": {
+        "values": [
+          0,
+          0,
+          0
+        ],
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "missedRaf": {
+        "values": [
+          0,
+          0,
+          0
+        ],
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "missedRafPct": {
+        "values": [
+          0,
+          0,
+          0
+        ],
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "missedEntry": {
+        "values": [
+          0,
+          0,
+          0
+        ],
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "missedEntryPct": {
+        "values": [
+          0,
+          0,
+          0
+        ],
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "maxRafIntervalMs": {
+        "values": [
+          16.8,
+          16.8,
+          16.8
+        ],
+        "median": 16.8,
+        "min": 16.8,
+        "max": 16.8
+      },
+      "maxEntryIntervalMs": {
+        "values": [
+          18.6,
+          18.6,
+          18.6
+        ],
+        "median": 18.6,
+        "min": 18.6,
+        "max": 18.6
+      },
+      "netDeficit": {
+        "values": [
+          -2.4,
+          -2.4,
+          -2.4
+        ],
+        "median": -2.4,
+        "min": -2.4,
+        "max": -2.4
+      }
+    }
+  ]
+}

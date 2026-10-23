@@ -1,0 +1,14 @@
+{
+  // Type check of the render host without the DOM (ADR-0003 1c; plan item REN-9), run by
+  // `npm run typecheck` after the project-wide check. The host must run in a worker as well as in
+  // the scene window, so its library is ES2022 plus WebWorker: a reference to window, document or
+  // an HTML element type is an error here (test/frontend/render/domScan.test.ts checks that it
+  // stays one). The project-wide tsconfig.json also checks these files, with the DOM library.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "WebWorker"],
+    "types": []
+  },
+  "include": ["./**/*.ts"],
+  "exclude": []
+}

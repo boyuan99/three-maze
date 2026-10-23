@@ -15,8 +15,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:motion": "vitest run --config test/motion/vitest.config.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p src/render",
     "test:e2e": "node test/e2e/run.mjs",
+    "test:render": "node test/render/smoke.mjs",
+    "test:stall": "node --experimental-strip-types --disable-warning=ExperimentalWarning test/perf/stall/run.mjs",
     "rig:info": "node scripts/rig-info.cjs",
     "timing:gate": "node --experimental-strip-types --disable-warning=ExperimentalWarning tools/timing/gate.ts"
   },
@@ -31,6 +33,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
+    "@types/three": "0.169.0",
     "@vitejs/plugin-vue": "^5.1.4",
     "electron": "44.7.0",
     "electron-builder": "^26.17.0",

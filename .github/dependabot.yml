@@ -52,6 +52,11 @@ updates:
       # @types/node follows the Node.js major that the tests and CI use (22, ci.yml)
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # @types/three describes one release of three and is pinned to it (0.169.0 for three
+      # 0.169.0; ADR-0004, amendment 2026-10-22): change it by hand in the pull request that
+      # upgrades three
+      - dependency-name: "@types/three"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       # FREEZE
       # - dependency-name: "electron"
       #   update-types: ["version-update:semver-major", "version-update:semver-minor",

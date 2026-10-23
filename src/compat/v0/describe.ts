@@ -132,7 +132,7 @@ export function describeScene(scene: THREE.Scene, camera: THREE.Object3D | null,
 
   const background = scene.background
   return {
-    background: background?.isTexture ? describeTexture(background, label) : background?.isColor ? describeColor(background) : null,
+    background: isTexture(background) ? describeTexture(background, label) : isColor(background) ? describeColor(background) : null,
     environment: scene.environment == null ? null
       : scene.environment === background ? 'background' : describeTexture(scene.environment, label),
     fog: scene.fog ? describeFog(scene.fog) : null,
@@ -162,7 +162,7 @@ function describeNode(object: THREE.Object3D, label: TextureLabel): NodeDescript
     scale: vec3(object.scale),
     matrixWorld: [...object.matrixWorld.elements]
   }
-  if (object.isMesh) {
+  if (isMesh(object)) {
     node.geometry = describeGeometry(object.geometry)
     node.material = Array.isArray(object.material)
       ? object.material.map((material: THREE.Material) => describeMaterial(material, label))
@@ -170,15 +170,17 @@ function describeNode(object: THREE.Object3D, label: TextureLabel): NodeDescript
     const box = new THREE.Box3().setFromObject(object)
     node.worldBox = { min: vec3(box.min), max: vec3(box.max) }
   }
-  if (object.isLight) node.light = describeLight(object)
-  if (object.isCamera) node.camera = describeCamera(object)
+  if (isLight(object)) node.light = describeLight(object)
+  if (isCamera(object)) node.camera = describeCamera(object)
   return { ...node, children: object.children.map((child: THREE.Object3D) => describeNode(child, label)) }
 }
 
 function describeGeometry(geometry: THREE.BufferGeometry): GeometryDescription {
+  // BoxGeometry, SphereGeometry and the other generated geometries keep their constructor arguments
+  const parameters = fieldsOf(geometry).parameters as Record<string, unknown> | undefined
   return {
     type: geometry.type,
-    parameters: geometry.parameters ? { ...geometry.parameters } : null,
+    parameters: parameters ? { ...parameters } : null,
     vertexCount: geometry.attributes?.position?.count ?? null,
     indexCount: geometry.index?.count ?? null,
     groups: geometry.groups.length
@@ -186,12 +188,20 @@ function describeGeometry(geometry: THREE.BufferGeometry): GeometryDescription {
 }
 
 function describeMaterial(material: THREE.Material, label: TextureLabel): MaterialDescription {
+  // The parameters of the material subclasses, read by name whatever the class
+  const fields = fieldsOf(material)
   const description: MaterialDescription = { type: material.type }
-  for (const key of MATERIAL_COLORS) if (material[key]?.isColor) description[key] = describeColor(material[key])
-  for (const key of MATERIAL_NUMBERS) if (typeof material[key] === 'number') description[key] = material[key]
-  for (const key of MATERIAL_FLAGS) if (typeof material[key] === 'boolean') description[key] = material[key]
+  for (const key of MATERIAL_COLORS) {
+    const color = fields[key]
+    if (isColor(color)) description[key] = describeColor(color)
+  }
+  for (const key of MATERIAL_NUMBERS) if (typeof fields[key] === 'number') description[key] = fields[key]
+  for (const key of MATERIAL_FLAGS) if (typeof fields[key] === 'boolean') description[key] = fields[key]
   const maps: Record<string, TextureDescription> = {}
-  for (const key of MATERIAL_MAPS) if (material[key]?.isTexture) maps[key] = describeTexture(material[key], label)
+  for (const key of MATERIAL_MAPS) {
+    const map = fields[key]
+    if (isTexture(map)) maps[key] = describeTexture(map, label)
+  }
   description.maps = maps
   return description
 }
@@ -200,8 +210,8 @@ function describeTexture(texture: THREE.Texture, label: TextureLabel): TextureDe
   const image = texture.image
   return {
     label: label(texture),
-    class: texture.isDataTexture ? 'DataTexture' : texture.isCompressedTexture ? 'CompressedTexture'
-      : texture.isCubeTexture ? 'CubeTexture' : texture.constructor === THREE.Texture ? 'Texture' : 'other',
+    class: hasFlag(texture, 'isDataTexture') ? 'DataTexture' : hasFlag(texture, 'isCompressedTexture') ? 'CompressedTexture'
+      : hasFlag(texture, 'isCubeTexture') ? 'CubeTexture' : texture.constructor === THREE.Texture ? 'Texture' : 'other',
     mapping: texture.mapping,
     wrapS: texture.wrapS,
     wrapT: texture.wrapT,
@@ -232,13 +242,17 @@ function describeTexture(texture: THREE.Texture, label: TextureLabel): TextureDe
 }
 
 function describeLight(light: THREE.Light): LightDescription {
+  // The parameters of the light subclasses, read by name whatever the class
+  const fields = fieldsOf(light)
   const description: LightDescription = { color: describeColor(light.color), intensity: light.intensity }
   for (const key of ['distance', 'decay', 'angle', 'penumbra'] as const) {
-    if (typeof light[key] === 'number') description[key] = light[key]
+    const value = fields[key]
+    if (typeof value === 'number') description[key] = value
   }
-  if (light.groundColor?.isColor) description.groundColor = describeColor(light.groundColor)
-  if (light.target?.isObject3D) {
-    description.target = { position: vec3(light.target.position), inSceneGraph: light.target.parent !== null }
+  if (isColor(fields.groundColor)) description.groundColor = describeColor(fields.groundColor)
+  const target = fields.target
+  if (isObject3D(target)) {
+    description.target = { position: vec3(target.position), inSceneGraph: target.parent !== null }
   }
   if (light.shadow) {
     const shadow = light.shadow
@@ -254,13 +268,15 @@ function describeLight(light: THREE.Light): LightDescription {
   return description
 }
 
-function describeCamera(camera: THREE.Object3D): Record<string, unknown> {
+function describeCamera(camera: THREE.Camera): Record<string, unknown> {
+  // The parameters of the camera subclasses, read by name whatever the class
+  const fields = fieldsOf(camera)
   const description: Record<string, unknown> = { type: camera.type }
   for (const key of ['fov', 'aspect', 'near', 'far', 'zoom', 'focus', 'filmGauge', 'filmOffset',
     'left', 'right', 'top', 'bottom'] as const) {
-    if (typeof camera[key] === 'number') description[key] = camera[key]
+    if (typeof fields[key] === 'number') description[key] = fields[key]
   }
-  description.view = camera.view ? { ...camera.view } : null
+  description.view = fields.view ? { ...(fields.view as object) } : null
   description.projectionMatrix = [...camera.projectionMatrix.elements]
   return description
 }
@@ -283,8 +299,8 @@ function describeCameraPlacement(scene: THREE.Scene, camera: THREE.Object3D): Sc
   }
 }
 
-function describeFog(fog: THREE.Fog): NonNullable<SceneDescription['fog']> {
-  return fog.isFogExp2
+function describeFog(fog: THREE.Fog | THREE.FogExp2): NonNullable<SceneDescription['fog']> {
+  return isFogExp2(fog)
     ? { type: 'FogExp2', color: describeColor(fog.color), density: fog.density }
     : { type: 'Fog', color: describeColor(fog.color), near: fog.near, far: fog.far }
 }
@@ -294,6 +310,19 @@ function describeColor(color: THREE.Color): ColorDescription {
 }
 
 type TextureLabel = (texture: THREE.Texture) => string | null
+
+// three marks each class with an is* flag (isMesh, isTexture, ...). The description reads the flags
+// and the subclass parameters by name, so it describes whatever a builder put in the scene graph.
+const fieldsOf = (value: object) => value as unknown as Record<string, unknown>
+const hasFlag = (value: unknown, flag: string) =>
+  typeof value === 'object' && value !== null && Boolean(fieldsOf(value)[flag])
+const isTexture = (value: unknown): value is THREE.Texture => hasFlag(value, 'isTexture')
+const isColor = (value: unknown): value is THREE.Color => hasFlag(value, 'isColor')
+const isObject3D = (value: unknown): value is THREE.Object3D => hasFlag(value, 'isObject3D')
+const isMesh = (object: THREE.Object3D): object is THREE.Mesh => hasFlag(object, 'isMesh')
+const isLight = (object: THREE.Object3D): object is THREE.Light => hasFlag(object, 'isLight')
+const isCamera = (object: THREE.Object3D): object is THREE.Camera => hasFlag(object, 'isCamera')
+const isFogExp2 = (fog: THREE.Fog | THREE.FogExp2): fog is THREE.FogExp2 => hasFlag(fog, 'isFogExp2')
 
 const vec3 = (v: { x: number, y: number, z: number }): Vec3 => [v.x, v.y, v.z]
 const euler = (e: { x: number, y: number, z: number, order: string }): [number, number, number, string] => [e.x, e.y, e.z, e.order]
