@@ -156,6 +156,9 @@ class SimulatedDevice(SerialLineSource):
         self.log.close()
 
     def describe(self) -> dict[str, Any]:
+        # SerialLineSource gives the hello, the stop report, the raw-line log, the reader's
+        # numbers and the fields of device protocol v1, section 8.3, that rule H9 records for
+        # each device, an output device too: profile, guarantees, levels, counters, output_timing
         return {**super().describe(), "device_id": self.config["deviceId"],
                 "period_us": self.config.get("periodUs", 0), "axes": self.axis_count(self.config),
                 "outputs": self.config.get("outputs", 0), "files": self.files,

@@ -533,7 +533,9 @@ class SerialLineSource(InputDevice, OutputDevice):
         out = {**super().describe(), "hello": self.hello, "stop_report": self.stop_report,
                "raw_log": f"raw/{self.name}.tsv" if self.raw_log_enabled() else None}
         if self.profile is not None:
-            out["profile"] = self.profile.record()
+            # The device's fields of the session record, where device-v1.md section 8.3 puts
+            # them (rule H9): profile, hello, guarantees, the levels, counters, output_timing
+            out.update(self.profile.record())
         if self.reader is not None:
             out["reader"] = {**self.reader.stats, "failure": self.reader.failure,
                              "undelivered_records": self.undelivered}

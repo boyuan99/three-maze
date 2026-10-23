@@ -10,7 +10,8 @@ from pathlib import Path
 RIG_COPY = "rig.json"
 RIG_HASH = "rig.json.sha256"
 
-_SESSION_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+# Matched whole (fullmatch): Python's $ also matches before a final line end
+_SESSION_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")
 
 
 def default_session_id(rig_name: str, when: datetime | None = None) -> str:
@@ -21,7 +22,7 @@ def default_session_id(rig_name: str, when: datetime | None = None) -> str:
 
 def check_session_id(session_id: str) -> None:
     """A session id is one folder name: letters, digits, '.', '_' and '-'."""
-    if not _SESSION_ID.match(session_id):
+    if not _SESSION_ID.fullmatch(session_id):
         raise ValueError(f"invalid session id {session_id!r}: use letters, digits, '.', '_' and '-'")
 
 

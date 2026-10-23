@@ -10,13 +10,8 @@ for the hand-off of its records to an asyncio event loop. Nothing here opens a r
 import asyncio
 import inspect
 import json
-import math
-import os
 import random
-import shutil
-import subprocess
 import sys
-import tempfile
 import threading
 import time
 from pathlib import Path
@@ -25,6 +20,8 @@ import pytest
 import serial
 
 from fakeports import FedPort, VirtualSimPort
+from simfaults import (B1_LIKE, RATES, SENSOR, SIM_MATRIX, expected_counters, faults_for,
+                       intact_seqs, last_totals, raw_sum, run_e2e_reader, sim_log)
 from threemaze.api import DeviceContext, DeviceError
 from threemaze.config.rig import device_defaults, load_schema
 from threemaze.core.records import (DT_ESTIMATED, DT_MISMATCH, DeviceEvent, DeviceMessage,
@@ -39,8 +36,6 @@ from threemaze_sim import conformance
 
 REPO = Path(__file__).resolve().parents[3]
 U32 = 1 << 32
-SENSOR = {"cmPerCount": 0.0349, "radPerCount": 0.05}  # v0.3's mapping, as rigs/sim.json
-SIM_MATRIX = [[0, 0.0349, 0], [0.0349, 0, 0], [0, 0, 0.05]]
 COUNTER_NAMES = {"lines", "samples", "seq_gaps", "samples_lost", "seq_regressions", "crc_errors",
                  "parse_errors", "overflow", "unknown", "dt_mismatch", "late_events"}
 
@@ -48,13 +43,6 @@ COUNTER_NAMES = {"lines", "samples", "seq_gaps", "samples_lost", "seq_regression
 # 4-axis device of device-v1.md section 11.1: forward = axis 1, left = axis 0, yaw = axis 2
 GOLDEN_MATRIX = [[0, 0.0349, 0, 0], [0.0349, 0, 0, 0], [0, 0, 0.002, 0]]
 GOLDEN_HELLO = "H,threemaze-device,1.0,ball-01,4000,4,fw=demo-1.2,flags=1,lick=1,fclk=1*D6"
-
-B1_LIKE = {"kind": "segments", "segments": [
-    {"durationS": 0.3, "forwardCmPerS": 11.168},
-    {"durationS": 0.2, "lick": 1},
-    {"durationS": 0.25, "yawDegPerS": 45, "leftCmPerS": 3.0},
-    {"durationS": 0.25, "forwardCmPerS": -5.0, "yawDegPerS": -90}]}
-RATES = {"20Hz": 50000, "250Hz": 4000, "1000Hz": 1000}
 
 
 class Clock:
@@ -128,20 +116,6 @@ def wait_for(condition, timeout_s=10.0):
         if time.monotonic() > deadline:
             raise AssertionError("condition not met in time")
         time.sleep(0.005)
-
-
-def last_totals(raw_log, seq):
-    """The running totals of sample seq, from a raw-line log."""
-    marker = b"\tS," + str(seq).encode() + b","
-    [line] = [line for line in raw_log.read_bytes().splitlines() if marker in line]
-    return [int(v) for v in line.split(b"*")[0].split(b",")[5:]]
-
-
-def raw_sum(got):
-    totals = None
-    for s in got:
-        totals = list(s.raw) if totals is None else [a + b for a, b in zip(totals, s.raw)]
-    return totals
 
 
 # --- golden lines (device-v1.md section 11) ----------------------------------------------------
@@ -637,35 +611,9 @@ def test_rdr_no_sleep_in_the_ingestion_path():
 
 # --- the reference simulated device in virtual time: every fault at three rates -----------------
 
-def faults_for(period_us, first=8):
-    """One fault of every type (DPR-02), apart from each other, and what each costs the reader."""
-    s = [first + 6 * k for k in range(7)]
-    gap = max(1, min(400, (period_us - 1) // 4))
-    silence_ms = max(1, 3 * period_us // 1000)
-    return [
-        ({"type": "drop", "seq": s[0], "count": 2}, {"seq_gaps": 1, "samples_lost": 2}),
-        ({"type": "badCrc", "seq": s[1]}, {"crc_errors": 1, "seq_gaps": 1, "samples_lost": 1}),
-        ({"type": "truncate", "seq": s[2], "keepBytes": 9},       # takes the next line with it
-         {"crc_errors": 1, "seq_gaps": 1, "samples_lost": 2}),
-        ({"type": "split", "seq": s[3], "pieces": 3, "gapUs": gap}, {}),
-        ({"type": "burst", "seq": s[4], "count": 3}, {}),
-        ({"type": "silence", "seq": s[5], "durationMs": silence_ms},
-         {"seq_gaps": 1, "samples_lost": math.ceil(silence_ms * 1000 / period_us)}),
-        ({"type": "wrap", "seq": s[6]}, {}),
-    ]
-
-
 def sim_entry(period_us, faults=(), **more):
     return {"driver": "simulated", "deviceId": "sim-ball", "periodUs": period_us,
             "sensor": SENSOR, "lick": 1, "trajectory": B1_LIKE, "faults": list(faults), **more}
-
-
-def expected_counters(faults):
-    out = {"crc_errors": 0, "seq_gaps": 0, "samples_lost": 0}
-    for _, cost in faults:
-        for key, value in cost.items():
-            out[key] += value
-    return out
 
 
 def make_context(tmp_path, *, matrix=SIM_MATRIX, loop=None, on_batch=None, clock=None):
@@ -717,7 +665,7 @@ def test_rdr_every_sim_fault_counted_at_20_250_1000_hz(tmp_path, rate, index):
     assert [(f["type"], f["seq"]) for f in log if f["event"] == "fault"] == [
         (fault["type"], fault["seq"])]
     assert device.stop_report.startswith(f"Z,{n},")
-    assert device.describe()["profile"]["guarantees"]["stop_report"]
+    assert device.describe()["guarantees"]["stop_report"]
     report = conformance.check_file(tmp_path / "raw" / "ball.tsv")
     assert report.stats["samples"] == c["samples"] and report.stats["crc_errors"] == c["crc_errors"]
 
@@ -747,7 +695,7 @@ def test_rdr_1khz_for_60_s_loses_nothing(tmp_path):
 def test_rdr_h9_guarantees_recorded_and_stop_report_only_with_a_z_line(tmp_path, monkeypatch):
     device = virtual_device(tmp_path, sim_entry(4000), until_us=40_000)
     device.open()
-    record = device.describe()["profile"]
+    record = device.describe()
     levels = ("profile", "completeness", "integrity", "seq_source", "time_source")
     assert {k: record[k] for k in levels} == {
         "profile": "v1", "completeness": "counted", "integrity": "crc8", "seq_source": "device",
@@ -768,7 +716,7 @@ def test_rdr_h9_guarantees_recorded_and_stop_report_only_with_a_z_line(tmp_path,
     device.stop()
     assert 0.4 < time.monotonic() - t0 < 2.0
     assert device.stop_report is None
-    assert device.describe()["profile"]["guarantees"]["stop_report"] is False
+    assert device.describe()["guarantees"]["stop_report"] is False
     device.close()
 
 
@@ -918,7 +866,7 @@ def test_rdr_serial_lines_driver_on_a_loop_port_times_out_without_a_device(tmp_p
     with pytest.raises(SessionError, match=r"did not answer hello within 0.2 s \((\d+) lines read;"
                                            r" rejected: parse_errors \1\)"):
         session.arm()
-    counters = session.devices["ball"].describe()["profile"]["counters"]
+    counters = session.devices["ball"].describe()["counters"]
     assert counters["parse_errors"] >= 3      # its own stop and hello commands, read back
     assert counters["samples"] == 0
 
@@ -972,7 +920,7 @@ def test_rdr_sim_rig_in_real_time_with_every_fault(sim_rig_data, write_rig, tmp_
 
     seconds = (faults[-1][0]["seq"] + 12) * period / 1e6 + 0.1
     session = run_on_loop(write_rig(sim_rig_data), tmp_path / "data", seconds, Listener())
-    c = session.devices["ball"].describe()["profile"]["counters"]
+    c = session.devices["ball"].describe()["counters"]
     assert {k: c[k] for k in ("crc_errors", "seq_gaps", "samples_lost")} == expected_counters(faults)
     assert (c["parse_errors"], c["overflow"], c["seq_regressions"], c["dt_mismatch"]) == (0, 0, 0, 0)
     got_samples = samples(got)
@@ -1000,7 +948,7 @@ def test_rdr_short_real_time_run_at_1khz_reports_the_hand_off(sim_rig_data, writ
                 seqs.append(r.seq)
 
     session = run_on_loop(write_rig(sim_rig_data), tmp_path / "data", 2.0, Listener())
-    c = session.devices["ball"].describe()["profile"]["counters"]
+    c = session.devices["ball"].describe()["counters"]
     assert seqs == list(range(len(seqs))) and len(seqs) >= 1500
     assert sum(v for k, v in c.items() if k not in ("lines", "samples")) == 0
     latency.sort()
@@ -1011,24 +959,6 @@ def test_rdr_short_real_time_run_at_1khz_reports_the_hand_off(sim_rig_data, writ
 
 # --- the end-to-end bench's simulated serial port (test/e2e/sim, pySerial patched) ---------------
 
-SIM_ROOT = REPO / "test" / "e2e" / "sim"
-CHILD = Path(__file__).with_name("e2e_sim_reader.py")
-
-
-@pytest.fixture
-def sim_folder(tmp_path):
-    """A folder for the end-to-end sim's files. The sim refuses one on D:, which it redirects
-    (test_backend_rig.py does the same), so then a temporary folder in the user profile."""
-    if tmp_path.drive.upper() != "D:":
-        yield tmp_path
-        return
-    base = Path(tempfile.mkdtemp(prefix="three-maze-pytest-", dir=Path.home()))
-    try:
-        yield base
-    finally:
-        shutil.rmtree(base, ignore_errors=True)
-
-
 @pytest.mark.skipif(sys.platform != "win32", reason="the end-to-end sim models a Windows rig")
 @pytest.mark.parametrize("rate", RATES)
 def test_rdr_serial_lines_driver_on_the_e2e_sim_port_with_every_fault(sim_folder, rate):
@@ -1037,30 +967,7 @@ def test_rdr_serial_lines_driver_on_the_e2e_sim_port_with_every_fault(sim_folder
     every fault type. The child refuses to run unless serial.Serial is the sim's."""
     period = RATES[rate]
     faults = faults_for(period, first=4 if period == 50000 else 20)
-    device = {"deviceId": "sim-e2e", "periodUs": period, "sensor": SENSOR, "lick": 1,
-              "trajectory": B1_LIKE, "faults": [f for f, _ in faults]}
-    sim_dir = sim_folder / "sim"
-    sim_dir.mkdir()
-    (sim_folder / "device.json").write_text(json.dumps(device), encoding="utf-8")
-    rig = {"format": "three-maze-rig", "version": 1, "name": "e2e-sim",
-           "devices": {"ball": {"driver": "serial_lines", "port": "SIMV1READER", "profile": "v1",
-                                "deviceId": "sim-e2e", "periodUs": period}},
-           "bindings": {"motion": "ball"}, "calibration": {"ball": {"matrix": SIM_MATRIX}},
-           "dataRoot": str(sim_folder / "data")}
-    (sim_folder / "rig.json").write_text(json.dumps(rig), encoding="utf-8")
-    env = {k: v for k, v in os.environ.items()
-           if not k.startswith("THREEMAZE_") and k != "ELECTRON_RUN_AS_NODE"}
-    env.update(PYTHONPATH=str(SIM_ROOT), PYTHONIOENCODING="utf-8", THREEMAZE_SIM="1",
-               THREEMAZE_SIM_DIR=str(sim_dir), THREEMAZE_SIM_PROTOCOL="v1",
-               THREEMAZE_SIM_DEVICE=str(sim_folder / "device.json"),
-               PYTHONDONTWRITEBYTECODE="1")         # no __pycache__ in test/e2e/sim
-    seconds = (faults[-1][0]["seq"] + 12) * period / 1e6
-    out = sim_folder / "result.json"
-    proc = subprocess.run([sys.executable, str(CHILD), str(sim_folder / "rig.json"), str(seconds),
-                           str(out)], cwd=sim_folder, env=env, capture_output=True, text=True,
-                          timeout=120, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-    assert proc.returncode == 0, proc.stdout + proc.stderr
-    result = json.loads(out.read_text(encoding="utf-8"))
+    result, sim_dir = run_e2e_reader(sim_folder, period, faults)
     assert result["serial_class"] == "threemaze_sim.teensy.SimSerial"
     c = result["counters"]
     assert {k: c[k] for k in ("crc_errors", "seq_gaps", "samples_lost")} == expected_counters(faults)
@@ -1068,15 +975,12 @@ def test_rdr_serial_lines_driver_on_the_e2e_sim_port_with_every_fault(sim_folder
     seqs = result["seqs"]
     assert seqs == sorted(seqs) and len(seqs) == c["samples"]
     assert result["stop_report"].startswith("Z,")
-    serial_log = [json.loads(line) for line in
-                  (sim_dir / "serial.jsonl").read_text(encoding="utf-8").splitlines()]
+    serial_log = sim_log(sim_dir)
     assert sorted((r["seq"], r["type"]) for r in serial_log if r["event"] == "fault") == sorted(
         (f["seq"], f["type"]) for f, _ in faults)
     # Every sample the sim sent intact (in one line or in pieces) was accepted, each once, in
     # order; the line after the truncated one is lost with it
-    sent = {r["seq"] for r in serial_log if r["event"] == "sent" and r["kind"] in ("S", "piece")}
-    spoilt = {f["seq"] for f, _ in faults if f["type"] in ("badCrc", "truncate")}
-    assert seqs == sorted(sent - spoilt - {faults[2][0]["seq"] + 1})
+    assert seqs == intact_seqs(serial_log, faults)
     # One device clock across the wrap and the gaps: each step is the windows it covers
     assert result["t_dev_steps"] == sorted({period * (b - a) for a, b in zip(seqs, seqs[1:])})
     # Running totals: the sum of the raw counts is the last line's totals

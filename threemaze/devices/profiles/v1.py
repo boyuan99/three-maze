@@ -36,6 +36,7 @@ from typing import Any
 from ...api.devices import DeviceError
 from ...core.records import (DT_ESTIMATED, DT_MISMATCH, DeviceEvent, DeviceMessage, DeviceSample,
                              Hello, PulseOutcome, Record, StopReport, StreamFault)
+from ..guarantees import levels, protocol_record, v1_flags
 from . import Host, Profile
 
 U32 = 1 << 32
@@ -492,17 +493,23 @@ class V1Profile(Profile):
 
     # --- what the session records -------------------------------------------------------------
 
+    def flags(self) -> dict[str, bool]:
+        """The guarantee flags in force (section 8.1): hello once a hello passed rule H5,
+        stop_report once the last stream ended with its stop report; the others hold by rule."""
+        return v1_flags(hello=self.hello is not None, stop_report=self.stop_report)
+
     def record(self) -> dict[str, Any]:
-        return {"profile": self.name, "hello": self.hello.as_dict() if self.hello else None,
-                "guarantees": {"hello": self.hello is not None, "device_seq": True,
-                               "device_time": True, "window_dt": True, "checksum": True,
-                               "running_totals": True, "stop_report": self.stop_report},
-                "completeness": "counted", "integrity": "crc8", "seq_source": "device",
-                "time_source": "device", "counters": dict(self.counters)}
+        out = {**protocol_record(self.name, self.flags()),
+               "hello": self.hello.as_dict() if self.hello else None,
+               "counters": dict(self.counters)}
+        if self.settings.outputs:
+            # Section 8.4: the device reports the times it measured (A lines) only if its hello
+            # declares ack=1; without such a hello nothing better is claimed (rule H9)
+            out["output_timing"] = "hardware" if self._declared("ack") == 1 else "unreported"
+        return out
 
     def link_device(self) -> dict[str, Any]:
-        out: dict[str, Any] = {"profile": self.name, "completeness": "counted", "integrity": "crc8",
-                               "seq_source": "device", "time_source": "device",
+        out: dict[str, Any] = {"profile": self.name, **levels(self.flags()),
                                "period_us": self.settings.period_us}
         if self.n_axes:
             out["n_axes"] = self.n_axes

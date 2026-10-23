@@ -139,9 +139,10 @@ def test_configure_twice_refused(session, sim_rig_path):
         session.configure(sim_rig_path)
 
 
-def test_invalid_session_id_refused_before_armed(sim_rig_path, tmp_path):
+@pytest.mark.parametrize("session_id", ["../escape", "ses-1\n"])  # $ would pass a final LF
+def test_invalid_session_id_refused_before_armed(sim_rig_path, tmp_path, session_id):
     with pytest.raises(ValueError, match="invalid session id"):
-        Session().configure(sim_rig_path, data_root=tmp_path, session_id="../escape")
+        Session().configure(sim_rig_path, data_root=tmp_path, session_id=session_id)
 
 
 def test_device_that_fails_to_open_aborts(session, monkeypatch):

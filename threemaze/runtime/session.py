@@ -12,6 +12,28 @@ every output device is put in its safe state first, then input streams stop, the
 is closed; a failing device does not keep the others from being made safe. Used as a context
 manager, a session that is left by an exception is aborted.
 
+Arming also checks that the data root has room for the session's data and opens the session's
+recorder (plan item DPR-07, threemaze/record/recorder.py): `recorder` takes the device samples,
+poses, events, commands and render reports of the session, and records every state the session
+enters from ARMED on. Once the session has ended, the recorder is closed, its files complete on
+disk, and `recording` holds its summary.
+
+The session feeds its recorder the motion device's samples itself: each batch its devices' readers
+hand over (plan item DPR-03) goes first to the recorder, one samples.tsv row per sample, and then
+to the listeners below. So a sample is recorded when the runtime receives it, whatever the motion
+worker and the renderer do. A session with an event loop gets the batches on that loop, so before
+it closes the recorder it waits until the loop has delivered every batch read before the devices
+closed.
+
+The session record (plan item DPR-08a, threemaze/record/session.py) is written when the session
+folder exists, at each change of state, and a last time once the recorder is closed: status
+running until then, complete or aborted after. `record` takes what reaches the runtime later,
+from any thread and without waiting for the disk: the motion worker's hello
+(record.client_hello), the renderer's ready report (passed on by the recorder), the
+rig-information probe (record.set_rig_info) and the build (record.set_build). Before it creates
+its folder, a session looks for sessions of its data root that a runtime left running when it
+ended, marks them crashed and names them in `crashed_sessions`.
+
 An invalid rig file fails in configure(), so nothing is opened or written for it. A failure
 while arming (a device that does not open, a data root that cannot be created) aborts the
 session. Every transition is stamped on the session clock (perf_counter_ns) and anchored to
@@ -26,7 +48,9 @@ made from another thread, for example with asyncio.to_thread. Without a loop, li
 on the thread that made the transition or read the records.
 """
 import asyncio
+import contextlib
 import logging
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -35,7 +59,10 @@ from ..api.devices import Device, DeviceContext, InputDevice, OutputDevice
 from ..api.registry import driver_class
 from ..config.rig import RigConfig, load_rig
 from ..core.clock import ClockAnchor, SessionClock
+from ..core.records import DeviceSample
 from ..core.states import InvalidTransition, SessionState, StateMachine, Transition
+from ..record.recorder import SessionRecorder, disk_preflight
+from ..record.session import SessionRecord, find_crashed_sessions, mark_crashed
 from ..record.session_dir import (check_session_id, create_session_dir, default_session_id,
                                   write_rig_copy)
 
@@ -48,6 +75,12 @@ OUTPUT_ROLES = frozenset({"reward"})
 
 # Phase 1 runs declarative tasks only; code tasks are phase 2 (D20 = c, owner 2026-10-09)
 TASK_KINDS = ("declarative",)
+
+# How long the end of a session waits for its event loop to deliver the batches read before the
+# devices closed, so that their samples reach the recorder before it closes its files
+LOOP_WAIT_S = 5.0
+# Samples the recorder refuses are each logged; this many are also named in warning events
+MAX_UNRECORDED_WARNINGS = 10
 
 
 class SessionError(Exception):
@@ -95,6 +128,12 @@ class Session:
         self.failures: list[DeviceFailure] = []       # device errors while stopping or aborting
         self.alarms: list[dict[str, Any]] = []         # raise_alarm(), for the session record
         self.abort_reason: str | None = None
+        self.recorder: SessionRecorder | None = None  # from arming until the session has ended
+        self.recording: dict | None = None            # the recorder's summary, once closed
+        self.preflight: dict | None = None            # the free-disk check made when arming
+        self.record: SessionRecord | None = None      # session.json, from arming on
+        self.crashed_sessions: list[str] = []         # found and marked when arming
+        self.unrecorded_samples = 0                   # samples the recorder refused (logged)
 
     # --- state -------------------------------------------------------------------------------
 
@@ -118,7 +157,26 @@ class Session:
             self.abort_reason = reason
         log.info("session %s: %s%s", self.session_id or "-", target.value,
                  f" ({reason})" if reason else "")
+        if self.recorder is not None:
+            data = {"state": target.value, **({"reason": reason} if reason else {})}
+            try:
+                self.recorder.event("runtime", "state", data=data, t_host_ns=anchor.perf_ns)
+            except Exception as exc:  # noqa: BLE001 - recording must not stop a transition
+                log.error("session %s: the %s state was not recorded: %r", self.session_id,
+                          target.value, exc)
+        if self.record is not None:
+            # The last record waits until the recorder has closed its files (_close_recording)
+            try:
+                self.record.state_changed(target.value, anchor, reason, write=not target.final)
+            except Exception as exc:  # noqa: BLE001 - recording must not stop a transition
+                log.error("session %s: session.json not written: %r", self.session_id, exc)
+        # The listeners learn of the state once it is recorded
         self._notify("on_session_state", step)
+
+    def _end(self, target: SessionState, reason: str | None = None) -> None:
+        """COMPLETE or ABORTED, then the recording is closed."""
+        self._go(target, reason)
+        self._close_recording()
 
     # --- listeners ---------------------------------------------------------------------------
 
@@ -149,7 +207,10 @@ class Session:
                               listener, method)
 
     def _on_batch(self, device: str, records: list) -> None:
-        """A device's batch, on the loop if the session has one (the devices hand it there)."""
+        """A device's batch, on the loop if the session has one (the devices hand it there): the
+        motion device's samples to the recorder, then the batch to the listeners."""
+        if self.recorder is not None and device == self.rig.bindings["motion"]:
+            self._record_samples(records)
         self._call_listeners("on_device_batch", (device, records))
 
     def raise_alarm(self, source: str, reason: str, **fields: Any) -> dict[str, Any]:
@@ -205,18 +266,25 @@ class Session:
         self.task = source
 
     def arm(self) -> Path:
-        """CONFIGURED -> ARMED: create the session folder, copy the rig file and its hash into it,
-        open and check every bound device. Returns the session folder."""
+        """CONFIGURED -> ARMED: mark the sessions of the data root that a runtime left running when
+        it ended; create the session folder, copy the rig file and its hash into it and write
+        session.json; open and check every bound device; check the free disk space and open the
+        recorder. Returns the session folder."""
         self._require(S.ARMED)
         if self.task is None:
             raise SessionError("no task source: call set_task() before arm()")
         try:
+            self._mark_crashed_sessions()
             self.dir = create_session_dir(self.data_root, self.session_id)
             write_rig_copy(self.dir, self.rig.raw, self.rig.sha256)
+            self._open_record()
             self._open_devices()
+            self._open_recorder()
+            self.record.update(devices=self._describe_devices(), preflight=self.preflight,
+                               write=False)
         except Exception as exc:
             self._shutdown()
-            self._go(S.ABORTED, f"arming failed: {exc}")
+            self._end(S.ABORTED, f"arming failed: {exc}")
             raise SessionError(f"cannot arm the session: {exc}") from exc
         self._go(S.ARMED)
         return self.dir
@@ -229,7 +297,7 @@ class Session:
                 device.start()
         except Exception as exc:
             self._shutdown()
-            self._go(S.ABORTED, f"starting failed: {exc}")
+            self._end(S.ABORTED, f"starting failed: {exc}")
             raise SessionError(f"cannot start the session: {exc}") from exc
         self._go(S.RUNNING)
 
@@ -239,17 +307,17 @@ class Session:
         self._go(S.STOPPING)
         failures = self._shutdown()
         if failures:
-            self._go(S.ABORTED, "stopping failed: " + "; ".join(
+            self._end(S.ABORTED, "stopping failed: " + "; ".join(
                 f"{f.device}.{f.action}: {f.error}" for f in failures))
         else:
-            self._go(S.COMPLETE)
+            self._end(S.COMPLETE)
 
     def abort(self, reason: str) -> None:
         """Any state that is not final -> ABORTED, outputs made safe first. Never raises because
         a device fails; the failures are in `failures`."""
         self._require(S.ABORTED)
         self._shutdown()
-        self._go(S.ABORTED, reason)
+        self._end(S.ABORTED, reason)
 
     def __enter__(self) -> "Session":
         return self
@@ -288,6 +356,139 @@ class Session:
                 self.outputs[role] = device
             else:
                 raise SessionError(f"device {name!r} cannot serve the {role} role")
+
+    # --- recording -------------------------------------------------------------------------------
+
+    def _mark_crashed_sessions(self) -> None:
+        """Sessions of the data root that a runtime left open when it ended (it was killed or it
+        crashed): mark each crashed and remember it. A failure here is logged and does not stop
+        the new session."""
+        try:
+            crashed = find_crashed_sessions(self.data_root)
+        except Exception as exc:  # noqa: BLE001 - a damaged data root must not block a session
+            log.error("looking for crashed sessions in %s failed: %r", self.data_root, exc)
+            return
+        for folder in crashed:
+            try:
+                marked = mark_crashed(folder, detected_by=self.session_id)
+            except Exception as exc:  # noqa: BLE001
+                log.error("could not mark session %s as crashed: %r", folder.name, exc)
+                continue
+            if not marked:
+                continue  # closed, or taken by another runtime, since it was found
+            log.warning("session %s was left running by a runtime that ended; marked crashed",
+                        folder.name)
+            self.crashed_sessions.append(folder.name)
+
+    def _open_record(self) -> None:
+        """Write the first session.json (status running, the states so far) under the lock."""
+        record = SessionRecord(self.dir, session_id=self.session_id, rig=self.rig, task=self.task,
+                               data_root=self.data_root)
+        for step in self._machine.history:
+            record.state_changed(step.target.value, self.anchors[step.target.value], step.reason,
+                                 write=False)
+        record.update(crashed_sessions=list(self.crashed_sessions), write=False)
+        record.open()
+        self.record = record
+
+    def _describe_devices(self) -> dict[str, dict]:
+        """Each opened device as the session record states it: its roles, then its driver's
+        description (device protocol v1, section 8.3, for the devices that speak it)."""
+        roles: dict[str, list[str]] = {}
+        for role, name in self.rig.bindings.items():
+            roles.setdefault(name, []).append(role)
+        described = {}
+        for name, device in self.devices.items():
+            try:
+                described[name] = {"roles": roles.get(name, []), **device.describe()}
+            except Exception as exc:  # noqa: BLE001 - one device must not lose the others
+                described[name] = {"roles": roles.get(name, []),
+                                   "describe_error": f"{type(exc).__name__}: {exc}"}
+        return described
+
+    def _open_recorder(self) -> None:
+        """Check the free disk space for the motion device's rate, then open the recorder. Its
+        samples.tsv has one column per column of the calibration matrix, which rule H5 has checked
+        against the axes of the device's hello."""
+        name = self.rig.bindings["motion"]
+        n_axes = len(self.rig.calibration[name]["matrix"][0])
+        info = self.devices[name].describe()
+        period_us = info.get("period_us") or (info.get("hello") or {}).get("period_us")
+        if period_us:
+            self.preflight = disk_preflight(self.data_root, period_us=period_us, n_axes=n_axes)
+        else:
+            log.warning("session %s: device %s states no sample period, so the free disk space"
+                        " was not checked", self.session_id, name)
+        self.recorder = SessionRecorder(self.dir, n_axes=n_axes, seq_source=info.get("seq_source"),
+                                        clock=self.clock, on_ready=self.record.render_ready)
+        for name in self.crashed_sessions:
+            self.recorder.event("runtime", "warning", data={
+                "code": "crashed_session", "session": name,
+                "message": "a session of this data root was left running by a runtime that ended;"
+                           " it is marked crashed"})
+
+    def _record_samples(self, records: list) -> None:
+        """One samples.tsv row for each sample of a batch of the motion device, as the batch
+        arrives (plan item DPR-07). A sample the recorder refuses is logged, and named in a warning
+        event; the samples after it are recorded all the same, and the recorder's seq check counts
+        the one that is missing (seq_mismatches)."""
+        recorder = self.recorder
+        for record in records:
+            if type(record) is not DeviceSample:
+                continue
+            try:
+                recorder.sample(record)
+            except Exception as exc:  # noqa: BLE001 - the next samples and the listeners go on
+                self.unrecorded_samples += 1
+                log.error("session %s: sample %d not recorded: %s: %s", self.session_id,
+                          record.seq, type(exc).__name__, exc)
+                if self.unrecorded_samples <= MAX_UNRECORDED_WARNINGS:
+                    with contextlib.suppress(Exception):
+                        recorder.event("runtime", "warning", data={
+                            "code": "sample_not_recorded", "seq": record.seq,
+                            "message": f"{type(exc).__name__}: {exc}"})
+
+    def _wait_for_loop(self) -> None:
+        """Before the recorder closes: wait until the event loop has run what the devices' readers
+        handed to it. The loop runs those callbacks in the order they came, so once one queued now
+        has run, every batch read before the devices closed has reached the recorder. A loop that
+        is not running delivers nothing to wait for, and on the loop's own thread the wait could
+        never end: the batches it still holds then come after the files are closed."""
+        loop = self.loop
+        if loop is None or loop.is_closed() or not loop.is_running():
+            return
+        try:
+            on_loop = asyncio.get_running_loop() is loop
+        except RuntimeError:  # this thread runs no event loop
+            on_loop = False
+        if on_loop:
+            log.warning("session %s ended on its event loop's thread: device batches that the loop"
+                        " still holds are not recorded", self.session_id)
+            return
+        delivered = threading.Event()
+        try:
+            loop.call_soon_threadsafe(delivered.set)
+        except RuntimeError:  # closed meanwhile: nothing more is delivered
+            return
+        if not delivered.wait(LOOP_WAIT_S):
+            log.error("session %s: the event loop did not run within %g s; device batches it still"
+                      " holds are not recorded", self.session_id, LOOP_WAIT_S)
+
+    def _close_recording(self) -> None:
+        """Close the recorder, then write the last session record (complete or aborted) and
+        release its lock; once, and never raises (a failure goes into the summary's errors)."""
+        if self.recorder is not None and self.recording is None:
+            self._wait_for_loop()
+            try:
+                self.recording = self.recorder.close()
+            except Exception as exc:  # noqa: BLE001 - ending the session must not fail here
+                self.recording = {"errors": [f"closing the recorder: {type(exc).__name__}: {exc}"]}
+            if self.recording.get("errors"):
+                log.error("session %s: recording errors: %s", self.session_id,
+                          "; ".join(self.recording["errors"]))
+        if self.record is not None and not self.record.closed:
+            self.record.finish(self.state.value, devices=self._describe_devices(),
+                               recording=self.recording)
 
     def _shutdown(self) -> list[DeviceFailure]:
         """Every output device safe, input streams stopped, every device closed: each step for

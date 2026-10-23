@@ -67,7 +67,7 @@ whole numbers written without a fraction or exponent (`50000`, not `50000.0` or 
 | `bindings.motion` | yes | | Device whose samples move the avatar. |
 | `bindings.reward` | no | | Output device for rewards; without it the rig gives none. |
 | `calibration.<device>` | for the motion device | | `matrix`: the calibration matrix C of device protocol v1 (section 7.2), 3 rows (forward cm, left cm, counter-clockwise yaw rad) by one column per sensor axis of the device. Entry [r][j] is what one count of axis j adds to row r, so the entries hold the cm per count, the axis signs and the yaw factor. Optional `date` (YYYY-MM-DD) and `note`. |
-| `dataRoot` | yes | | Folder for the session folders. A relative path is relative to the rig file's folder. |
+| `dataRoot` | yes | | Folder for the session folders ([data format v1](data-format-v1.md) lists what each holds). A relative path is relative to the rig file's folder. |
 | `safety.reward` | if `reward` is bound | none: each rig states its own | `maxPulseMs` (longest pulse), `minIntervalMs` (end of one pulse to start of the next), `maxTotalMsPerSession` (open time summed over a session). Enforced from plan item DPR-09 on. |
 | `backend.mode` | no | `"spawn"` | How the Electron app starts the backend: `spawn`, `external` (already running) or `none`. With `command`, `cwd`, `env`, `startupTimeoutS`, `shutdownGraceS` (no defaults). Read by the launcher from plan item DPR-15b on; the runtime ignores it. |
 | `motion.eyeHeight` | no | `3.7` | Eye above the avatar's feet, in scene units (cm): the height v0.3 sessions used (ADR-0001 R3, owner 2026-10-07). ADR-0001's validation covers 3.7; another value needs its suite re-run. |

@@ -1,5 +1,7 @@
-"""Child process of test_serial_lines.py: a session with the serial_lines driver, in a process where
-the end-to-end bench's simulated rig (test/e2e/sim) replaces pySerial's ports.
+"""Child process of test_serial_lines.py and test_recorder_reader.py (through simfaults.py): a
+session with the serial_lines driver, in a process where the end-to-end bench's simulated rig
+(test/e2e/sim) replaces pySerial's ports. Its result names the session folder and holds every
+sample the reader handed to the session, with its receive time.
 
     python e2e_sim_reader.py <rig file> <seconds> <result.json>
 
@@ -48,10 +50,12 @@ def main():
         raw_sum = [a + b for a, b in zip(raw_sum, sample.raw)]
     out.write_text(json.dumps({
         "serial_class": serial_class, "state": session.state.value,
-        "counters": ball["profile"]["counters"],
-        "guarantees": ball["profile"]["guarantees"], "stop_report": ball["stop_report"],
+        "counters": ball["counters"], "guarantees": ball["guarantees"],
+        "stop_report": ball["stop_report"],
         "seqs": [s.seq for s in got], "raw_sum": raw_sum,
         "t_dev_steps": sorted({b.t_dev_us - a.t_dev_us for a, b in zip(got, got[1:])}),
+        "folder": str(session.dir),
+        "samples": [{**s.link(), "t_host_ns": s.t_host_ns} for s in got],
     }), encoding="utf-8")
     return 0 if session.state.value == "complete" else 1
 

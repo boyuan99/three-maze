@@ -5,7 +5,9 @@ rig file's own data root.
 """
 import copy
 import json
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -44,3 +46,17 @@ def write_rig(tmp_path):
         path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         return path
     return write
+
+
+@pytest.fixture
+def sim_folder(tmp_path):
+    """A folder for the end-to-end sim's files. The sim refuses one on D:, which it redirects
+    (test_backend_rig.py does the same), so then a temporary folder in the user profile."""
+    if tmp_path.drive.upper() != "D:":
+        yield tmp_path
+        return
+    base = Path(tempfile.mkdtemp(prefix="three-maze-pytest-", dir=Path.home()))
+    try:
+        yield base
+    finally:
+        shutil.rmtree(base, ignore_errors=True)
