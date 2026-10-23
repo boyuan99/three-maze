@@ -9,12 +9,14 @@ compiler or Rapier" (`docs/adr/0001-player-mover.md:81`). Roadmap phase 1 builds
 |---|---|
 | MOT-01 (this folder's start) | the vendored reference mover, the two tiers, the CI job `motion-suite` |
 | MOT-03 | `equivalence.ts`, `fast/mover.equivalence.test.ts`, `full/mover.walls.test.ts`, `full/mover.rooms.test.ts`: the TypeScript mover against the reference, sample for sample |
+| MOT-04 | `fast/zones.test.ts`: ADR-0001 Validation 6 (zones and gates) with the TypeScript mover through the motion core |
 | MOT-05a | `full/`: ADR-0001 Validation 1-5 cases behind a mover interface, run on the reference |
 
 The collider tests of `src/motion/instantiate.ts` (MOT-07), the tests of the motion core
 `src/motion/core.ts` with movers that have no collisions (MOT-02) and the hover mover's own tests
 (`src/motion/mover.ts`, MOT-03: eye height, falls, events, worker bundle) are ordinary unit tests
-in `test/frontend/motion/`.
+in `test/frontend/motion/`; those of the collider partitioner, its manifest and its hash
+(`src/compiler/physics/`, MOT-08) in `test/frontend/compiler/`.
 
 ## Layout
 
@@ -88,6 +90,27 @@ phases (the runs that show a query refresh, below), on 10 s per rate in both soa
 directed runs at inclined faces, balls, cones, steps, a drop and falls, and on long walls, the
 T-junction, the corner and the wedges in worlds built by `instantiate()`: 163 runs, 61,335
 samples, all identical, no guard undo.
+
+`fast/zones.test.ts` (about 2.5 s) is ADR-0001 Validation 6 on Hallway04 as the scene compiler
+partitions it (MOT-08), with zones and an invisible gate added, through the motion core with the
+TypeScript mover (`src/motion/zones.ts`, MOT-04):
+
+- Zones never block: runs down the hallway with its ten zone colliders give the same poses, bit
+  for bit, as without them.
+- Enter and exit fire in the sample that carries the zone point (the agent's axis at feet + 1.15)
+  across a face: over 14,000 samples of straight and weaving runs at 5-141 units/s and 20, 120
+  and 250 samples/s, each sample's zone events equal the change of the zone point's analytic
+  membership, a zone turned 30 degrees and a compound zone included. The south end is entered in
+  the sample in which v0.3's trial end, `|z| >= 70` (`experiments/hallway04_experiment.py:448`),
+  first holds.
+- A gate switched on at run time, with no `world.step()`, stops the agent at its analytic
+  position: the face, plus the radius 0.5, the skin 0.02 and the step-off 0.01 of R4, within the
+  sweep's time-of-impact error, 0.005 (R3), head-on and at 30 and 45 degrees.
+- Also: a teleport's zone events follow it, with cause `teleport` and the new epoch; dispatch
+  order (exits, then entries, each by id in character-code order, before parameter
+  acknowledgements); zones switched at run time; a fall into a zone below an open edge; and a zone
+  thinner than one sample's displacement crossed unseen, which the scene check (MOT-10) must warn
+  about, the part of Validation 6 that is lint.
 
 **Full tier** (`full/`, about 5.6 minutes with one worker). Runs two study scripts unchanged in a
 fresh Node process, with the archived settings, and compares their whole output with the archive:

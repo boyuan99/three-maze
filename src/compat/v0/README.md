@@ -47,7 +47,8 @@ promise of a new `Texture`), because three's `TextureLoader` creates an `<img>` 
 
 Each solid has `position` (the body's translation), `colliderRotation` (always none, as v0.3 builds
 it) and `meshRotation` (the Euler rotation of the object's mesh, which v0.3's collider ignores;
-MOT-08 uses it to build correctly rotated colliders).
+MOT-08 uses it to build correctly rotated colliders: `src/compiler/physics/fromV0.ts` turns the
+solids into the collider partitioner's boxes).
 
 ## Quirks reproduced
 
