@@ -1,6 +1,6 @@
 # Link protocol v1 (three-maze/link)
 
-- Status: **draft until the project owner merges the pull request that adds it** (phase-1 plan item DPR-05a). From that merge the core subset in this document is frozen (planned freeze: 2026-10-23): later changes only add to it ([section 14](#14-versioning)).
+- Status: **core subset frozen on 2026-10-22**, when the project owner accepted it by pushing it to `main` (phase-1 plan item DPR-05a; planned freeze: 2026-10-23). Later changes only add to it ([section 14](#14-versioning)).
 - Applies to: the WebSocket connection between the three-maze rig runtime (Python) and its clients: the motion worker of the scene window and monitors such as the control window.
 - Related: [device protocol v1](../../docs/protocol/device-v1.md) is the other side of the rig runtime, between the runtime and the devices on its serial ports; this protocol carries what the runtime derives from it and never the device lines themselves. [ADR-0001](../../docs/adr/0001-player-mover.md) (per-sample motion), [ADR-0002](../../docs/adr/0002-task-engine-location.md) (motion worker, rig runtime, stamps, epochs, watchdog), [ADR-0003](../../docs/adr/0003-render-worker-priority.md) (the motion worker owns the sample socket; frame log).
 - Normative files: the JSON Schemas (draft 2020-12) in this folder fix the shape of every message; this document gives their meaning and the rules a schema cannot express. The examples, the validators and the generated TypeScript types follow the schemas ([section 15](#15-files-validators-and-tests)).

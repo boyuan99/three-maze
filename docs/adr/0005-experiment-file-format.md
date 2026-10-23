@@ -1,6 +1,6 @@
 # ADR-0005: Write each experiment as one versioned JSON file that holds its world and its task, leaves rig facts to the rig file, and stays within ADR-0002's action budget
 
-- Status: Proposed
+- Status: Accepted (2026-10-22)
 - Date: 2026-10-09
 - Deciders: project owner
 - Related: [0001-player-mover.md](0001-player-mover.md) (units, axes, eye height, falls, colliders), [0002-task-engine-location.md](0002-task-engine-location.md) (declarative FSM, action and event budget), [0003-render-worker-priority.md](0003-render-worker-priority.md) (warm-up, no compiles after ready), [0004-dependency-versions.md](0004-dependency-versions.md) (freeze from v1.0-rc)
