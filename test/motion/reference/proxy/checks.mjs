@@ -7,7 +7,9 @@
 //   20:25. The verification ran its byte-identical copy verify/A_copy/lib/checks.mjs (copied
 //   21:42).
 // Copied: 2026-10-09 (roadmap phase 1, MOT-01).
-// What it is: Analytic measures of approach A. Only minOverCyl is used here, by xanalytic.mjs.
+// What it is: Analytic measures of approach A. xanalytic.mjs and the Validation suite
+//   (test/motion/validation/, MOT-05a) use minOverCyl; the suite's camera measure
+//   (validation/camera.ts) is this file's cam() with the aspect ratio as a parameter.
 // Changes from the source: none (only this header was added).
 // -------------------------------------------------------------------------------------------------
 // Analytic measurements (no Rapier queries).

@@ -7,8 +7,10 @@
 //   20:09. The verification ran its byte-identical copy verify/A_copy/lib/geom.mjs (copied 21:42).
 // Copied: 2026-10-09 (roadmap phase 1, MOT-01).
 // What it is: Geometry of approach A (compiler-side proxies, not adopted) with exact signed
-//   distances. Only Sphere, Box and Frustum are used here, by xanalytic.mjs, as a second,
-//   independently written distance function.
+//   distances. xanalytic.mjs uses Sphere, Box and Frustum as a second, independently written
+//   distance function. The Validation suite (test/motion/validation/, MOT-05a) builds the
+//   cross-tests' true shapes with it (Sphere, Frustum, Box, Slab, Wedge, LyingCyl) and lays out
+//   their approaches with edges2.
 // Changes from the source: none (only this header was added).
 // -------------------------------------------------------------------------------------------------
 // Geometry for the compiler-side proxy prototype (approach A).

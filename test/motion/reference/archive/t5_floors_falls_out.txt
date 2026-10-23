@@ -1,0 +1,35 @@
+(a) floor with T-junction vertices (s5): row A tiles 30 wide, row B 40 wide; 4 speeds x 5 starts/angles; max feet range per mover and rate
+  adopted       20/s range 5.91e-8 reverts+recoveries 0 | 120/s range 5.91e-8 reverts+recoveries 0 | 250/s range 5.91e-8 reverts+recoveries 0
+  U+RS top2.0   20/s range 5.91e-8 reverts+recoveries 0 | 120/s range 5.91e-8 reverts+recoveries 0 | 250/s range 5.91e-8 reverts+recoveries 0
+  U+RS top4.15  20/s range 5.91e-8 reverts+recoveries 0 | 120/s range 5.91e-8 reverts+recoveries 0 | 250/s range 5.91e-8 reverts+recoveries 0
+
+(b) 20-unit drop: walk off a 10 x 20 x 10 box at 30 units/s (-z). Cells: samples from fall_start to landing (free fall over 20 units = 0.2019 s) for 3 floor types x 4 box positions
+  adopted        20/s free-fall 4.0 samples; fall-to-land samples per (floor x start) 3 3 3 3 3 3 3 3 3 3 3 3; worst |diff| 1.0; guard reverts + recoveries 0
+  adopted       120/s free-fall 24.2 samples; fall-to-land samples per (floor x start) 23 23 23 23 23 23 23 23 23 23 23 23; worst |diff| 1.2; guard reverts + recoveries 0
+  adopted       250/s free-fall 50.5 samples; fall-to-land samples per (floor x start) 49 49 49 49 49 49 49 49 49 49 49 49; worst |diff| 1.5; guard reverts + recoveries 0
+  U+RS top2.0    20/s free-fall 4.0 samples; fall-to-land samples per (floor x start) 3 3 3 3 3 3 3 3 3 3 3 3; worst |diff| 1.0; guard reverts + recoveries 0
+  U+RS top2.0   120/s free-fall 24.2 samples; fall-to-land samples per (floor x start) 23 23 23 23 23 23 23 23 23 23 23 23; worst |diff| 1.2; guard reverts + recoveries 0
+  U+RS top2.0   250/s free-fall 50.5 samples; fall-to-land samples per (floor x start) 49 49 49 49 49 49 49 49 49 49 49 49; worst |diff| 1.5; guard reverts + recoveries 0
+  U+RS top4.15   20/s free-fall 4.0 samples; fall-to-land samples per (floor x start) 3 3 3 3 3 3 3 3 3 3 3 3; worst |diff| 1.0; guard reverts + recoveries 0
+  U+RS top4.15  120/s free-fall 24.2 samples; fall-to-land samples per (floor x start) 23 23 23 23 23 23 23 23 23 23 23 23; worst |diff| 1.2; guard reverts + recoveries 0
+  U+RS top4.15  250/s free-fall 50.5 samples; fall-to-land samples per (floor x start) 49 49 49 49 49 49 49 49 49 49 49 49; worst |diff| 1.5; guard reverts + recoveries 0
+
+(c) steps: platform 20 x 20 of height h (z from 0 to -20), agent from z = 5 at 30 units/s, 120 samples/s, 60 samples (15 units, ends on the platform);
+    head-on and at 45 deg. Cell: climb (feet reached h) or block (feet stayed 0, final z shown), guard reverts if any
+  adopted       h0.1/0:climb h0.1/45:climb h0.2/0:climb h0.2/45:climb h0.25/0:climb h0.25/45:climb h0.27/0:climb h0.27/45:climb h0.28/0:climb h0.28/45:climb h0.282/0:climb h0.282/45:climb h0.284/0:climb h0.284/45:climb h0.29/0:climb h0.29/45:climb h0.3/0:block z 0.530 h0.3/45:block z 0.530 h0.31/0:block z 0.530 h0.31/45:block z 0.531 h0.35/0:block z 0.530 h0.35/45:block z 0.530 h0.5/0:block z 0.530 h0.5/45:block z 0.530
+  U+RS top2.0   h0.1/0:climb h0.1/45:climb h0.2/0:climb h0.2/45:climb h0.25/0:climb h0.25/45:climb h0.27/0:climb h0.27/45:climb h0.28/0:climb h0.28/45:climb h0.282/0:climb h0.282/45:climb h0.284/0:climb h0.284/45:block z 0.522 h0.29/0:block z 0.527 h0.29/45:block z 0.527 h0.3/0:block z 0.530 h0.3/45:block z 0.530 h0.31/0:block z 0.530 h0.31/45:block z 0.530 h0.35/0:block z 0.530 h0.35/45:block z 0.530 h0.5/0:block z 0.530 h0.5/45:block z 0.530
+  U+RS top4.15  h0.1/0:climb h0.1/45:climb h0.2/0:climb h0.2/45:climb h0.25/0:climb h0.25/45:climb h0.27/0:climb h0.27/45:climb h0.28/0:climb h0.28/45:climb h0.282/0:climb h0.282/45:climb h0.284/0:block z 0.522 h0.284/45:climb h0.29/0:block z 0.527 h0.29/45:block z 0.527 h0.3/0:block z 0.530 h0.3/45:block z 0.530 h0.31/0:block z 0.530 h0.31/45:block z 0.531 h0.35/0:block z 0.530 h0.35/45:block z 0.530 h0.5/0:block z 0.530 h0.5/45:block z 0.531
+
+(d) falls onto steep faces: ledge 10 x 10 x 10 (top y 10, edge z = -5) on a 300 x 300 floor. Below the edge: a 45-deg slab rising towards +z
+    (foot z -12.5, top end z -5.5 at y 7), a R 4 ball resting at (0, 4, -12), or an upright 256-gon hull cone (base radius 4, height 8) at (0, -11).
+    Walk off at 30 units/s for 0.5 s, then for 3 s: continue -z / stop / push +z (120 samples/s). Cells: final feet and z, grounded?, guard reverts,
+    worst analytic gap to the obstacle or ledge (overlap if < -0.02), airborne sweeps that met a wall face, uncommanded drift after the input stopped (stop case)
+  45-deg slab   adopted       continue -z: feet 0.00 z -105.00 grounded rev 15 rec 0 gap -0.0117 wallSweeps 0 | stop: feet 0.00 z -15.00 grounded rev 15 rec 0 gap -0.0117 wallSweeps 0 drift 0.00 | push +z: feet 0.00 z -12.75 grounded rev 366 rec 0 gap -0.0117 wallSweeps 0
+  45-deg slab   U+RS top2.0   continue -z: feet -0.00 z -107.98 grounded rev 0 rec 0 gap 0.0300 wallSweeps 9 | stop: feet -0.00 z -17.98 grounded rev 0 rec 0 gap 0.0300 wallSweeps 9 drift 0.00 | push +z: feet -0.00 z -12.74 grounded rev 0 rec 0 gap 0.0228 wallSweeps 9
+  45-deg slab   U+RS top4.15  continue -z: feet -0.00 z -108.00 grounded rev 0 rec 0 gap 0.0300 wallSweeps 9 | stop: feet -0.00 z -18.00 grounded rev 0 rec 0 gap 0.0300 wallSweeps 9 drift 0.00 | push +z: feet -0.00 z -12.74 grounded rev 0 rec 0 gap 0.0271 wallSweeps 9
+  R4 ball       adopted       continue -z: feet 0.00 z -8.04 grounded rev 475 rec 0 gap -0.0056 wallSweeps 0 | stop: feet 0.00 z -7.92 grounded rev 116 rec 0 gap 0.0020 wallSweeps 0 drift 0.00 | push +z: feet 0.00 z -5.53 grounded rev 58 rec 0 gap 0.0115 wallSweeps 0
+  R4 ball       U+RS top2.0   continue -z: feet -0.00 z -8.00 grounded rev 0 rec 0 gap 0.0287 wallSweeps 3 | stop: feet -0.00 z -8.00 grounded rev 0 rec 0 gap 0.0287 wallSweeps 3 drift 0.00 | push +z: feet -0.00 z -5.53 grounded rev 0 rec 0 gap 0.0287 wallSweeps 3
+  R4 ball       U+RS top4.15  continue -z: feet -0.00 z -7.47 grounded rev 0 rec 0 gap 0.0300 wallSweeps 3 | stop: feet -0.00 z -7.47 grounded rev 0 rec 0 gap 0.0300 wallSweeps 3 drift 0.00 | push +z: feet -0.00 z -5.53 grounded rev 0 rec 0 gap 0.0300 wallSweeps 3
+  cone 4/8 hull adopted       continue -z: feet 3.80 z -8.56 AIRBORNE rev 772 rec 0 gap -0.0117 wallSweeps 0 | stop: feet 3.80 z -8.56 AIRBORNE rev 412 rec 0 gap -0.0117 wallSweeps 0 drift 0.00 | push +z: feet 0.00 z -5.53 grounded rev 58 rec 0 gap -0.0117 wallSweeps 0
+  cone 4/8 hull U+RS top2.0   continue -z: feet -0.00 z -74.41 grounded rev 0 rec 0 gap 0.0287 wallSweeps 5 | stop: feet -0.00 z -6.62 grounded rev 0 rec 0 gap 0.0289 wallSweeps 5 drift 0.00 | push +z: feet -0.00 z -5.53 grounded rev 0 rec 0 gap 0.0289 wallSweeps 5
+  cone 4/8 hull U+RS top4.15  continue -z: feet -0.00 z -77.22 grounded rev 0 rec 0 gap 0.0214 wallSweeps 5 | stop: feet -0.00 z -6.62 grounded rev 0 rec 0 gap 0.0266 wallSweeps 5 drift 0.00 | push +z: feet -0.00 z -5.53 grounded rev 0 rec 0 gap 0.0266 wallSweeps 5

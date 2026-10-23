@@ -1,0 +1,32 @@
+t2 curved obstacles; per obstacle and mover over 7 incidences x 6 regimes (42 runs):
+  overlaps (gap<-0.02) / samples with gap<0 / worst gap / guard reverts / recoveries / itCap / runs that got past the obstacle / eye: min SD, samples with SD<0, <0.1, <0.186 / KCC calls per sub-step / mean, max us per sample
+  sphere R3 on floor       adopted top2.0  D 3.35: 0 / 636 / -0.0180 / 1310 / 0 / 0 / passed 25/42 / eye 0.383 0 0 0 / 1.00 / 30.8 1910
+  sphere R3 on floor       U+RS top2.0     D 3.35: 0 / 0 / 0.0207 / 0 / 0 / 0 / passed 36/42 / eye 0.423 0 0 0 / 1.36 / 21.6 973
+  sphere R3 on floor       U+RS top4.15    D 3.52: 0 / 0 / 0.0202 / 0 / 0 / 0 / passed 36/42 / eye 0.589 0 0 0 / 1.37 / 16.7 706
+  sphere R10 on floor      adopted top2.0  D 6.53: 0 / 702 / -0.0118 / 3931 / 0 / 0 / passed 6/42 / eye -0.962 2341 2365 2387 / 1.00 / 30.9 892
+  sphere R10 on floor      U+RS top2.0     D 6.53: 0 / 0 / 0.0202 / 0 / 0 / 0 / passed 36/42 / eye -0.924 1518 1560 1600 / 1.47 / 26.2 1058
+  sphere R10 on floor      U+RS top4.15    D 8.63: 0 / 0 / 0.0202 / 0 / 0 / 0 / passed 36/42 / eye 0.689 0 0 0 / 1.53 / 27.5 1207
+  sphere R25 on floor      adopted top2.0  D 10.35: 0 / 1132 / -0.0072 / 5093 / 0 / 0 / passed 6/42 / eye -1.349 3265 3300 3329 / 1.00 / 34.3 730
+  sphere R25 on floor      U+RS top2.0     D 10.35: 0 / 0 / 0.0201 / 0 / 0 / 0 / passed 32/42 / eye -1.319 2549 2609 2657 / 1.55 / 32.7 1174
+  sphere R25 on floor      U+RS top4.15    D 14.33: 0 / 0 / 0.0201 / 0 / 0 / 0 / passed 30/42 / eye 0.672 0 0 0 / 1.62 / 34.2 1391
+  sphere R3 dome           adopted top2.0  D 3.51: 0 / 0 / 0.0203 / 0 / 0 / 0 / passed 36/42 / eye 2.097 0 0 0 / 1.00 / 14.2 566
+  sphere R3 dome           U+RS top2.0     D 3.51: 0 / 0 / 0.0204 / 0 / 0 / 0 / passed 36/42 / eye 2.097 0 0 0 / 1.37 / 19.4 930
+  sphere R3 dome           U+RS top4.15    D 3.51: 0 / 0 / 0.0200 / 0 / 0 / 0 / passed 36/42 / eye 2.097 0 0 0 / 1.36 / 19.4 955
+  sphere R10 dome          adopted top2.0  D 10.52: 0 / 0 / 0.0200 / 0 / 0 / 0 / passed 30/42 / eye 1.147 0 0 0 / 1.00 / 19.4 702
+  sphere R10 dome          U+RS top2.0     D 10.52: 0 / 0 / 0.0200 / 0 / 0 / 0 / passed 30/42 / eye 1.147 0 0 0 / 1.56 / 28.0 1206
+  sphere R10 dome          U+RS top4.15    D 10.52: 0 / 0 / 0.0200 / 0 / 0 / 0 / passed 30/42 / eye 1.147 0 0 0 / 1.56 / 27.9 1348
+  sphere R25 dome          adopted top2.0  D 25.52: 0 / 0 / 0.0200 / 0 / 0 / 0 / passed 25/42 / eye 0.785 0 0 0 / 1.00 / 23.2 908
+  sphere R25 dome          U+RS top2.0     D 25.52: 0 / 0 / 0.0200 / 0 / 0 / 0 / passed 25/42 / eye 0.785 0 0 0 / 1.71 / 35.0 1177
+  sphere R25 dome          U+RS top4.15    D 25.52: 0 / 0 / 0.0200 / 0 / 0 / 0 / passed 25/42 / eye 0.785 0 0 0 / 1.71 / 34.4 1332
+  cone upright primitive   adopted top2.0  D 10.37: 0 / 1538 / -0.0151 / 4133 / 0 / 0 / passed 13/42 / eye 1.953 0 0 0 / 1.00 / 35.1 1347
+  cone upright primitive   U+RS top2.0     D 10.37: 0 / 0 / 0.0202 / 0 / 0 / 0 / passed 32/42 / eye 1.988 0 0 0 / 1.57 / 23.3 851
+  cone upright primitive   U+RS top4.15    D 10.37: 0 / 0 / 0.0203 / 0 / 0 / 0 / passed 32/42 / eye 1.988 0 0 0 / 1.57 / 22.6 908
+  cone upright hull256     adopted top2.0  D 10.37: 55 / 1594 / -0.0248 / 4128 / 0 / 0 / passed 13/42 / eye 1.943 0 0 0 / 1.00 / 63.4 2098
+  cone upright hull256     U+RS top2.0     D 10.37: 0 / 0 / 0.0196 / 0 / 0 / 0 / passed 32/42 / eye 1.987 0 0 0 / 1.57 / 69.4 2780
+  cone upright hull256     U+RS top4.15    D 10.37: 0 / 0 / 0.0196 / 0 / 0 / 0 / passed 32/42 / eye 1.987 0 0 0 / 1.57 / 68.9 2685
+  cone inverted primitive  adopted top2.0  D 1.52: 183 / 624 / -0.0935 / 1225 / 0 / 0 / passed 24/42 / eye -0.407 800 824 844 / 1.00 / 48.1 1445
+  cone inverted primitive  U+RS top2.0     D 1.52: 0 / 0 / 0.0231 / 0 / 0 / 0 / passed 36/42 / eye -0.290 495 526 549 / 1.26 / 41.3 1505
+  cone inverted primitive  U+RS top4.15    D 2.60: 0 / 0 / 0.0208 / 0 / 0 / 0 / passed 36/42 / eye 0.669 0 0 0 / 1.32 / 41.3 3077
+  cone inverted hull256    adopted top2.0  D 1.52: 121 / 599 / -0.0935 / 1299 / 0 / 0 / passed 23/42 / eye -0.407 803 827 847 / 1.00 / 67.9 2106
+  cone inverted hull256    U+RS top2.0     D 1.52: 0 / 0 / 0.0200 / 0 / 0 / 0 / passed 37/42 / eye -0.293 494 523 548 / 1.24 / 60.6 3017
+  cone inverted hull256    U+RS top4.15    D 2.60: 0 / 0 / 0.0200 / 0 / 0 / 0 / passed 36/42 / eye 0.668 0 0 0 / 1.31 / 60.2 2649

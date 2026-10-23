@@ -1,0 +1,65 @@
+
+Part B: 400-unit slabs (10 flush 40-unit pieces), incidence 5/15/30/45/60/75/90 deg, speeds/rates 30@20 30@120 30@250 141@20 141@120 141@250, 150 units of path; eye at feet + 3.7
+  per inclination and mover: runs, samples, overlaps (gap<-0.02), samples with gap<0, worst gap, guard reverts, dropped remainders (itCap), min retention along the strike (incidence < 90), max wobble across the face, eye: min SD / samples with SD<0 / SD<0.1 / SD<0.186 (16:9 near-plane corner), KCC calls per sub-step, mean and max us/sample
+   31 deg adopted top2.0  runs 42 samples 16562 overlaps 0 gap<0 93 worst -0.0001 reverts 0 recoveries 0 itCap 0 minRet 0.1% maxWob 0.0520 eye min 3.172 <0 0 <0.1 0 <0.186 0 calls/sub 1.00 37.1/2031 us
+   31 deg U+RS top2.0     runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0144 reverts 0 recoveries 0 itCap 0 minRet 99.9% maxWob 0.0295 eye min 3.186 <0 0 <0.1 0 <0.186 0 calls/sub 2.45 50.5/1221 us
+   31 deg U+RS top4.15    runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0201 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0196 eye min 3.192 <0 0 <0.1 0 <0.186 0 calls/sub 2.46 51.2/2887 us
+   33 deg adopted top2.0  runs 42 samples 16562 overlaps 0 gap<0 5648 worst -0.0106 reverts 3986 recoveries 0 itCap 0 minRet 0.1% maxWob 0.0698 eye min 3.113 <0 0 <0.1 0 <0.186 0 calls/sub 1.00 36.1/977 us
+   33 deg U+RS top2.0     runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0185 eye min 3.144 <0 0 <0.1 0 <0.186 0 calls/sub 2.47 85.2/3349 us
+   33 deg U+RS top4.15    runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0144 reverts 0 recoveries 0 itCap 0 minRet 99.9% maxWob 0.0542 eye min 3.138 <0 0 <0.1 0 <0.186 0 calls/sub 2.47 87.5/3034 us
+   35 deg adopted top2.0  runs 42 samples 16562 overlaps 0 gap<0 7349 worst -0.0113 reverts 12023 recoveries 0 itCap 0 minRet 0.1% maxWob 0.0657 eye min 3.061 <0 0 <0.1 0 <0.186 0 calls/sub 1.00 56.3/1648 us
+   35 deg U+RS top2.0     runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0187 eye min 3.092 <0 0 <0.1 0 <0.186 0 calls/sub 2.46 85.1/2969 us
+   35 deg U+RS top4.15    runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0202 eye min 3.092 <0 0 <0.1 0 <0.186 0 calls/sub 2.48 86.0/2174 us
+   40 deg adopted top2.0  runs 42 samples 16562 overlaps 0 gap<0 3939 worst -0.0113 reverts 24927 recoveries 0 itCap 0 minRet 0.1% maxWob 0.0536 eye min 2.915 <0 0 <0.1 0 <0.186 0 calls/sub 1.00 47.7/1129 us
+   40 deg U+RS top2.0     runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0201 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0153 eye min 2.946 <0 0 <0.1 0 <0.186 0 calls/sub 2.46 84.7/2051 us
+   40 deg U+RS top4.15    runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0185 eye min 2.946 <0 0 <0.1 0 <0.186 0 calls/sub 2.48 85.5/1907 us
+   45 deg adopted top2.0  runs 42 samples 16562 overlaps 0 gap<0 7068 worst -0.0142 reverts 24899 recoveries 0 itCap 0 minRet 0.1% maxWob 0.0613 eye min 2.744 <0 0 <0.1 0 <0.186 0 calls/sub 1.00 51.1/1534 us
+   45 deg U+RS top2.0     runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0201 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0157 eye min 2.778 <0 0 <0.1 0 <0.186 0 calls/sub 2.47 85.2/2128 us
+   45 deg U+RS top4.15    runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0177 eye min 2.778 <0 0 <0.1 0 <0.186 0 calls/sub 2.46 84.5/2820 us
+   50 deg adopted top2.0  runs 42 samples 16562 overlaps 0 gap<0 8368 worst -0.0153 reverts 24634 recoveries 0 itCap 0 minRet 0.2% maxWob 0.0538 eye min 2.553 <0 0 <0.1 0 <0.186 0 calls/sub 1.00 51.3/2053 us
+   50 deg U+RS top2.0     runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0159 eye min 2.589 <0 0 <0.1 0 <0.186 0 calls/sub 2.46 83.1/2682 us
+   50 deg U+RS top4.15    runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0161 eye min 2.589 <0 0 <0.1 0 <0.186 0 calls/sub 2.46 84.1/2288 us
+   60 deg adopted top2.0  runs 42 samples 16562 overlaps 0 gap<0 8262 worst -0.0171 reverts 23204 recoveries 0 itCap 0 minRet 0.2% maxWob 0.0520 eye min 2.116 <0 0 <0.1 0 <0.186 0 calls/sub 1.00 51.6/1442 us
+   60 deg U+RS top2.0     runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0147 eye min 2.153 <0 0 <0.1 0 <0.186 0 calls/sub 2.47 82.6/2961 us
+   60 deg U+RS top4.15    runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0140 eye min 2.153 <0 0 <0.1 0 <0.186 0 calls/sub 2.47 83.3/1906 us
+   75 deg adopted top2.0  runs 42 samples 16562 overlaps 0 gap<0 3861 worst -0.0193 reverts 11272 recoveries 0 itCap 0 minRet 1.2% maxWob 0.1001 eye min 1.344 <0 0 <0.1 0 <0.186 0 calls/sub 1.00 53.8/1293 us
+   75 deg U+RS top2.0     runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0232 eye min 1.383 <0 0 <0.1 0 <0.186 0 calls/sub 2.48 82.5/3059 us
+   75 deg U+RS top4.15    runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0129 eye min 1.383 <0 0 <0.1 0 <0.186 0 calls/sub 2.50 82.7/2305 us
+   90 deg adopted top2.0  runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 99.9% maxWob 0.0758 eye min 0.520 <0 0 <0.1 0 <0.186 0 calls/sub 1.00 53.9/1295 us
+   90 deg U+RS top2.0     runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0146 eye min 0.520 <0 0 <0.1 0 <0.186 0 calls/sub 2.48 79.1/2785 us
+   90 deg U+RS top4.15    runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0134 eye min 0.520 <0 0 <0.1 0 <0.186 0 calls/sub 2.53 78.8/3168 us
+  100 deg adopted top2.0  runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 99.9% maxWob 0.0326 eye min 0.217 <0 0 <0.1 0 <0.186 0 calls/sub 1.00 56.1/2218 us
+  100 deg U+RS top2.0     runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0201 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0231 eye min 0.217 <0 0 <0.1 0 <0.186 0 calls/sub 2.54 85.4/3069 us
+  100 deg U+RS top4.15    runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0137 eye min 0.591 <0 0 <0.1 0 <0.186 0 calls/sub 2.53 86.2/4127 us
+  110 deg adopted top2.0  runs 42 samples 16562 overlaps 0 gap<0 9744 worst -0.0187 reverts 19655 recoveries 0 itCap 0 minRet 0.4% maxWob 0.0753 eye min -0.130 <0 13590 <0.1 13623 <0.186 13659 calls/sub 1.00 60.6/3036 us
+  110 deg U+RS top2.0     runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0231 eye min -0.092 <0 13590 <0.1 13623 <0.186 13659 calls/sub 2.56 87.4/2026 us
+  110 deg U+RS top4.15    runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0136 eye min 0.644 <0 0 <0.1 0 <0.186 0 calls/sub 2.53 89.8/4219 us
+  120 deg adopted top2.0  runs 42 samples 16562 overlaps 0 gap<0 11108 worst -0.0169 reverts 23576 recoveries 0 itCap 0 minRet 0.1% maxWob 0.0759 eye min -0.434 <0 13864 <0.1 13903 <0.186 13932 calls/sub 1.00 60.6/2043 us
+  120 deg U+RS top2.0     runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0201 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0133 eye min -0.397 <0 13864 <0.1 13903 <0.186 13932 calls/sub 2.53 88.6/2210 us
+  120 deg U+RS top4.15    runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0146 eye min 0.678 <0 0 <0.1 0 <0.186 0 calls/sub 2.60 90.1/3112 us
+  135 deg adopted top2.0  runs 42 samples 16562 overlaps 0 gap<0 7859 worst -0.0140 reverts 26195 recoveries 0 itCap 0 minRet 0.1% maxWob 0.0545 eye min -0.500 <0 14401 <0.1 14450 <0.186 14491 calls/sub 1.00 55.7/1456 us
+  135 deg U+RS top2.0     runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0284 eye min -0.500 <0 14401 <0.1 14450 <0.186 14491 calls/sub 2.55 91.7/4916 us
+  135 deg U+RS top4.15    runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0201 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0170 eye min 0.692 <0 0 <0.1 0 <0.186 0 calls/sub 2.66 92.3/3536 us
+  150 deg adopted top2.0  runs 42 samples 16562 overlaps 0 gap<0 3861 worst -0.0087 reverts 27768 recoveries 0 itCap 0 minRet 0.1% maxWob 0.0710 eye min -0.500 <0 691 <0.1 825 <0.186 1459 calls/sub 1.00 52.9/1240 us
+  150 deg U+RS top2.0     runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0200 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0270 eye min -0.500 <0 691 <0.1 825 <0.186 952 calls/sub 2.61 92.9/3360 us
+  150 deg U+RS top4.15    runs 42 samples 16562 overlaps 0 gap<0 0 worst 0.0198 reverts 0 recoveries 0 itCap 0 minRet 100.0% maxWob 0.0338 eye min 0.659 <0 0 <0.1 0 <0.186 0 calls/sub 2.75 96.5/2341 us
+
+  cost by regime over all inclinations and incidences (mean / max us per sample):
+    adopted top2.0 30@20       160.6 / 2031  (KCC calls per sub-step 1.00)
+    adopted top2.0 30@120      26.7 / 2218  (KCC calls per sub-step 1.00)
+    adopted top2.0 30@250      28.1 / 3036  (KCC calls per sub-step 1.00)
+    adopted top2.0 141@20      765.8 / 1944  (KCC calls per sub-step 1.00)
+    adopted top2.0 141@120     131.8 / 1728  (KCC calls per sub-step 1.00)
+    adopted top2.0 141@250     81.2 / 1293  (KCC calls per sub-step 1.00)
+    U+RS top2.0 30@20          264.5 / 1628  (KCC calls per sub-step 2.51)
+    U+RS top2.0 30@120         43.8 / 3059  (KCC calls per sub-step 2.50)
+    U+RS top2.0 30@250         43.4 / 3360  (KCC calls per sub-step 2.49)
+    U+RS top2.0 141@20         1256.9 / 4916  (KCC calls per sub-step 2.51)
+    U+RS top2.0 141@120        216.7 / 2961  (KCC calls per sub-step 2.50)
+    U+RS top2.0 141@250        129.4 / 2969  (KCC calls per sub-step 2.50)
+    U+RS top4.15 30@20         267.4 / 1993  (KCC calls per sub-step 2.54)
+    U+RS top4.15 30@120        44.1 / 1599  (KCC calls per sub-step 2.53)
+    U+RS top4.15 30@250        43.9 / 2967  (KCC calls per sub-step 2.51)
+    U+RS top4.15 141@20        1279.3 / 4219  (KCC calls per sub-step 2.54)
+    U+RS top4.15 141@120       218.0 / 2288  (KCC calls per sub-step 2.53)
+    U+RS top4.15 141@250       131.7 / 3112  (KCC calls per sub-step 2.53)
