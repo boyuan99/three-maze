@@ -351,6 +351,8 @@ This document is version **1.0**, core subset. Until v1.0-rc, DPR-05b and the it
 | `src/protocol/linkTypes.ts` | TypeScript types generated from the schemas: `LinkMessage`, `MessageOfType<'event'>`, one type per titled schema |
 | `scripts/gen-link-types.mjs` | the generator: `npm run protocol:types` |
 | `test/frontend/protocol/`, `test/backend/test_link_protocol.py` | the tests (`npm test`, `.venv/Scripts/python -m pytest`) |
+| `threemaze/link/server.py`, `stream.py`, `receive.py`, `log.py` | the rig runtime's end (plan item DPR-06b): handshake, heartbeats, session state, the sample stream to the motion client, and the link log of what clients send, `<session>/link.jsonl` |
+| `test/backend/runtime/test_link.py` | its tests, with a mock motion worker and mock monitors |
 
 Validating a message:
 

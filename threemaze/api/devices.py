@@ -11,12 +11,17 @@ instance per device bound to a role and calls, in this order:
     safe_state()  output devices: whenever the session stops or aborts, first; idempotent
     close()       always, last; idempotent
 
-Later plan items add the reading side of input devices (SerialLineSource, DPR-03) and the pulse
-side of output devices (configure and fire, DPR-09).
+An input device hands what it reads to the runtime as batches of records
+(threemaze.core.records): it calls ctx.on_batch(device name, records), through
+ctx.loop.call_soon_threadsafe when the runtime runs an asyncio event loop. The reading side of
+the built-in drivers is threemaze/devices/serial_lines.py (SerialLineSource, plan item DPR-03); it
+joins this API when rig builders can write drivers of their own (plan item DPR-28, phase 2). A
+later plan item adds the pulse side of output devices (configure and fire, DPR-09).
 """
+import asyncio
 import logging
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar, Protocol
@@ -33,13 +38,17 @@ class Clock(Protocol):
 @dataclass(frozen=True)
 class DeviceContext:
     """What the runtime gives a device: the session clock, the session folder, the folder that
-    relative paths in the rig file start from, the device's calibration entry and a logger."""
+    relative paths in the rig file start from, the device's calibration entry, a logger, and where
+    its records go: on_batch(device name, records), called on `loop` (with call_soon_threadsafe)
+    when the runtime has an event loop, else on the device's reader thread; None: nowhere."""
 
     clock: Clock
     session_dir: Path
     rig_dir: Path
     calibration: Mapping[str, Any] | None = None
     log: logging.Logger = field(default_factory=lambda: logging.getLogger("threemaze.devices"))
+    loop: asyncio.AbstractEventLoop | None = None
+    on_batch: Callable[[str, list[Any]], None] | None = None
 
     def resolve(self, path: str) -> Path:
         """A path from the rig file: relative paths are relative to the rig file's folder."""
