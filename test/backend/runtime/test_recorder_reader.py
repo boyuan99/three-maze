@@ -10,10 +10,13 @@ end-to-end bench's simulated serial port (test/e2e/sim) in a child process whose
 event loop, so the batches reach the session on the reader's thread. Both ways, every sample the
 device produced is a row or is counted as lost where it was lost, every fault is counted, and
 session.json is complete and valid. Two more runs end a session while its event loop is busy, and
-stream to a motion worker that takes no sample at all. Nothing here opens a real serial port.
+stream to a motion worker that takes no sample at all; and a sample that the recorder refuses
+costs no other sample its row. Nothing here opens a real serial port.
 """
 import asyncio
+import dataclasses
 import json
+import math
 import sys
 import threading
 import time
@@ -203,6 +206,30 @@ def test_samples_waiting_on_a_busy_loop_when_the_session_ends_are_recorded(sim_r
     assert rows == [as_row(s) for s in received] and rows[-1]["seq"] == held[-1].seq
     assert session.recording["late"] == 0
     assert session.recording["files"][SAMPLES] == {"rows": len(rows), "dropped": 0}
+
+
+def test_a_sample_the_recorder_refuses_costs_no_other_row(sim_rig_path, tmp_path):
+    """A sample the recorder cannot record (here one whose displacement is not a finite number)
+    gets no row: the session logs it and names it in a warning event, the samples after it in the
+    same batch get their rows, the listeners get the whole batch, and the gap is counted."""
+    listener = Samples()
+    session = Session()
+    session.add_listener(listener)
+    session.configure(sim_rig_path, data_root=tmp_path)
+    session.set_task(TaskSource("declarative", "linear_track"))
+    folder = session.arm()
+    batch = [DeviceSample(k, 50_000 * (k + 1), 50_000, (0, 16, 0), (0.5584, 0.0, 0.0), 0, 0, k)
+             for k in range(3)]
+    batch[1] = dataclasses.replace(batch[1], d=(math.inf, 0.0, 0.0))
+    session.devices["ball"].ctx.on_batch("ball", batch)   # as the ball's reader hands one over
+    session.abort("test over")
+    assert [row["seq"] for row in read_table(folder / SAMPLES).rows] == [0, 2]
+    assert listener.got == batch
+    warnings = [e["data"] for e in read_log(folder / EVENTS).records if e["kind"] == "warning"]
+    assert [(w["code"], w["seq"]) for w in warnings] == [("sample_not_recorded", 1),
+                                                         ("sample_seq", 2)]
+    assert "not a finite number" in warnings[0]["message"]
+    assert session.unrecorded_samples == 1 and session.recording["seq_mismatches"] == 1
 
 
 def hello(session_id):
